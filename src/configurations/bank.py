@@ -137,6 +137,7 @@ class AmbitBankLayoutConfiguration:
         print(f"    total_rows_for_reserved_ambit_compute:  {self.total_rows_for_reserved_ambit_compute}")
 
     def address_mapping(self):
+        """Return the row address mapping for this configuration"""
         base = 0
         mapping = dict()
 
@@ -275,6 +276,7 @@ class BlimpBankLayoutConfiguration:
         print(f"    total_rows_for_hitmaps:                 {self.total_rows_for_hitmaps}")
 
     def address_mapping(self):
+        """Return the row address mapping for this configuration"""
         base = 0
         mapping = dict()
 
