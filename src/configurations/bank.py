@@ -18,10 +18,21 @@ class BankLayoutConfiguration:
         print("User Configuration:")
         self._user_configuration.display()
 
+    @property
     def address_mapping(self):
         """Return the row address mapping for this configuration"""
         mapping = dict()
         return mapping
+
+    @property
+    def system_configuration(self):
+        """Get the internal system configuration"""
+        return self._system_configuration
+
+    @property
+    def database_configuration(self):
+        """Get the internal user-defined database configuration"""
+        return self._user_configuration
 
 
 class AmbitBankLayoutConfiguration(BankLayoutConfiguration):
