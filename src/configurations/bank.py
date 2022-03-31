@@ -1,12 +1,34 @@
 import math
 
-from src.configurations.system import AmbitSystemConfiguration, BlimpSystemConfiguration
-from src.configurations.user import AmbitDatabaseConfiguration, BlimpDatabaseConfiguration
+from src.configurations.system import AmbitSystemConfiguration, BlimpSystemConfiguration, SystemConfiguration
+from src.configurations.user import AmbitDatabaseConfiguration, BlimpDatabaseConfiguration, DatabaseConfiguration
 
 
-class AmbitBankLayoutConfiguration:
+class BankLayoutConfiguration:
+    """Defines the row layout configuration for a standard DRAM database bank"""
+    def __init__(self, system: SystemConfiguration, user: DatabaseConfiguration):
+        self._system_configuration = system
+        self._user_configuration = user
+
+    def display(self):
+        """Dump the configuration into the console for visual inspection"""
+        print("System Configuration:")
+        self._system_configuration.display()
+
+        print("User Configuration:")
+        self._user_configuration.display()
+
+    def address_mapping(self):
+        """Return the row address mapping for this configuration"""
+        mapping = dict()
+        return mapping
+
+
+class AmbitBankLayoutConfiguration(BankLayoutConfiguration):
     """Defines the row layout configuration for an AMBIT-BLIMP database bank"""
     def __init__(self, system: AmbitSystemConfiguration, user: AmbitDatabaseConfiguration):
+        super().__init__(system, user)
+
         self._system_configuration = system
         self._user_configuration = user
 
@@ -166,9 +188,11 @@ class AmbitBankLayoutConfiguration:
         return mapping
 
 
-class BlimpBankLayoutConfiguration:
+class BlimpBankLayoutConfiguration(BankLayoutConfiguration):
     """Defines the row layout configuration for an BLIMP database bank"""
     def __init__(self, system: BlimpSystemConfiguration, user: BlimpDatabaseConfiguration):
+        super().__init__(system, user)
+
         self._system_configuration = system
         self._user_configuration = user
 
