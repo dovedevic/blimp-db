@@ -1,12 +1,12 @@
 import math
 
-from src.configurations.system import AmbitSystemConfiguration, BlimpSystemConfiguration, SystemConfiguration
-from src.configurations.user import AmbitDatabaseConfiguration, BlimpDatabaseConfiguration, DatabaseConfiguration
+from src.configurations.hardware import AmbitSystemConfiguration, BlimpSystemConfiguration, HardwareConfiguration
+from src.configurations.database import AmbitDatabaseConfiguration, BlimpDatabaseConfiguration, DatabaseConfiguration
 
 
 class BankLayoutConfiguration:
     """Defines the row layout configuration for a standard DRAM database bank"""
-    def __init__(self, system: SystemConfiguration, user: DatabaseConfiguration):
+    def __init__(self, system: HardwareConfiguration, user: DatabaseConfiguration):
         self._system_configuration = system
         self._user_configuration = user
 
