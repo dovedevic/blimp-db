@@ -43,7 +43,7 @@ class HardwareConfiguration(BaseModel):
             return cls(**json.load(fp))
 
 
-class BlimpSystemConfiguration(HardwareConfiguration):
+class BlimpHardwareConfiguration(HardwareConfiguration):
     """Defines unchanging BLIMP system configurations sitting on top of an existing system configuration"""
     # Intrinsic Hardware Values
     blimp_frequency: int
@@ -57,7 +57,7 @@ class BlimpSystemConfiguration(HardwareConfiguration):
         self.time_per_blimp_cycle_ns = 1 / self.blimp_frequency * 1000000000
 
 
-class AmbitSystemConfiguration(BlimpSystemConfiguration):
+class AmbitHardwareConfiguration(BlimpHardwareConfiguration):
     """Defines unchanging AMBIT system configurations sitting on top of an existing BLIMP system configuration"""
     # Intrinsic Hardware Values
     ambit_control_rows: int
