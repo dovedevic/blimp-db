@@ -1,7 +1,7 @@
 import json
 import logging
 
-from src.configurations.system import SystemConfiguration, BlimpSystemConfiguration, AmbitSystemConfiguration
+from src.configurations.hardware import HardwareConfiguration, BlimpHardwareConfiguration, AmbitHardwareConfiguration
 from utils import performance
 
 _logger = logging.getLogger(__name__)
@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 
 class Bank:
     """Defines operations for a generic DRAM Bank"""
-    def __init__(self, configuration: SystemConfiguration, memory: list=None, default_byte_value: int=0xff):
+    def __init__(self, configuration: HardwareConfiguration, memory: list=None, default_byte_value: int=0xff):
         self._config = configuration
 
         # Ensure the default value is only one byte
@@ -116,7 +116,7 @@ class Bank:
             # Load the system configuration
             preamble = fp.readline()
             _logger.info(f"interpreting memory system configuration")
-            configuration = SystemConfiguration(**json.loads(preamble))
+            configuration = HardwareConfiguration(**json.loads(preamble))
 
             _logger.info(f"interpreting memory dump")
             # Parse the hexdump
@@ -138,14 +138,14 @@ class Bank:
 
 class BlimpBank(Bank):
     """Defines operations for a BLIMP/-V DRAM Bank"""
-    def __init__(self, configuration: BlimpSystemConfiguration, memory: list=None, default_byte_value: int=0xff):
+    def __init__(self, configuration: BlimpHardwareConfiguration, memory: list=None, default_byte_value: int=0xff):
         super().__init__(configuration, memory, default_byte_value)
 
 
 class AmbitBank(BlimpBank):
     """Defines operations for a BLIMP/-V controlled AMBIT DRAM Bank"""
 
-    def __init__(self, configuration: AmbitSystemConfiguration, memory: list = None, default_byte_value: int = 0xff):
+    def __init__(self, configuration: AmbitHardwareConfiguration, memory: list = None, default_byte_value: int = 0xff):
         super().__init__(configuration, memory, default_byte_value)
 
     def get_inverted_row_bytes(self, row_index: int):
