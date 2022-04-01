@@ -13,7 +13,7 @@ class SimulatedBank:
             bank_hardware,
             logger=None
             ):
-        self.logger = logger or logging.getLogger(self.__class__.__name__)
+        self._logger = logger or logging.getLogger(self.__class__.__name__)
         self.configuration = layout_configuration
         self.bank_hardware = bank_hardware
 
