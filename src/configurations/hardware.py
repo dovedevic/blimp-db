@@ -3,7 +3,7 @@ import json
 from pydantic import BaseModel
 
 
-class SystemConfiguration(BaseModel):
+class HardwareConfiguration(BaseModel):
     """Defines unchanging system configurations intrinsic to the hardware placed in a system at runtime"""
     # Intrinsic Hardware Values
     bank_size_bytes: int
@@ -43,7 +43,7 @@ class SystemConfiguration(BaseModel):
             return cls(**json.load(fp))
 
 
-class BlimpSystemConfiguration(SystemConfiguration):
+class BlimpSystemConfiguration(HardwareConfiguration):
     """Defines unchanging BLIMP system configurations sitting on top of an existing system configuration"""
     # Intrinsic Hardware Values
     blimp_frequency: int
