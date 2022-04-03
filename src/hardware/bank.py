@@ -147,7 +147,7 @@ class AmbitBank(BlimpBank):
     """Defines operations for a BLIMP/-V controlled AMBIT DRAM Bank"""
 
     def __init__(self, configuration: AmbitHardwareConfiguration, memory: list = None, default_byte_value: int = 0xff):
-        super().__init__(configuration, memory, default_byte_value)
+        super(AmbitBank, self).__init__(configuration, memory, default_byte_value)
 
     def get_inverted_row_bytes(self, row_index: int):
         """Fetch a row by its index and return the inverted byte array"""
