@@ -14,8 +14,6 @@ class SimulatedBlimpBank(SimulatedBank):
             logger=None
             ):
         super(SimulatedBlimpBank, self).__init__(layout_configuration, bank_hardware, logger)
-        self.configuration = layout_configuration
-        self.bank_hardware = bank_hardware
         self._logger.info(f"simulator loaded")
 
     def layout(self, record_set: DatabaseRecordGenerator, **kwargs):
