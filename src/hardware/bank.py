@@ -4,13 +4,12 @@ import logging
 from src.configurations.hardware import HardwareConfiguration, BlimpHardwareConfiguration, AmbitHardwareConfiguration
 from utils import performance
 
-_logger = logging.getLogger(__name__)
-
 
 class Bank:
     """Defines operations for a generic DRAM Bank"""
     def __init__(self, configuration: HardwareConfiguration, memory: list=None, default_byte_value: int=0xff):
         self._config = configuration
+        self._logger = logging.getLogger(self.__class__.__name__)
 
         # Ensure the default value is only one byte
         if default_byte_value < 0 or default_byte_value >= 256:
@@ -29,11 +28,11 @@ class Bank:
         self.memory = memory or [
             [default_byte_value] * configuration.row_buffer_size_bytes
         ] * configuration.bank_rows
-        _logger.info(f"bank loaded with {'initial' if memory else 'null'} memory state")
+        self._logger.info(f"bank loaded with {'initial' if memory else 'null'} memory state")
 
     def get_row_bytes(self, row_index: int):
         """Fetch a row by its index and return the byte array"""
-        _logger.debug(f"bank fetch at {hex(row_index * self._config.row_buffer_size_bytes)} (row {row_index})")
+        self._logger.debug(f"bank fetch at {hex(row_index * self._config.row_buffer_size_bytes)} (row {row_index})")
         return self.memory[row_index]
 
     def get_raw_row(self, row_index: int):
@@ -46,7 +45,7 @@ class Bank:
 
     def set_row_bytes(self, row_index: int, byte_array: list):
         """Set a specified row with a provided byte array"""
-        _logger.debug(f"bank store at {hex(row_index * self._config.row_buffer_size_bytes)} (row {row_index})")
+        self._logger.debug(f"bank store at {hex(row_index * self._config.row_buffer_size_bytes)} (row {row_index})")
 
         # Ensure this is row-buffer sized
         if len(byte_array) != self._config.row_buffer_size_bytes:
@@ -80,16 +79,16 @@ class Bank:
 
     def save(self, path: str, dump_with_ascii=True):
         """Save the current state of the bank's memory with the system configuration and a hexdump"""
-        _logger.info(f"saving memory state into {path}")
+        self._logger.info(f"saving memory state into {path}")
         performance.start_performance_tracking()
         with open(path, 'w') as fp:
             # Write the system configuration
-            _logger.info(f"saving memory system configuration")
+            self._logger.info(f"saving memory system configuration")
             json.dump(self._config.dict(), fp)
             fp.write("\n")
 
             # Hexdump the memory with address, hexdump, ascii dump
-            _logger.info(f"saving memory dump")
+            self._logger.info(f"saving memory dump")
             for idx, row in enumerate(self.memory):
                 address_line = f'%08X:  ' % (idx * self._config.row_buffer_size_bytes)
                 byte_string = ""
@@ -106,11 +105,12 @@ class Bank:
                 fp.write(' ')
                 fp.write(ascii_string)
                 fp.write('\n')
-        _logger.info(f"memory state saved in {performance.end_performance_tracking()}s")
+        self._logger.info(f"memory state saved in {performance.end_performance_tracking()}s")
 
-    @staticmethod
-    def load(path: str):
+    @classmethod
+    def load(cls, path: str):
         """Load a saved bank memory dump"""
+        _logger = logging.getLogger(cls.__name__)
         _logger.info(f"loading memory state from {path}")
         performance.start_performance_tracking()
         with open(path, 'r') as fp:
@@ -140,7 +140,7 @@ class Bank:
 class BlimpBank(Bank):
     """Defines operations for a BLIMP/-V DRAM Bank"""
     def __init__(self, configuration: BlimpHardwareConfiguration, memory: list=None, default_byte_value: int=0xff):
-        super().__init__(configuration, memory, default_byte_value)
+        super(BlimpBank, self).__init__(configuration, memory, default_byte_value)
 
 
 class AmbitBank(BlimpBank):
@@ -151,7 +151,7 @@ class AmbitBank(BlimpBank):
 
     def get_inverted_row_bytes(self, row_index: int):
         """Fetch a row by its index and return the inverted byte array"""
-        _logger.debug(f"inverting values at {hex(row_index * self._config.row_buffer_size_bytes)}")
+        self._logger.debug(f"inverting values at {hex(row_index * self._config.row_buffer_size_bytes)}")
         result = self.get_row_bytes(row_index)
         inverted = [(~byte & 0xFF) for byte in result]
         return inverted
@@ -167,7 +167,7 @@ class AmbitBank(BlimpBank):
 
     def copy_row(self, from_index: int, to_index: int):
         """Copy a row from a specified index and set it to another row index"""
-        _logger.debug(f"row copy from "
+        self._logger.debug(f"row copy from "
                       f"{hex(from_index * self._config.row_buffer_size_bytes)} to "
                       f"{hex(to_index * self._config.row_buffer_size_bytes)}")
         result = self.get_row_bytes(from_index)
@@ -179,7 +179,7 @@ class AmbitBank(BlimpBank):
         Perform a Triple-Row-Activation (TRA) operation on three provided rows. Overwrites the values of all rows
         with the value of the TRA operation.
         """
-        _logger.debug(f"performing tra operation at addresses "
+        self._logger.debug(f"performing tra operation at addresses "
                       f"{hex(row_index_a * self._config.row_buffer_size_bytes)}, "
                       f"{hex(row_index_b * self._config.row_buffer_size_bytes)}, "
                       f"{hex(row_index_c * self._config.row_buffer_size_bytes)}")
