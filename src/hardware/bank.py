@@ -78,7 +78,7 @@ class Bank:
         self.set_row_bytes(row_index, byte_array)
         return value
 
-    def save(self, path: str):
+    def save(self, path: str, dump_with_ascii=True):
         """Save the current state of the bank's memory with the system configuration and a hexdump"""
         _logger.info(f"saving memory state into {path}")
         performance.start_performance_tracking()
@@ -96,10 +96,11 @@ class Bank:
                 ascii_string = ""
                 for byte in row:
                     byte_string += "%02X " % byte
-                    if 0x20 <= byte <= 0x7E:
-                        ascii_string += chr(byte)
-                    else:
-                        ascii_string += '.'
+                    if dump_with_ascii:
+                        if 0x20 <= byte <= 0x7E:
+                            ascii_string += chr(byte)
+                        else:
+                            ascii_string += '.'
                 fp.write(address_line)
                 fp.write(byte_string)
                 fp.write(' ')
