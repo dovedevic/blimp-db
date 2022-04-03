@@ -24,7 +24,7 @@ class SimulatedBlimpBank(SimulatedBank):
         @kwarg reset_hitmaps: Default (True); When performing layout, reset/initialize all hitmaps
         @kwarg hitmap_default_value: Default (True); If @reset_hitmaps is set, set hitmaps to this initial value
         """
-        self._logger.info(f"simulator beginning layout procedure")
+        self._logger.info(f"beginning blimp layout procedure")
         performance.start_performance_tracking()
         # Place BLIMP Records horizontally
         self.place_blimp_records(record_set)
@@ -32,11 +32,11 @@ class SimulatedBlimpBank(SimulatedBank):
         # Reset/Initialize the hitmaps if specified
         reset_hitmaps = kwargs.get('reset_hitmaps', True)
         if reset_hitmaps:
-            self._logger.info(f"simulator beginning hitmap reset/initialization")
+            self._logger.info(f"beginning hitmap reset/initialization")
             # If we are resetting hitmaps, get the value to use when resetting
             hitmap_default_value = kwargs.get('hitmap_default_value', True)
             self.reset_all_hitmaps(hitmap_default_value)
-        self._logger.info(f"simulator layout completed in {performance.end_performance_tracking()}s")
+        self._logger.info(f"blimp layout completed in {performance.end_performance_tracking()}s")
 
     def place_blimp_records(self, record_generator: DatabaseRecordGenerator):
         """Given a record generator and a database configuration, place records into the BLIMP-region horizontally"""
