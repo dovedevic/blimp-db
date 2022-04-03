@@ -9,8 +9,8 @@ class SimulatedBank:
     """Defines base simulation parameters for a generic DRAM Bank"""
     def __init__(
             self,
-            layout_configuration,
-            bank_hardware,
+            layout_configuration: BankLayoutConfiguration,
+            bank_hardware: Bank,
             logger=None
             ):
         self._logger = logger or logging.getLogger(self.__class__.__name__)
