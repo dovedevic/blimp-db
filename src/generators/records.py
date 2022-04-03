@@ -65,24 +65,48 @@ class DatabaseRecordGenerator:
             while True:
                 yield self._add_record(self._generate_record())
 
-    def _transform_to_raw(self, record: tuple):
-        """Given a record tuple, convert it to a raw binary format string"""
-        pi_field, data = record
-        raw = ''
-        if pi_field is not None:
-            raw += format(pi_field, f'0{self._pi_generator.data_size * 8}b')[:self._pi_generator.data_size * 8]
-        if data is not None:
-            raw += format(data, f'0{self._data_generator.data_size * 8}b')[:self._data_generator.data_size * 8]
-        return raw
+    def get_null_record(self) -> tuple:
+        """Return a null record used for padding or compliance"""
+        return 0, 0
 
-    def get_raw_record(self, index) -> str:
-        """Fetch a raw binary record from the corpus given an index"""
-        return self._transform_to_raw(self.get_record(index))
+    def get_raw_record(self, index) -> int:
+        """Fetch a raw record from the corpus given an index"""
+        pi, data = self.get_record(index)
+        return (pi << (self.data_size_bytes * 8)) | data
 
-    def get_raw_records(self) -> str:
+    def get_raw_records(self) -> int:
         """Generate a stream of raw records, if no record limit is set, continuously generate and return raw records"""
-        for record in self.get_records():
-            yield self._transform_to_raw(record)
+        for pi, data in self.get_records():
+            yield (pi << (self.data_size_bytes * 8)) | data
+
+    def get_raw_null_record(self) -> int:
+        """Return a raw null record used for padding or compliance"""
+        return 0
+
+    @property
+    def pi_size_bytes(self) -> int:
+        """Return the primary index generator size in bytes"""
+        return self._pi_generator.data_size
+
+    @property
+    def key_size_bytes(self) -> int:
+        """Return the key generator size in bytes, aliased to :func:pi_size_bytes"""
+        return self.pi_size_bytes
+
+    @property
+    def data_size_bytes(self) -> int:
+        """Return the data generator size in bytes"""
+        return self._data_generator.data_size
+
+    @property
+    def value_size_bytes(self) -> int:
+        """Return the value generator size in bytes, aliased to :func:data_size_bytes"""
+        return self.data_size_bytes
+
+    @property
+    def record_size_bytes(self) -> int:
+        """Return the total size of a generated record in bytes"""
+        return self.pi_size_bytes + self.data_size_bytes
 
     def save(self, path: str):
         """Save the current state of the record set. When loading, no further generation is possible"""
