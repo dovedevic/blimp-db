@@ -26,6 +26,7 @@ class SimulatedBlimpBank(SimulatedBank):
         """
         self._logger.info(f"beginning blimp layout procedure")
         performance.start_performance_tracking()
+
         # Place BLIMP Records horizontally
         self.place_blimp_records(record_set)
 
