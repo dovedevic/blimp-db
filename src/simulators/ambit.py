@@ -26,10 +26,20 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
         # Define ambit common-used values
         self._ambit_one = (2**(self.configuration.hardware_configuration.row_buffer_size_bytes * 8)) - 1
         self._ambit_zero = 0
+
+        # DCC Mappings
         self._ambit_dcc_map = {}
-        self._ambit_t_map = {}
         self._ambit_dcc_base = self.configuration.address_mapping["reserved_ambit_compute"][0] + 2
+        for dcc in range(self.configuration.hardware_configuration.ambit_dcc_rows):
+            # DCCi / !DCCi
+            self._ambit_dcc_map[self._ambit_dcc_base + 2 * dcc] = (self._ambit_dcc_base + 2 * dcc + 1, dcc)
+            self._ambit_dcc_map[self._ambit_dcc_base + 2 * dcc + 1] = (self._ambit_dcc_base + 2 * dcc, dcc)
+
+        # T Mappings
+        self._ambit_t_map = {}
         self._ambit_t_base = self._ambit_dcc_base + 2 * self.configuration.hardware_configuration.ambit_dcc_rows
+        for t in range(self.configuration.hardware_configuration.ambit_temporary_register_rows):
+            self._ambit_t_map[self._ambit_t_base + t] = t
 
         self._logger.info(f"simulator loaded")
 
@@ -104,9 +114,6 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
         for temp_row in range(ambit_temp_row_count):
             self.bank_hardware.set_raw_row(base_ambit_temp_rows + temp_row, self._ambit_zero)
 
-        # Get the base ambit-C/B groups
-        base_ambit_compute_rows, _ = self.configuration.address_mapping["reserved_ambit_compute"]
-
         # Set the C-group rows
         # C0
         self.bank_hardware.set_raw_row(self._ambit_control_0_row, self._ambit_zero)
@@ -115,18 +122,13 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
 
         # Set the B-group rows
         # Set the Dual-Contact-Cells (DCC)
-        dcc_base = base_ambit_compute_rows + 2
         for dcc in range(self.configuration.hardware_configuration.ambit_dcc_rows):
             # DCCi / !DCCi
-            self.bank_hardware.set_raw_row(dcc_base + 2 * dcc, self._ambit_zero)
-            self.bank_hardware.set_raw_row(dcc_base + 2 * dcc + 1, self._ambit_one)
-            self._ambit_dcc_map[dcc_base + 2 * dcc] = (dcc_base + 2 * dcc + 1, dcc)
-            self._ambit_dcc_map[dcc_base + 2 * dcc + 1] = (dcc_base + 2 * dcc, dcc)
+            self.bank_hardware.set_raw_row(self._ambit_dcc_base + 2 * dcc, self._ambit_zero)
+            self.bank_hardware.set_raw_row(self._ambit_dcc_base + 2 * dcc + 1, self._ambit_one)
         # Set the Temporary (T) registers
-        t_base = dcc_base + 2 * self.configuration.hardware_configuration.ambit_dcc_rows
         for t in range(self.configuration.hardware_configuration.ambit_temporary_register_rows):
-            self.bank_hardware.set_raw_row(t_base + t, self._ambit_zero)
-            self._ambit_t_map[t_base + t] = t
+            self.bank_hardware.set_raw_row(self._ambit_t_base + t, self._ambit_zero)
 
     @property
     def ambit_control_zero_row(self):
