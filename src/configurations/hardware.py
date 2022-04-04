@@ -62,7 +62,6 @@ class AmbitHardwareConfiguration(BlimpHardwareConfiguration):
     # Intrinsic Hardware Values
     ambit_temporary_register_rows: int
     ambit_dcc_rows: int
-    ambit_wordline_activation_rows: int
 
     # Calculated Fields
     time_for_TRA_MAJ_ns: float = None
