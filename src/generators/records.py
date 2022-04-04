@@ -69,6 +69,24 @@ class DatabaseRecordGenerator:
         """Return a null record used for padding or compliance"""
         return 0, 0
 
+    def get_pi_field(self, index) -> int:
+        """Fetch just the primary/index field"""
+        pi, _ = self.get_record(index)
+        return pi
+
+    def get_data_field(self, index) -> int:
+        """Fetch just the data field"""
+        _, data = self.get_record(index)
+        return data
+
+    def get_key_field(self, index) -> int:
+        """Fetch just the key field, aliased to :func:get_pi_field"""
+        return self.get_pi_field(index)
+
+    def get_value_field(self, index) -> int:
+        """Fetch just the value field, aliased to :func:get_data_field"""
+        return self.get_data_field(index)
+
     def get_raw_record(self, index) -> int:
         """Fetch a raw record from the corpus given an index"""
         pi, data = self.get_record(index)
