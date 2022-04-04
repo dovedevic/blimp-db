@@ -1,5 +1,5 @@
 class RuntimeResult:
-    """Defines a list of simulation steps, runtimes, and actions"""
+    """Defines a list of simulation steps, runtimes (in ns), and actions"""
     def __init__(self, runtime: float=0, label: str=None):
         self.history = list() if runtime == 0 and label is None else [(runtime, label)]
         self.runtime = runtime
