@@ -162,7 +162,12 @@ class SimulatedBlimpBank(SimulatedBank):
 
     def blimp_cycle(self, cycles=1, label="") -> RuntimeResult:
         """Perform a specified number of BLIMP cycles"""
-        return RuntimeResult(cycles * self.configuration.hardware_configuration.time_per_blimp_cycle_ns, label)
+        if cycles <= 0:
+            raise ValueError("argument 'cycles' cannot be less than one")
+        runtime = RuntimeResult(self.configuration.hardware_configuration.time_per_blimp_cycle_ns, label)
+        for c in range(cycles - 1):
+            runtime.step(self.configuration.hardware_configuration.time_per_blimp_cycle_ns)
+        return runtime
 
     def blimp_begin(self, return_labels=True) -> RuntimeResult:
         """Set the BLIMP-enable signal high to begin BLIMP bank operation"""
