@@ -13,56 +13,51 @@ class Bank:
 
         # Ensure the default value is only one byte
         if default_byte_value < 0 or default_byte_value >= 256:
-            raise ValueError("Default byte value must be expressable with a single byte")
+            raise ValueError("default byte value must be expressable with a single byte")
 
         # If a bank file was provided, ensure it is valid with the configuration
         if memory:
             # Too few bank rows?
             if len(memory) != configuration.bank_rows:
-                raise ValueError("The bank size does not match the configuration")
+                raise ValueError("the bank size does not match the configuration")
 
-            # All rows same size and equal to that of the configuration?
-            if any(len(row) != configuration.row_buffer_size_bytes for row in memory):
-                raise ValueError("The row buffer size does not match the configuration")
+            # All rows represent at least the maximum supported by the row buffer?
+            if any(row >= 2**(configuration.row_buffer_size_bytes * 8) or row < 0 for row in memory):
+                raise ValueError("the row buffer size does not match the configuration")
 
-        self.memory = memory or [
-            [default_byte_value] * configuration.row_buffer_size_bytes
-        ] * configuration.bank_rows
+        if memory:
+            self.memory = memory
+        else:
+            self.memory = []
+            for row in range(configuration.bank_rows):
+                value = 0
+                for _ in range(configuration.row_buffer_size_bytes):
+                    value <<= 8
+                    value += default_byte_value
+                self.memory.append(value)
         self._logger.info(f"bank loaded with {'initial' if memory else 'null'} memory state")
-
-    def get_row_bytes(self, row_index: int):
-        """Fetch a row by its index and return the byte array"""
-        self._logger.debug(f"bank fetch at {hex(row_index * self._config.row_buffer_size_bytes)} (row {row_index})")
-        return self.memory[row_index]
 
     def get_raw_row(self, row_index: int):
         """Fetch a row by its index and return integer representation of the byte array"""
-        raw_result = 0
-        for byte in self.get_row_bytes(row_index):
-            raw_result <<= 8
-            raw_result += byte
-        return raw_result
-
-    def set_row_bytes(self, row_index: int, byte_array: list):
-        """Set a specified row with a provided byte array"""
-        self._logger.debug(f"bank store at {hex(row_index * self._config.row_buffer_size_bytes)} (row {row_index})")
-
-        # Ensure this is row-buffer sized
-        if len(byte_array) != self._config.row_buffer_size_bytes:
-            raise ValueError("Byte array dimension does not match row buffer size")
-
-        # Ensure this is byte compliant
-        if any(byte < 0 or byte >= 256 for byte in byte_array):
-            raise ValueError("All values in the byte array must be byte-sized")
-
-        # Passed checks, set and return row
-        self.memory[row_index] = byte_array
-        return byte_array
+        self._logger.debug(f"bank fetch at {hex(row_index * self._config.row_buffer_size_bytes)} (row {row_index})")
+        return self.memory[row_index]
 
     def set_raw_row(self, row_index: int, value: int):
         """Set a specified row with a provided integer value acting as a raw byte array"""
+        self._logger.debug(f"bank store at {hex(row_index * self._config.row_buffer_size_bytes)} (row {row_index})")
+
+        # Ensure this is row-buffer sized
+        if value >= 2**(self._config.row_buffer_size_bytes*8) or value < 0:
+            raise ValueError("raw value bit width dimension does not match row buffer size")
+
+        # Passed checks, set and return row
+        self.memory[row_index] = value
+        return value
+
+    def get_row_bytes(self, row_index: int):
+        """Fetch a row by its index and return the byte array"""
+        raw_value = self.get_raw_row(row_index)
         byte_array = []
-        raw_value = value
         # Construct a byte array byte-by-byte
         while raw_value > 0:
             byte = raw_value & 0xFF
@@ -72,10 +67,28 @@ class Bank:
         byte_array += [0] * (self._config.row_buffer_size_bytes - len(byte_array))
         # Reverse the endianness
         byte_array.reverse()
+        return byte_array
 
-        # Set and return the row
-        self.set_row_bytes(row_index, byte_array)
-        return value
+    def set_row_bytes(self, row_index: int, byte_array: list):
+        """Set a specified row with a provided byte array"""
+
+        # Ensure this is row-buffer sized
+        if len(byte_array) != self._config.row_buffer_size_bytes:
+            raise ValueError("byte array dimension does not match row buffer size")
+
+        # Ensure this is byte compliant
+        if any(byte < 0 or byte >= 256 for byte in byte_array):
+            raise ValueError("all values in the byte array must be byte-sized")
+
+        # Passed checks, construct a raw value
+        raw_result = 0
+        for byte in byte_array:
+            raw_result <<= 8
+            raw_result += byte
+
+        # Save the raw value
+        self.set_raw_row(row_index, raw_result)
+        return raw_result
 
     def save(self, path: str, dump_with_ascii=True):
         """Save the current state of the bank's memory with the system configuration and a hexdump"""
@@ -89,10 +102,11 @@ class Bank:
 
             # Hexdump the memory with address, hexdump, ascii dump
             self._logger.info(f"saving memory dump")
-            for idx, row in enumerate(self.memory):
+            for idx in range(len(self.memory)):
                 address_line = f'%08X:  ' % (idx * self._config.row_buffer_size_bytes)
                 byte_string = ""
                 ascii_string = ""
+                row = self.get_row_bytes(idx)
                 for byte in row:
                     byte_string += "%02X " % byte
                     if dump_with_ascii:
@@ -129,8 +143,12 @@ class Bank:
                     # Convert the byte array hext string to integers
                     hex_byte_array = str_byte_array.split(" ")
                     byte_array = [int(byte, 16) for byte in hex_byte_array]
+                    raw_result = 0
+                    for byte in byte_array:
+                        raw_result <<= 8
+                        raw_result += byte
                     # Add this row to our memory array
-                    memory_array.append(byte_array)
+                    memory_array.append(raw_result)
             except ValueError:
                 raise ValueError("File contains non-parseable memory bytes")
         _logger.info(f"memory state loaded in {performance.end_performance_tracking()}s")
@@ -151,27 +169,33 @@ class AmbitBank(BlimpBank):
 
     def get_inverted_row_bytes(self, row_index: int):
         """Fetch a row by its index and return the inverted byte array"""
-        self._logger.debug(f"inverting values at {hex(row_index * self._config.row_buffer_size_bytes)}")
-        result = self.get_row_bytes(row_index)
-        inverted = [(~byte & 0xFF) for byte in result]
-        return inverted
+        raw_inverted = self.get_inverted_raw_row(row_index)
+        inverted_byte_array = []
+        # Construct a byte array byte-by-byte
+        while raw_inverted > 0:
+            byte = raw_inverted & 0xFF
+            raw_inverted >>= 8
+            inverted_byte_array.append(byte)
+        # 0-pad the value
+        inverted_byte_array += [0] * (self._config.row_buffer_size_bytes - len(inverted_byte_array))
+        # Reverse the endianness
+        inverted_byte_array.reverse()
+        return inverted_byte_array
 
     def get_inverted_raw_row(self, row_index: int):
         """Fetch a row by its index and return the inverted integer representation of the byte array"""
-        inverted_result_array = self.get_inverted_row_bytes(row_index)
-        raw_result = 0
-        for byte in inverted_result_array:
-            raw_result <<= 8
-            raw_result += byte
-        return raw_result
+        self._logger.debug(f"inverting values at {hex(row_index * self._config.row_buffer_size_bytes)}")
+        result = self.get_raw_row(row_index)
+        inverted_result = (~result & (2**(self._config.row_buffer_size_bytes * 8) - 1))
+        return inverted_result
 
     def copy_row(self, from_index: int, to_index: int):
         """Copy a row from a specified index and set it to another row index"""
         self._logger.debug(f"row copy from "
                       f"{hex(from_index * self._config.row_buffer_size_bytes)} to "
                       f"{hex(to_index * self._config.row_buffer_size_bytes)}")
-        result = self.get_row_bytes(from_index)
-        result = self.set_row_bytes(to_index, result)
+        result = self.get_raw_row(from_index)
+        result = self.set_raw_row(to_index, result)
         return result
 
     def tra_rows(self, row_index_a: int, row_index_b: int, row_index_c: int, invert=False):
