@@ -2,6 +2,7 @@ from src.configurations.bank_layout import BlimpBankLayoutConfiguration
 from src.hardware.bank import BlimpBank
 from src.generators.records import DatabaseRecordGenerator
 from src.simulators.simulator import SimulatedBank
+from src.simulators.result import RuntimeResult
 from src.utils import performance
 
 
@@ -158,3 +159,8 @@ class SimulatedBlimpBank(SimulatedBank):
         for hitmap in range(self.configuration.database_configuration.hitmap_count):
             self.reset_hitmap(hitmap, value)
         self._logger.info(f"hitmaps reset/initialized in {performance.end_performance_tracking()}s")
+
+    def blimp_cycle(self, cycles=1, label="") -> RuntimeResult:
+        """Perform a specified number of BLIMP cycles"""
+        return RuntimeResult(cycles * self.configuration.hardware_configuration.time_per_blimp_cycle_ns, label)
+
