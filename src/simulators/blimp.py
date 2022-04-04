@@ -164,3 +164,13 @@ class SimulatedBlimpBank(SimulatedBank):
         """Perform a specified number of BLIMP cycles"""
         return RuntimeResult(cycles * self.configuration.hardware_configuration.time_per_blimp_cycle_ns, label)
 
+    def blimp_begin(self, return_labels=True) -> RuntimeResult:
+        """Set the BLIMP-enable signal high to begin BLIMP bank operation"""
+        # All we are simulating is a row access and read to the BLIMP transfer mux
+        if return_labels:
+            return RuntimeResult(
+                self.configuration.hardware_configuration.time_to_row_activate_ns,
+                "BLIMP ENABLE"
+            )
+        return RuntimeResult(self.configuration.hardware_configuration.time_to_row_activate_ns)
+
