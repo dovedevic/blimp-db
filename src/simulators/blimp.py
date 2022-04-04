@@ -160,22 +160,37 @@ class SimulatedBlimpBank(SimulatedBank):
             self.reset_hitmap(hitmap, value)
         self._logger.info(f"hitmaps reset/initialized in {performance.end_performance_tracking()}s")
 
-    def blimp_cycle(self, cycles=1, label="") -> RuntimeResult:
+    def blimp_cycle(self, cycles=1, label="", return_labels=True) -> RuntimeResult:
         """Perform a specified number of BLIMP cycles"""
         if cycles <= 0:
             raise ValueError("argument 'cycles' cannot be less than one")
-        runtime = RuntimeResult(self.configuration.hardware_configuration.time_per_blimp_cycle_ns, label)
+        runtime = RuntimeResult(
+            self.configuration.hardware_configuration.time_per_blimp_cycle_ns,
+            label if return_labels else ""
+        )
         for c in range(cycles - 1):
             runtime.step(self.configuration.hardware_configuration.time_per_blimp_cycle_ns)
         return runtime
 
+    def blimp_load(self, label="", return_labels=True):
+        """Perform a BLIMP load"""
+        return RuntimeResult(
+            self.configuration.hardware_configuration.time_to_row_activate_ns,
+            label if return_labels else ""
+        )
+
     def blimp_begin(self, return_labels=True) -> RuntimeResult:
         """Set the BLIMP-enable signal high to begin BLIMP bank operation"""
         # All we are simulating is a row access and read to the BLIMP transfer mux
-        if return_labels:
-            return RuntimeResult(
-                self.configuration.hardware_configuration.time_to_row_activate_ns,
-                "BLIMP ENABLE"
-            )
-        return RuntimeResult(self.configuration.hardware_configuration.time_to_row_activate_ns)
+        return RuntimeResult(
+            self.configuration.hardware_configuration.time_to_row_activate_ns,
+            "BLIMP ENABLE" if return_labels else ""
+        )
 
+    def blimp_end(self, return_labels=True) -> RuntimeResult:
+        """Set the BLIMP-enable signal low to complete BLIMP bank operation"""
+        # All we are simulating is a row access and read to the BLIMP transfer mux
+        return RuntimeResult(
+            self.configuration.hardware_configuration.time_to_row_activate_ns,
+            "BLIMP DISABLE" if return_labels else ""
+        )
