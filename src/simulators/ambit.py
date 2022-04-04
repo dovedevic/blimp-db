@@ -145,6 +145,16 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
         return self._ambit_t_base + register_index
 
     @property
+    def ambit_c0(self):
+        """Ambit C-group C0"""
+        return self.ambit_control_zero_row
+
+    @property
+    def ambit_c1(self):
+        """Ambit C-group C1"""
+        return self.ambit_control_one_row
+
+    @property
     def ambit_t0(self):
         """Ambit B-group T0 register"""
         return self.ambit_temporary_register(0)
@@ -191,14 +201,29 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
         return self.ambit_dcc_register(0)
 
     @property
+    def ambit_ndcc0(self):
+        """Ambit B-group !DCC0 register"""
+        return self.ambit_dcc_register(0) + 1
+
+    @property
     def ambit_dcc1(self):
         """Ambit B-group DCC1 register"""
         return self.ambit_dcc_register(1)
 
     @property
+    def ambit_ndcc1(self):
+        """Ambit B-group !DCC1 register"""
+        return self.ambit_dcc_register(1) + 1
+
+    @property
     def ambit_dcc2(self):
         """Ambit B-group DCC2 register"""
         return self.ambit_dcc_register(2)
+
+    @property
+    def ambit_ndcc2(self):
+        """Ambit B-group !DCC2 register"""
+        return self.ambit_dcc_register(2) + 1
 
     def _get_row_nice_name(self, row: int):
         if row in self._ambit_dcc_map:
