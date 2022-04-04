@@ -60,11 +60,18 @@ class BlimpHardwareConfiguration(HardwareConfiguration):
 class AmbitHardwareConfiguration(BlimpHardwareConfiguration):
     """Defines unchanging AMBIT system configurations sitting on top of an existing BLIMP system configuration"""
     # Intrinsic Hardware Values
-    ambit_control_rows: int
+    ambit_temporary_register_rows: int
+    ambit_dcc_rows: int
+    ambit_wordline_activation_rows: int
 
     # Calculated Fields
     time_for_TRA_MAJ_ns: float = None
     time_for_AAP_rowclone_ns: float = None
+
+    # Static Values
+    @property
+    def ambit_control_group_rows(self):
+        return 2
 
     def __init__(self, **data):
         super().__init__(**data)
