@@ -16,6 +16,7 @@ class RuntimeResult:
         """Perform a simulation step, similar to adding two results"""
         self.history.append((runtime, label))
         self.runtime += runtime
+        return self
 
     def save(self, path: str):
         """Save the runtime result"""
