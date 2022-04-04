@@ -257,13 +257,11 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
             inverted_bytes = self.bank_hardware.get_inverted_row_bytes(dst_row)
             self.bank_hardware.set_row_bytes(self._ambit_dcc_map[dst_row][0], inverted_bytes)
 
-        if return_labels:
-            # Return the result of the operation
-            return RuntimeResult(
-                self.configuration.hardware_configuration.time_for_AAP_rowclone_ns,
-                f"AAP {self._get_row_nice_name(src_row)} -> {self._get_row_nice_name(dst_row)}"
-            )
-        return RuntimeResult(self.configuration.hardware_configuration.time_for_AAP_rowclone_ns)
+        # Return the result of the operation
+        return self.ambit_blimp_dispatch(return_labels) + RuntimeResult(
+            self.configuration.hardware_configuration.time_for_AAP_rowclone_ns,
+            f"AAP {self._get_row_nice_name(src_row)} -> {self._get_row_nice_name(dst_row)}" if return_labels else ""
+        )
 
     def ambit_invert(self, src_row: int, dcc_row: int, dst_row: int, return_labels=True) -> RuntimeResult:
         """Perform a row inversion from src to dst row using AAP with a specified DCC row"""
@@ -319,12 +317,11 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
             inverted_bytes = self.bank_hardware.get_inverted_row_bytes(c_row)
             self.bank_hardware.set_row_bytes(self._ambit_dcc_map[c_row][0], inverted_bytes)
 
-        if return_labels:
-            return RuntimeResult(
-                self.configuration.hardware_configuration.time_for_TRA_MAJ_ns,
-                f"TRA {self._get_row_nice_name(a_row)} {self._get_row_nice_name(b_row)} {self._get_row_nice_name(c_row)}"
-            )
-        return RuntimeResult(self.configuration.hardware_configuration.time_for_TRA_MAJ_ns)
+        return self.ambit_blimp_dispatch(return_labels) + RuntimeResult(
+            self.configuration.hardware_configuration.time_for_TRA_MAJ_ns,
+            f"TRA {self._get_row_nice_name(a_row)} {self._get_row_nice_name(b_row)} {self._get_row_nice_name(c_row)}"
+            if return_labels else ""
+        )
 
     def ambit_and(self, a_row: int, b_row: int, control_dst: int, return_labels=True) -> RuntimeResult:
         """Perform a bitwise ambit AND operation on B-group A, B using the control_dst as a control register"""
@@ -347,3 +344,7 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
 
         # Return the result
         return ambit_setup + tra_runtime
+
+    def ambit_blimp_dispatch(self, return_labels=True) -> RuntimeResult:
+        """Have BLIMP send an AMBIT command sequence"""
+        return self.blimp_cycle(label='bbop[ambit]  ; blimp dispatch' if return_labels else "")
