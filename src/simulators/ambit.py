@@ -254,8 +254,8 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
 
         # If the destination is one of the DCC rows, invert the other one
         if dst_row in self._ambit_dcc_map:
-            inverted_bytes = self.bank_hardware.get_inverted_row_bytes(dst_row)
-            self.bank_hardware.set_row_bytes(self._ambit_dcc_map[dst_row][0], inverted_bytes)
+            inverted_value = self.bank_hardware.get_inverted_raw_row(dst_row)
+            self.bank_hardware.set_raw_row(self._ambit_dcc_map[dst_row][0], inverted_value)
 
         # Return the result of the operation
         return self.ambit_blimp_dispatch(return_labels) + RuntimeResult(
@@ -308,14 +308,14 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
 
         # If one of the operands was a DCC row, update its inverse
         if a_row in self._ambit_dcc_map:
-            inverted_bytes = self.bank_hardware.get_inverted_row_bytes(a_row)
-            self.bank_hardware.set_row_bytes(self._ambit_dcc_map[a_row][0], inverted_bytes)
+            inverted_value = self.bank_hardware.get_inverted_raw_row(a_row)
+            self.bank_hardware.set_raw_row(self._ambit_dcc_map[a_row][0], inverted_value)
         if b_row in self._ambit_dcc_map:
-            inverted_bytes = self.bank_hardware.get_inverted_row_bytes(b_row)
-            self.bank_hardware.set_row_bytes(self._ambit_dcc_map[b_row][0], inverted_bytes)
+            inverted_value = self.bank_hardware.get_inverted_raw_row(b_row)
+            self.bank_hardware.set_raw_row(self._ambit_dcc_map[b_row][0], inverted_value)
         if c_row in self._ambit_dcc_map:
-            inverted_bytes = self.bank_hardware.get_inverted_row_bytes(c_row)
-            self.bank_hardware.set_row_bytes(self._ambit_dcc_map[c_row][0], inverted_bytes)
+            inverted_value = self.bank_hardware.get_inverted_raw_row(c_row)
+            self.bank_hardware.set_raw_row(self._ambit_dcc_map[c_row][0], inverted_value)
 
         return self.ambit_blimp_dispatch(return_labels) + RuntimeResult(
             self.configuration.hardware_configuration.time_for_TRA_MAJ_ns,
