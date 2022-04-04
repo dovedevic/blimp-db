@@ -172,8 +172,7 @@ class AmbitBankLayoutConfiguration(BlimpBankLayoutConfiguration):
         # Ambit compute region rows, B and C groups
         self.total_rows_for_reserved_ambit_compute = self._hardware_configuration.ambit_dcc_rows * 2 + \
             self._hardware_configuration.ambit_control_group_rows + \
-            self._hardware_configuration.ambit_temporary_register_rows + \
-            self._hardware_configuration.ambit_wordline_activation_rows
+            self._hardware_configuration.ambit_temporary_register_rows
 
         # User-defined temporary rows (ambit D group) for ambit calculations
         self.total_rows_for_temporary_ambit_compute = self._database_configuration.ambit_temporary_bits
