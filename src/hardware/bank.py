@@ -134,7 +134,7 @@ class Bank:
             except ValueError:
                 raise ValueError("File contains non-parseable memory bytes")
         _logger.info(f"memory state loaded in {performance.end_performance_tracking()}s")
-        return Bank(configuration, memory=memory_array)
+        return cls(configuration, memory=memory_array)
 
 
 class BlimpBank(Bank):
