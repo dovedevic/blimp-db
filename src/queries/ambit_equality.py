@@ -39,8 +39,6 @@ class _AmbitEquality(Query):
         runtime = self.sim.blimp_begin(return_labels)
 
         # How many rows are represented by one hitmap
-        runtime += self.sim.blimp_load("lw [configuration]", return_labels)
-        runtime += self.sim.blimp_cycle(10, "; setup", return_labels)
         rows_per_hitmap = self.sim.configuration.total_rows_for_hitmaps \
             // self.sim.configuration.database_configuration.hitmap_count
         hitmap_base = self.sim.configuration.address_mapping["hitmaps"][0] + rows_per_hitmap * hitmap_index
