@@ -9,10 +9,10 @@ class RuntimeResult:
 
     def __add__(self, other):
         if isinstance(other, self.__class__):
-            combined_result_set = RuntimeResult()
-            combined_result_set.history = self.history + other.history
-            combined_result_set.runtime = self.runtime + other.runtime
-            return combined_result_set
+            self.runtime += other.runtime
+            self.history += other.history
+            del other
+            return self
         raise NotImplemented()
 
     def step(self, runtime: int, label: str=None):
