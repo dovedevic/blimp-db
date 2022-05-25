@@ -47,6 +47,7 @@ class BlimpHardwareConfiguration(HardwareConfiguration):
     """Defines unchanging BLIMP system configurations sitting on top of an existing system configuration"""
     # Intrinsic Hardware Values
     blimp_frequency: int
+    time_to_v0_transfer_ns: float
 
     # Calculated Fields
     time_per_blimp_cycle_ns: float = None
