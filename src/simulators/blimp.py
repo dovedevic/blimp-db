@@ -1,9 +1,12 @@
+import math
+
 from src.configurations.bank_layout import BlimpBankLayoutConfiguration
 from src.hardware.bank import BlimpBank
 from src.generators.records import DatabaseRecordGenerator
 from src.simulators.simulator import SimulatedBank
 from src.simulators.result import RuntimeResult
 from src.utils import performance
+from src.utils.bitmanip import byte_array_to_int, int_to_byte_array
 
 
 class SimulatedBlimpBank(SimulatedBank):
@@ -305,3 +308,231 @@ class SimulatedBlimpBank(SimulatedBank):
 
         # Return the result of the operation
         return result
+
+    def _blimpv_alu_unary_operation(self, register_a, sew, operation, invert):
+        """Perform a BLIMP-V unary operation and store the result in Register A"""
+        # Sanity checking
+        if register_a not in self.registers:
+            raise RuntimeError(f"Register '{register_a}' does not exist")
+        elif self.configuration.hardware_configuration.blimpv_sew_min_bytes > sew:
+            raise RuntimeError("SEW too small for this configuration")
+        elif self.configuration.hardware_configuration.blimpv_sew_max_bytes < sew:
+            raise RuntimeError("SEW too large for this configuration")
+        elif self.configuration.hardware_configuration.row_buffer_size_bytes % sew != 0:
+            raise RuntimeError(f"SEW of {sew} does not divide evenly into the configured row buffer width")
+
+        result = 0
+        for sew_chunk in range(self.configuration.hardware_configuration.row_buffer_size_bytes // sew):
+            a = byte_array_to_int(self.registers[register_a][sew_chunk*sew:sew_chunk*sew+sew])
+            c = operation(a)
+            c = ((~c if invert else c) & (2 ** (sew * 8)) - 1)  # eliminate any carry's and invert if needed
+            result <<= sew * 8
+            result += c
+
+        self.registers[register_a] = int_to_byte_array(result, self.configuration.hardware_configuration.row_buffer_size_bytes)
+
+    def _blimpv_alu_binary_operation(self, register_a, register_b, sew, operation, invert):
+        """Perform a BLIMP-V binary operation and store the result in Register B"""
+        # Sanity checking
+        if register_a not in self.registers:
+            raise RuntimeError(f"Register '{register_a}' does not exist")
+        elif register_b not in self.registers:
+            raise RuntimeError(f"Register '{register_b}' does not exist")
+        elif self.configuration.hardware_configuration.blimpv_sew_min_bytes > sew:
+            raise RuntimeError("SEW too small for this configuration")
+        elif self.configuration.hardware_configuration.blimpv_sew_max_bytes < sew:
+            raise RuntimeError("SEW too large for this configuration")
+        elif self.configuration.hardware_configuration.row_buffer_size_bytes % sew != 0:
+            raise RuntimeError(f"SEW of {sew} does not divide evenly into the configured row buffer width")
+
+        result = 0
+        for sew_chunk in range(self.configuration.hardware_configuration.row_buffer_size_bytes // sew):
+            a = byte_array_to_int(self.registers[register_a][sew_chunk*sew:sew_chunk*sew+sew])
+            b = byte_array_to_int(self.registers[register_b][sew_chunk*sew:sew_chunk*sew+sew])
+            c = operation(a, b)
+            c = ((~c if invert else c) & (2 ** (sew * 8)) - 1)  # eliminate any carry's and invert if needed
+            result <<= sew * 8
+            result += c
+
+        self.registers[register_b] = int_to_byte_array(result, self.configuration.hardware_configuration.row_buffer_size_bytes)
+
+    def _blimpv_alu_int_un_op(self, register_a, sew, operation, invert, op_name, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V unary operation on register 'a' on SEW bytes and store the result in register a"""
+        # Perform the operation
+        self._blimpv_alu_unary_operation(
+            register_a,
+            sew,
+            operation,
+            invert
+        )
+
+        # Calculate the number of cycles this operation takes
+        cycles = 1  # Start with one cycle to dispatch to the vector engine
+        # Calculate how many sew_chunks there are
+        sew_chunks = self.configuration.hardware_configuration.row_buffer_size_bytes // sew
+        # Calculate how many SEW ALU rounds are needed
+        alu_rounds = int(math.ceil(sew_chunks / self.configuration.hardware_configuration.number_of_vALUs))
+        # Assumption; each ALU takes less than a CPU cycle to execute
+        cycles += alu_rounds
+
+        # Return the runtime result
+        return self.blimp_cycle(
+            cycles=cycles,
+            label=f"\t{register_a} <- {op_name} {register_a}",
+            return_labels=return_labels
+        )
+
+    def _blimpv_alu_int_bin_op(self, register_a, register_b, sew, operation, invert, op_name, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V binary operation on register a and b on SEW bytes and store the result in register b"""
+        # Perform the operation
+        self._blimpv_alu_binary_operation(
+            register_a,
+            register_b,
+            sew,
+            operation,
+            invert
+        )
+
+        # Calculate the number of cycles this operation takes
+        cycles = 1  # Start with one cycle to dispatch to the vector engine
+        # Calculate how many sew_chunks there are
+        sew_chunks = self.configuration.hardware_configuration.row_buffer_size_bytes // sew
+        # Calculate how many SEW ALU rounds are needed
+        alu_rounds = int(math.ceil(sew_chunks / self.configuration.hardware_configuration.number_of_vALUs))
+        # Assumption; each ALU takes less than a CPU cycle to execute
+        cycles += alu_rounds
+
+        # Return the runtime result
+        return self.blimp_cycle(
+            cycles=cycles,
+            label=f"\t{register_b} <- {register_a} {op_name} {register_b}",
+            return_labels=return_labels
+        )
+
+    def blimpv_alu_int_and(self, register_a, register_b, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V AND operation on register a and b on SEW bytes and store the result in register b"""
+        # Perform the operation
+        return self._blimpv_alu_int_bin_op(
+            register_a,
+            register_b,
+            sew,
+            lambda a, b: a & b,
+            False,
+            "AND",
+            return_labels
+        )
+
+    def blimpv_alu_int_or(self, register_a, register_b, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V OR operation on register a and b on SEW bytes and store the result in register b"""
+        # Perform the operation
+        return self._blimpv_alu_int_bin_op(
+            register_a,
+            register_b,
+            sew,
+            lambda a, b: a | b,
+            False,
+            "OR",
+            return_labels
+        )
+
+    def blimpv_alu_int_xor(self, register_a, register_b, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V XOR operation on register a and b on SEW bytes and store the result in register b"""
+        # Perform the operation
+        return self._blimpv_alu_int_bin_op(
+            register_a,
+            register_b,
+            sew,
+            lambda a, b: a ^ b,
+            False,
+            "XOR",
+            return_labels
+        )
+
+    def blimpv_alu_int_nand(self, register_a, register_b, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V NAND operation on register a and b on SEW bytes and store the result in register b"""
+        # Perform the operation
+        return self._blimpv_alu_int_bin_op(
+            register_a,
+            register_b,
+            sew,
+            lambda a, b: a & b,
+            True,
+            "NAND",
+            return_labels
+        )
+
+    def blimpv_alu_int_nor(self, register_a, register_b, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V NOR operation on register a and b on SEW bytes and store the result in register b"""
+        # Perform the operation
+        return self._blimpv_alu_int_bin_op(
+            register_a,
+            register_b,
+            sew,
+            lambda a, b: a | b,
+            True,
+            "NOR",
+            return_labels
+        )
+
+    def blimpv_alu_int_xnor(self, register_a, register_b, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V XNOR operation on register a and b on SEW bytes and store the result in register b"""
+        # Perform the operation
+        return self._blimpv_alu_int_bin_op(
+            register_a,
+            register_b,
+            sew,
+            lambda a, b: a ^ b,
+            True,
+            "XNOR",
+            return_labels
+        )
+
+    def blimpv_alu_int_add(self, register_a, register_b, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V ADD operation on register a and b on SEW bytes and store the result in register b"""
+        # Perform the operation
+        return self._blimpv_alu_int_bin_op(
+            register_a,
+            register_b,
+            sew,
+            lambda a, b: a + b,
+            False,
+            "ADD",
+            return_labels
+        )
+
+    def blimpv_alu_int_sub(self, register_a, register_b, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V SUB operation on register a and b on SEW bytes and store the result in register b"""
+        # Perform the operation
+        return self._blimpv_alu_int_bin_op(
+            register_a,
+            register_b,
+            sew,
+            lambda a, b: a - b,
+            False,
+            "SUB",
+            return_labels
+        )
+
+    def blimpv_alu_int_not(self, register_a, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V NOT operation on register 'a' on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            lambda a: ~a,
+            False,
+            "NOT",
+            return_labels
+        )
+
+    def blimpv_alu_int_acc(self, register_a, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V ACC operation on register 'a' on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            lambda a: a + 1,
+            False,
+            "ACC",
+            return_labels
+        )
