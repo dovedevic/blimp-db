@@ -15,6 +15,17 @@ class SimulatedBlimpBank(SimulatedBank):
             logger=None
             ):
         super(SimulatedBlimpBank, self).__init__(layout_configuration, bank_hardware, logger)
+        self.configuration = layout_configuration
+        self.bank_hardware = bank_hardware
+
+        self.registers = {
+            self._v0(): [],
+            self._v1(): [],
+            self._v2(): [],
+            self._instr_buffer(): [],
+            self._data_pad(): []
+        }
+
         self._logger.info(f"simulator loaded")
 
     def layout(self, record_set: DatabaseRecordGenerator, **kwargs):
@@ -160,6 +171,56 @@ class SimulatedBlimpBank(SimulatedBank):
             self.reset_hitmap(hitmap, value)
         self._logger.info(f"hitmaps reset/initialized in {performance.end_performance_tracking()}s")
 
+    @staticmethod
+    def _v0():
+        """Register name for the pseudo-register linked to the row buffer"""
+        return "v0"
+
+    @staticmethod
+    def _v1():
+        """Register name for the first BLIMP-V vector register"""
+        return "v1"
+
+    @staticmethod
+    def _v2():
+        """Register name for the second BLIMP-V vector register"""
+        return "v2"
+
+    @staticmethod
+    def _instr_buffer():
+        """Register name for the Instruction Buffer"""
+        return "instr_buffer"
+
+    @staticmethod
+    def _data_pad():
+        """Register name for the Data Pad"""
+        return "data_pad"
+
+    @property
+    def blimp_v0(self):
+        """BLIMP V0 pseudo-row-buffer register"""
+        return self._v0()
+
+    @property
+    def blimp_v1(self):
+        """BLIMP-V V1 vector register"""
+        return self._v1()
+
+    @property
+    def blimp_v2(self):
+        """BLIMP-V V2 vector register"""
+        return self._v2()
+
+    @property
+    def blimp_instruction_buffer(self):
+        """BLIMP Instruction Buffer register"""
+        return self._instr_buffer()
+
+    @property
+    def blimp_data_scratchpad(self):
+        """BLIMP Data Scratchpad register"""
+        return self._data_pad()
+
     def blimp_cycle(self, cycles=1, label="", return_labels=True) -> RuntimeResult:
         """Perform a specified number of BLIMP cycles"""
         if cycles <= 0:
@@ -172,20 +233,17 @@ class SimulatedBlimpBank(SimulatedBank):
             runtime.step(self.configuration.hardware_configuration.time_per_blimp_cycle_ns)
         return runtime
 
-    def blimp_load(self, label="", return_labels=True):
-        """Perform a BLIMP load"""
-        return RuntimeResult(
-            self.configuration.hardware_configuration.time_to_row_activate_ns,
-            label if return_labels else ""
-        )
-
     def blimp_begin(self, return_labels=True) -> RuntimeResult:
         """Set the BLIMP-enable signal high to begin BLIMP bank operation"""
-        # All we are simulating is a row access and read to the BLIMP transfer mux
+
+        # Initialize the BLIMP instruction buffer register to the first row, others are garbage (but loaded here)
+        for r in self.registers:
+            self.blimp_load_register(r, 0)
+
         return RuntimeResult(
             self.configuration.hardware_configuration.time_to_row_activate_ns,
             "BLIMP ENABLE" if return_labels else ""
-        )
+        ) + self.blimp_cycle(cycles=5, label="; setup", return_labels=return_labels)
 
     def blimp_end(self, return_labels=True) -> RuntimeResult:
         """Set the BLIMP-enable signal low to complete BLIMP bank operation"""
@@ -194,3 +252,56 @@ class SimulatedBlimpBank(SimulatedBank):
             self.configuration.hardware_configuration.time_to_row_activate_ns,
             "BLIMP DISABLE" if return_labels else ""
         )
+
+    def blimp_load_register(self, register, row: int, return_labels=True) -> RuntimeResult:
+        """Fetch data into a specified internal register, via v0"""
+        # Sanity checking
+        if register not in self.registers:
+            raise RuntimeError(f"Register '{register}' does not exist")
+        result = self.blimp_cycle(return_labels=return_labels)
+
+        # Fetch the row via the row buffer
+        self.registers[self.blimp_v0] = self.bank_hardware.get_row_bytes(row)
+        result += RuntimeResult(
+            self.configuration.hardware_configuration.time_to_row_activate_ns,
+            f"mem[{row}] -> {self.blimp_v0}" if return_labels else ""
+        )
+
+        # The row buffer (and now v0) is loaded with data, transfer it via the mux if necessary
+        if register != self.blimp_v0:
+            self.registers[register] = self.registers[self.blimp_v0]
+
+            # Add time to transfer the row buffer/v0 to the specified mux destination
+            result += RuntimeResult(
+                self.configuration.hardware_configuration.time_to_v0_transfer_ns,
+                f"\t{self.blimp_v0} -> {register}" if return_labels else ""
+            )
+
+        # Return the result of the operation
+        return result
+
+    def blimp_save_register(self, register, row: int, return_labels=True) -> RuntimeResult:
+        """Save a specified internal register into a row, via v0"""
+        # Sanity checking
+        if register not in self.registers:
+            raise RuntimeError(f"Register '{register}' does not exist")
+        result = self.blimp_cycle(return_labels=return_labels)
+
+        # Transfer data to v0 only when we aren't already operating on it
+        if register != self.blimp_v0:
+            # Transfer the register via the mux to v0/row buffer
+            self.registers[self.blimp_v0] = self.registers[register]
+            result += RuntimeResult(
+                self.configuration.hardware_configuration.time_to_v0_transfer_ns,
+                f"\t{register} -> {self.blimp_v0}" if return_labels else ""
+            )
+
+        # Save v0 into the bank memory
+        self.bank_hardware.set_row_bytes(row, self.registers[self.blimp_v0])
+        result += RuntimeResult(
+            self.configuration.hardware_configuration.time_to_row_activate_ns,
+            f"{self.blimp_v0} -> mem[{row}]" if return_labels else ""
+        )
+
+        # Return the result of the operation
+        return result
