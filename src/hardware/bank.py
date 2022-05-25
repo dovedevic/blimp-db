@@ -3,6 +3,7 @@ import logging
 
 from src.configurations.hardware import HardwareConfiguration, BlimpHardwareConfiguration, AmbitHardwareConfiguration
 from utils import performance
+from utils.bitmanip import byte_array_to_int, int_to_byte_array
 
 
 class Bank:
@@ -57,16 +58,7 @@ class Bank:
     def get_row_bytes(self, row_index: int):
         """Fetch a row by its index and return the byte array"""
         raw_value = self.get_raw_row(row_index)
-        byte_array = []
-        # Construct a byte array byte-by-byte
-        while raw_value > 0:
-            byte = raw_value & 0xFF
-            raw_value >>= 8
-            byte_array.append(byte)
-        # 0-pad the value
-        byte_array += [0] * (self._config.row_buffer_size_bytes - len(byte_array))
-        # Reverse the endianness
-        byte_array.reverse()
+        byte_array = int_to_byte_array(raw_value, self._config.row_buffer_size_bytes)
         return byte_array
 
     def set_row_bytes(self, row_index: int, byte_array: list):
@@ -76,15 +68,7 @@ class Bank:
         if len(byte_array) != self._config.row_buffer_size_bytes:
             raise ValueError("byte array dimension does not match row buffer size")
 
-        # Ensure this is byte compliant
-        if any(byte < 0 or byte >= 256 for byte in byte_array):
-            raise ValueError("all values in the byte array must be byte-sized")
-
-        # Passed checks, construct a raw value
-        raw_result = 0
-        for byte in byte_array:
-            raw_result <<= 8
-            raw_result += byte
+        raw_result = byte_array_to_int(byte_array)
 
         # Save the raw value
         self.set_raw_row(row_index, raw_result)
@@ -143,10 +127,7 @@ class Bank:
                     # Convert the byte array hext string to integers
                     hex_byte_array = str_byte_array.split(" ")
                     byte_array = [int(byte, 16) for byte in hex_byte_array]
-                    raw_result = 0
-                    for byte in byte_array:
-                        raw_result <<= 8
-                        raw_result += byte
+                    raw_result = byte_array_to_int(byte_array)
                     # Add this row to our memory array
                     memory_array.append(raw_result)
             except ValueError:
@@ -170,16 +151,7 @@ class AmbitBank(BlimpBank):
     def get_inverted_row_bytes(self, row_index: int):
         """Fetch a row by its index and return the inverted byte array"""
         raw_inverted = self.get_inverted_raw_row(row_index)
-        inverted_byte_array = []
-        # Construct a byte array byte-by-byte
-        while raw_inverted > 0:
-            byte = raw_inverted & 0xFF
-            raw_inverted >>= 8
-            inverted_byte_array.append(byte)
-        # 0-pad the value
-        inverted_byte_array += [0] * (self._config.row_buffer_size_bytes - len(inverted_byte_array))
-        # Reverse the endianness
-        inverted_byte_array.reverse()
+        inverted_byte_array = int_to_byte_array(raw_inverted, self._config.row_buffer_size_bytes)
         return inverted_byte_array
 
     def get_inverted_raw_row(self, row_index: int):
