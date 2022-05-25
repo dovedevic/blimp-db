@@ -48,6 +48,10 @@ class BlimpHardwareConfiguration(HardwareConfiguration):
     # Intrinsic Hardware Values
     blimp_frequency: int
     time_to_v0_transfer_ns: float
+    number_of_vALUs: int
+    number_of_vFPUs: int
+    blimpv_sew_max_bytes: int
+    blimpv_sew_min_bytes: int
 
     # Calculated Fields
     time_per_blimp_cycle_ns: float = None
