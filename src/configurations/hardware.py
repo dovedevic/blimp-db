@@ -52,6 +52,7 @@ class BlimpHardwareConfiguration(HardwareConfiguration):
     number_of_vFPUs: int
     blimpv_sew_max_bytes: int
     blimpv_sew_min_bytes: int
+    processor_bit_architecture: int
 
     # Calculated Fields
     time_per_blimp_cycle_ns: float = None
