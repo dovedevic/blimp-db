@@ -283,6 +283,12 @@ class SimulatedBlimpBank(SimulatedBank):
         # Return the result of the operation
         return result
 
+    def blimp_get_register(self, register) -> [int]:
+        """Fetch the data for a BLIMP or BLIMP-V register"""
+        if register not in self.registers:
+            raise RuntimeError(f"Register '{register}' does not exist")
+        return self.registers[register]
+
     def blimp_save_register(self, register, row: int, return_labels=True) -> RuntimeResult:
         """Save a specified internal register into a row, via v0"""
         # Sanity checking
@@ -535,4 +541,70 @@ class SimulatedBlimpBank(SimulatedBank):
             False,
             "ACC",
             return_labels
+        )
+
+    def blimpv_alu_int_zero(self, register_a, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V ISZERO operation on register 'a' on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            lambda a: int(a == 0),
+            False,
+            "ZERO",
+            return_labels
+        )
+
+    def blimpv_alu_int_max(self, register_a, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V MAX operation on register 'a' on SEW bytes and store the result in register a"""
+        # Sanity checking
+        if register_a not in self.registers:
+            raise RuntimeError(f"Register '{register_a}' does not exist")
+        elif self.configuration.hardware_configuration.blimpv_sew_min_bytes > sew:
+            raise RuntimeError("SEW too small for this configuration")
+        elif self.configuration.hardware_configuration.blimpv_sew_max_bytes < sew:
+            raise RuntimeError("SEW too large for this configuration")
+        elif self.configuration.hardware_configuration.row_buffer_size_bytes % sew != 0:
+            raise RuntimeError(f"SEW of {sew} does not divide evenly into the configured row buffer width")
+
+        # Calculate the number of cycles this operation takes
+        cycles = 1  # Start with one cycle to dispatch to the vector engine
+
+        # Perform the operation
+        reduction_rounds = math.floor(math.log2(self.configuration.hardware_configuration.row_buffer_size_bytes // sew))
+        for reduction_round in range(reduction_rounds):
+            element_pairs = self.configuration.hardware_configuration.row_buffer_size_bytes \
+                            // sew \
+                            // (2**(reduction_round + 1))
+
+            # Calculate how many SEW ALU rounds are needed
+            alu_rounds = int(math.ceil(element_pairs / self.configuration.hardware_configuration.number_of_vALUs))
+            # Assumption; each ALU takes less than a CPU cycle to execute
+            cycles += alu_rounds
+
+            for pair_index in element_pairs:
+                pair_neighbor_distance = 2 ** reduction_round
+                left_pair_index = pair_index * 2 * 2 ** (reduction_round + 1)
+                right_pair_index = left_pair_index + pair_neighbor_distance
+
+                left_pair_byte_offset = left_pair_index * sew
+                right_pair_byte_offset = right_pair_index * sew
+
+                a = byte_array_to_int(self.registers[register_a][left_pair_byte_offset:left_pair_byte_offset+sew])
+                b = byte_array_to_int(self.registers[register_a][right_pair_byte_offset:right_pair_byte_offset+sew])
+                c = max(a, b)
+
+                # Set the left to the max
+                self.registers[register_a][left_pair_byte_offset:left_pair_byte_offset + sew] = int_to_byte_array(c, sew)
+
+                # Set the right to zero
+                self.registers[register_a][right_pair_byte_offset:right_pair_byte_offset + sew] = [0] * sew
+
+        # At this point register[0] begins the max sew element
+
+        # Return the runtime result
+        return self.blimp_cycle(
+            cycles=cycles,
+            label=f"\t{register_a}[0] <- MAX {register_a}",
+            return_labels=return_labels
         )
