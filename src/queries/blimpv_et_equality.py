@@ -102,8 +102,17 @@ class _BlimpVETEquality(Query):
 
                 # Early Termination (ET)
                 # If v2 is zero, break out of this loop
-                runtime += self.sim.blimpv_alu_int_max(self.sim.blimp_v2, pi_element_size_bytes, return_labels)
-                maximum = bitmanip.byte_array_to_int(self.sim.blimp_get_register(self.sim.blimp_v2)[0:pi_element_size_bytes])
+                # Set the SEW to the maximum since we are operating on bit levels
+                runtime += self.sim.blimpv_alu_int_max(
+                    self.sim.blimp_v2,
+                    self.sim.configuration.hardware_configuration.blimpv_sew_max_bytes,
+                    return_labels
+                )
+                maximum = bitmanip.byte_array_to_int(
+                    self.sim.blimp_get_register(
+                        self.sim.blimp_v2
+                    )[0:self.sim.configuration.hardware_configuration.blimpv_sew_max_bytes]
+                )
                 runtime += self.sim.blimp_cycle(1, f"; cmp {self.sim.blimp_v2}[0] == 0", return_labels)
                 if maximum == 0:
                     runtime += self.sim.blimp_cycle(1, "; ET return", return_labels)
