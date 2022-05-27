@@ -1,3 +1,6 @@
+# Ignore memdump files
+*.memdump
+
 # Ignore Mac files
 *.DS_Store
 
@@ -39,3 +42,11 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Visual Studio
+.vs/
+Debug/
+Release/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
