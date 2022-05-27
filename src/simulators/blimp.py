@@ -582,7 +582,7 @@ class SimulatedBlimpBank(SimulatedBank):
             # Assumption; each ALU takes less than a CPU cycle to execute
             cycles += alu_rounds
 
-            for pair_index in element_pairs:
+            for pair_index in range(element_pairs):
                 pair_neighbor_distance = 2 ** reduction_round
                 left_pair_index = pair_index * 2 * 2 ** (reduction_round + 1)
                 right_pair_index = left_pair_index + pair_neighbor_distance
