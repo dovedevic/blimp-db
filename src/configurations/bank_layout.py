@@ -1,4 +1,5 @@
 import math
+import json
 
 from src.configurations.hardware import AmbitHardwareConfiguration, BlimpHardwareConfiguration, HardwareConfiguration
 from src.configurations.database import AmbitDatabaseConfiguration, BlimpDatabaseConfiguration, DatabaseConfiguration
@@ -33,6 +34,29 @@ class BankLayoutConfiguration:
     def database_configuration(self):
         """Get the internal user-defined database configuration"""
         return self._database_configuration
+
+    def save(self, path: str, compact=False):
+        """
+        Save the layout configuration as a JSON object
+
+        @param path: The path and filename to save the configuration
+        @param compact: Whether the JSON saved should be compact or indented
+        """
+        configuration = {
+            "hardware": self._hardware_configuration.dict(),
+            "database": self._database_configuration.dict()
+        }
+        with open(path, "w") as fp:
+            if compact:
+                json.dump(configuration, fp)
+            else:
+                json.dump(configuration, fp, indent=4)
+
+    @classmethod
+    def load(cls, path: str):
+        """Load a layout configuration object"""
+        with open(path, 'r') as fp:
+            return cls(**json.load(fp))
 
 
 class BlimpBankLayoutConfiguration(BankLayoutConfiguration):
