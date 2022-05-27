@@ -1,5 +1,6 @@
-# Ignore memdump files
+# Ignore memdump and db files
 *.memdump
+*.db
 
 # Ignore Mac files
 *.DS_Store
