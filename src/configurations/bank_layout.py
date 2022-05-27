@@ -56,7 +56,9 @@ class BankLayoutConfiguration:
     def load(cls, path: str):
         """Load a layout configuration object"""
         with open(path, 'r') as fp:
-            return cls(**json.load(fp))
+            configuration = json.load(fp)
+            return cls(HardwareConfiguration(**configuration["hardware"]),
+                       DatabaseConfiguration(**configuration["database"]))
 
 
 class BlimpBankLayoutConfiguration(BankLayoutConfiguration):
@@ -183,6 +185,14 @@ class BlimpBankLayoutConfiguration(BankLayoutConfiguration):
         base += self.total_rows_for_hitmaps
 
         return mapping
+
+    @classmethod
+    def load(cls, path: str):
+        """Load a layout configuration object"""
+        with open(path, 'r') as fp:
+            configuration = json.load(fp)
+            return cls(BlimpHardwareConfiguration(**configuration["hardware"]),
+                       BlimpDatabaseConfiguration(**configuration["database"]))
 
 
 class AmbitBankLayoutConfiguration(BlimpBankLayoutConfiguration):
@@ -346,3 +356,11 @@ class AmbitBankLayoutConfiguration(BlimpBankLayoutConfiguration):
         ]
 
         return mapping
+
+    @classmethod
+    def load(cls, path: str):
+        """Load a layout configuration object"""
+        with open(path, 'r') as fp:
+            configuration = json.load(fp)
+            return cls(AmbitHardwareConfiguration(**configuration["hardware"]),
+                       AmbitDatabaseConfiguration(**configuration["database"]))
