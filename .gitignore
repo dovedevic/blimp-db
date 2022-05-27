@@ -3,10 +3,6 @@
 
 # Ignore build files
 builds/
-banks/
-configurations/
-records/
-simulations/
 
 # Ignore log files
 logs/
