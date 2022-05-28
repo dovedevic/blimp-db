@@ -36,6 +36,12 @@ class SimulationResult:
         self.result_record_indexes = result_record_indexes
         self.result_count = len(self.result_record_indexes)
 
+    def save(self, path: str):
+        """Save the simulation result"""
+        with open(path, 'w') as fp:
+            fp.write(f"hits: {self.result_count}\n")
+            fp.write(f"indices: {self.result_record_indexes}\n")
+
     @staticmethod
     def from_hitmap_byte_array(hitmap_byte_array: list, num_bits: int):
         """Given a byte array, fetch all indexes that have a 1-bit"""
