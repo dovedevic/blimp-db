@@ -1,0 +1,22 @@
+{
+    "best_case_ambit_equal": 601462.080000008,
+    "worst_case_ambit_equal": 601462.080000008,
+    "best_case_ambit_not_equal": 602823.0400000083,
+    "worst_case_ambit_not_equal": 602823.0400000083,
+    "best_case_blimp_equal": 11554410.0,
+    "worst_case_blimp_equal": 11554410.0,
+    "best_case_blimp_not_equal": 11554410.0,
+    "worst_case_blimp_not_equal": 11554410.0,
+    "best_case_blimp_v_equal": 149960.0,
+    "worst_case_blimp_v_equal": 149960.0,
+    "best_case_blimp_v_not_equal": 150384.0,
+    "worst_case_blimp_v_not_equal": 150384.0,
+    "best_case_blimp_v_et_equal": 3112.0,
+    "worst_case_blimp_v_et_equal": 173000.0,
+    "best_case_blimp_v_et_not_equal": 3536.0,
+    "worst_case_blimp_v_et_not_equal": 173424.0,
+    "best_case_ambit_et_equal": 30790.720000000016,
+    "worst_case_ambit_et_equal": 1944438.0800002243,
+    "best_case_ambit_et_not_equal": 32151.68000000001,
+    "worst_case_ambit_et_not_equal": 1945799.040000225
+}

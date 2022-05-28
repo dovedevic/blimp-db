@@ -1,0 +1,30 @@
+{
+    "hardware": {
+        "bank_size_bytes": 33554432,
+        "row_buffer_size_bytes": 1024,
+        "time_to_row_activate_ns": 33.0,
+        "time_to_column_activate_ns": 15.0,
+        "time_to_precharge_ns": 14.06,
+        "bank_rows": 32768,
+        "blimp_frequency": 200000000,
+        "time_to_v0_transfer_ns": 5.0,
+        "number_of_vALUs": 128,
+        "number_of_vFPUs": 0,
+        "blimpv_sew_max_bytes": 8,
+        "blimpv_sew_min_bytes": 1,
+        "processor_bit_architecture": 64,
+        "time_per_blimp_cycle_ns": 5.0,
+        "ambit_temporary_register_rows": 4,
+        "ambit_dcc_rows": 2,
+        "time_for_TRA_MAJ_ns": 47.06,
+        "time_for_AAP_rowclone_ns": 80.06
+    },
+    "database": {
+        "total_record_size_bytes": 512,
+        "total_index_size_bytes": 8,
+        "total_data_size_bytes": 504,
+        "hitmap_count": 3,
+        "blimp_code_region_size_bytes": 2048,
+        "ambit_temporary_bits": 0
+    }
+}
