@@ -88,15 +88,18 @@ errors = [
 matplotlib.rc('font', **{'family': 'linux libertine'})
 fig, ax = plt.subplots()  # type: plt.Figure, plt.Axes
 
-plt.bar(labels, values, yerr=errors, width=0.6)
-ax.set_xticks(labels, labels, rotation=45, fontweight="bold")
-ax.set_yscale('log')
+bars = plt.bar(labels, values, yerr=errors, width=0.6, edgecolor='black', linewidth=1.5, color='red')
 
-ax.set_title("Runtimes for Full Scan", fontweight="bold", fontsize=16)
+ax.set_xticks(labels, labels, rotation=45)
+ax.set_yscale('log')
+ax.set_title("Runtimes for Full EQUAL Scan", fontweight="bold", fontsize=16)
 ax.set_xlabel("System Architecture", fontweight="bold", fontsize=14)
 ax.set_ylabel("Runtime (ns)", fontweight="bold", fontsize=14)
+ax.set_ylim(bottom=1000)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+# ax.bar_label(bars)
 
 plt.tight_layout()
-
 plt.savefig(figure_output)
 plt.show()
