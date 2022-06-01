@@ -48,6 +48,8 @@ configuration = AmbitBankLayoutConfiguration(
     )
 )
 
+configuration.display()
+
 configuration_directory = os.path.join(study_dir, "configuration.json")
 if not overwriting or input(f"Overwrite {configuration_directory}? (yes|no)? ") == "yes":
     print("Saving configuration file")
