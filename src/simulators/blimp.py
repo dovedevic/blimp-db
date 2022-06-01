@@ -266,7 +266,8 @@ class SimulatedBlimpBank(SimulatedBank):
         # Fetch the row via the row buffer
         self.registers[self.blimp_v0] = self.bank_hardware.get_row_bytes(row)
         result += RuntimeResult(
-            self.configuration.hardware_configuration.time_to_row_activate_ns,
+            self.configuration.hardware_configuration.time_to_row_activate_ns +
+            self.configuration.hardware_configuration.time_to_precharge_ns,
             f"mem[{row}] -> {self.blimp_v0}" if return_labels else ""
         )
 
@@ -308,7 +309,8 @@ class SimulatedBlimpBank(SimulatedBank):
         # Save v0 into the bank memory
         self.bank_hardware.set_row_bytes(row, self.registers[self.blimp_v0])
         result += RuntimeResult(
-            self.configuration.hardware_configuration.time_to_row_activate_ns,
+            self.configuration.hardware_configuration.time_to_row_activate_ns +
+            self.configuration.hardware_configuration.time_to_precharge_ns,
             f"{self.blimp_v0} -> mem[{row}]" if return_labels else ""
         )
 
