@@ -11,12 +11,12 @@
     "worst_case_ambit_not_equal": 75436.87999999968,
     "best_case_ambit_et_not_equal": 22037.02,
     "worst_case_ambit_et_not_equal": 1391088.720000021,
-    "best_case_blimp_v_equal": 42268.359999999986,
-    "worst_case_blimp_v_equal": 42268.359999999986,
-    "best_case_blimp_v_et_equal": 984.24,
-    "worst_case_blimp_v_et_equal": 54428.359999999855,
-    "best_case_blimp_v_not_equal": 42490.419999999984,
-    "worst_case_blimp_v_not_equal": 42490.419999999984,
-    "best_case_blimp_v_et_not_equal": 1206.3,
-    "worst_case_blimp_v_et_not_equal": 54650.41999999985
+    "best_case_blimp_v_equal": 26908.360000000106,
+    "worst_case_blimp_v_equal": 26908.360000000106,
+    "best_case_blimp_v_et_equal": 634.24,
+    "worst_case_blimp_v_et_equal": 32028.360000000142,
+    "best_case_blimp_v_not_equal": 27010.420000000107,
+    "worst_case_blimp_v_not_equal": 27010.420000000107,
+    "best_case_blimp_v_et_not_equal": 736.3,
+    "worst_case_blimp_v_et_not_equal": 32130.420000000144
 }

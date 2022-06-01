@@ -26,5 +26,15 @@
         "hitmap_count": 1,
         "blimp_code_region_size_bytes": 2048,
         "ambit_temporary_bits": 0
+    },
+    "meta": {
+        "total_rows_for_configurable_data": 32756,
+        "total_records_processable": 64472,
+        "total_rows_for_blimp_code_region": 2,
+        "total_rows_for_records": 32236,
+        "total_rows_for_hitmaps": 8,
+        "total_rows_for_ambit_pi_field": 512,
+        "total_rows_for_temporary_ambit_compute": 0,
+        "total_rows_for_reserved_ambit_compute": 10
     }
 }

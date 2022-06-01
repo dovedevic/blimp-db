@@ -1,11 +1,11 @@
 {
     "hardware": {
         "bank_size_bytes": 33554432,
-        "row_buffer_size_bytes": 1024,
+        "row_buffer_size_bytes": 16384,
         "time_to_row_activate_ns": 33.0,
         "time_to_column_activate_ns": 15.0,
         "time_to_precharge_ns": 14.06,
-        "bank_rows": 32768,
+        "bank_rows": 2048,
         "blimp_frequency": 200000000,
         "time_to_v0_transfer_ns": 5.0,
         "number_of_vALUs": 128,
@@ -28,12 +28,12 @@
         "ambit_temporary_bits": 0
     },
     "meta": {
-        "total_rows_for_configurable_data": 32756,
-        "total_records_processable": 64472,
-        "total_rows_for_blimp_code_region": 2,
-        "total_rows_for_records": 32236,
-        "total_rows_for_hitmaps": 8,
-        "total_rows_for_ambit_pi_field": 512,
+        "total_rows_for_configurable_data": 2037,
+        "total_records_processable": 63104,
+        "total_rows_for_blimp_code_region": 1,
+        "total_rows_for_records": 1972,
+        "total_rows_for_hitmaps": 1,
+        "total_rows_for_ambit_pi_field": 64,
         "total_rows_for_temporary_ambit_compute": 0,
         "total_rows_for_reserved_ambit_compute": 10
     }
