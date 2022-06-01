@@ -9,16 +9,16 @@ if not os.path.exists(study_dir):
     exit()
 
 queries = [
-    "ambit_equal",
-    "ambit_not_equal",
     "blimp_equal",
     "blimp_not_equal",
-    "blimp_v_equal",
-    "blimp_v_not_equal",
-    "blimp_v_et_equal",
-    "blimp_v_et_not_equal",
+    "ambit_equal",
     "ambit_et_equal",
-    "ambit_et_not_equal"
+    "ambit_not_equal",
+    "ambit_et_not_equal",
+    "blimp_v_equal",
+    "blimp_v_et_equal",
+    "blimp_v_not_equal",
+    "blimp_v_et_not_equal",
 ]
 
 cases = [
@@ -42,6 +42,10 @@ for query in queries:
 
 print("parsing complete, saving result set")
 result_set_file = os.path.join(study_dir, f"equal_result.json")
+result_tsv_file = os.path.join(study_dir, f"equal_result.tsv")
 with open(result_set_file, 'w') as fp:
     json.dump(runtime_results, fp, indent=4)
-print(f"result set saved to {result_set_file}")
+with open(result_tsv_file, 'w') as fp:
+    for k, v in runtime_results.items():
+        fp.write(f"{k}\t{v}\n")
+print(f"result set saved to {result_set_file} and {result_tsv_file}")
