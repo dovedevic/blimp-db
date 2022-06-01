@@ -10,6 +10,7 @@ class BankLayoutConfiguration:
     def __init__(self, hardware: HardwareConfiguration, database: DatabaseConfiguration):
         self._hardware_configuration = hardware
         self._database_configuration = database
+        self._meta_configuration = {}
 
     def display(self):
         """Dump the configuration into the console for visual inspection"""
@@ -44,7 +45,8 @@ class BankLayoutConfiguration:
         """
         configuration = {
             "hardware": self._hardware_configuration.dict(),
-            "database": self._database_configuration.dict()
+            "database": self._database_configuration.dict(),
+            "meta": self._meta_configuration
         }
         with open(path, "w") as fp:
             if compact:
@@ -154,6 +156,12 @@ class BlimpBankLayoutConfiguration(BankLayoutConfiguration):
         # Ensure we are inbounds
         if data_rows + hitmap_rows > self.total_rows_for_configurable_data:
             raise AssertionError("Heuristic placement failed, alter parameters or reserved rows")
+
+        self._meta_configuration["total_rows_for_configurable_data"] = self.total_rows_for_configurable_data
+        self._meta_configuration["total_records_processable"] = self.total_records_processable
+        self._meta_configuration["total_rows_for_blimp_code_region"] = self.total_rows_for_blimp_code_region
+        self._meta_configuration["total_rows_for_records"] = self.total_rows_for_records
+        self._meta_configuration["total_rows_for_hitmaps"] = self.total_rows_for_hitmaps
 
     def display(self):
         """Dump the configuration into the console for visual inspection"""
@@ -310,6 +318,15 @@ class AmbitBankLayoutConfiguration(BlimpBankLayoutConfiguration):
         # Ensure we are inbounds
         if pi_rows + data_rows + hitmap_rows > self.total_rows_for_configurable_data:
             raise AssertionError("Heuristic placement failed, alter parameters or reserved rows")
+
+        self._meta_configuration["total_rows_for_configurable_data"] = self.total_rows_for_configurable_data
+        self._meta_configuration["total_records_processable"] = self.total_records_processable
+        self._meta_configuration["total_rows_for_blimp_code_region"] = self.total_rows_for_blimp_code_region
+        self._meta_configuration["total_rows_for_ambit_pi_field"] = self.total_rows_for_ambit_pi_field
+        self._meta_configuration["total_rows_for_temporary_ambit_compute"] = self.total_rows_for_temporary_ambit_compute
+        self._meta_configuration["total_rows_for_records"] = self.total_rows_for_records
+        self._meta_configuration["total_rows_for_hitmaps"] = self.total_rows_for_hitmaps
+        self._meta_configuration["total_rows_for_reserved_ambit_compute"] = self.total_rows_for_reserved_ambit_compute
 
     def display(self):
         """Dump the configuration into the console for visual inspection"""
