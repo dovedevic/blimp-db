@@ -55,16 +55,33 @@ class BankLayoutConfiguration:
                 json.dump(configuration, fp, indent=4)
 
     @classmethod
-    def load(cls, path: str):
-        """Load a layout configuration object"""
+    def load(cls, path: str,
+             hardware_config: callable=HardwareConfiguration,
+             database_config: callable=DatabaseConfiguration
+             ):
+        """
+        Load a layout configuration object
+
+        @param path: The path and filename to load the configuration
+        @param hardware_config: The constructor for a HardwareConfiguration. Defaults to `HardwareConfiguration`
+        @param database_config: The constructor for a DatabaseConfiguration. Defaults to `DatabaseConfiguration`
+        """
         with open(path, 'r') as fp:
             configuration = json.load(fp)
-            return cls(HardwareConfiguration(**configuration["hardware"]),
-                       DatabaseConfiguration(**configuration["database"]))
+            return cls(hardware_config(**configuration["hardware"]),
+                       database_config(**configuration["database"]))
 
 
 class BlimpBankLayoutConfiguration(BankLayoutConfiguration):
-    """Defines the row layout configuration for an BLIMP database bank"""
+    """
+    Defines the row layout configuration for an BLIMP database bank
+
+    This layout configuration lays out data in the following manor
+
+    [BLIMP CODE]
+
+
+    """
     def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpDatabaseConfiguration):
         super().__init__(hardware, database)
 
@@ -197,10 +214,7 @@ class BlimpBankLayoutConfiguration(BankLayoutConfiguration):
     @classmethod
     def load(cls, path: str):
         """Load a layout configuration object"""
-        with open(path, 'r') as fp:
-            configuration = json.load(fp)
-            return cls(BlimpHardwareConfiguration(**configuration["hardware"]),
-                       BlimpDatabaseConfiguration(**configuration["database"]))
+        return super().load(path, BlimpHardwareConfiguration, BlimpDatabaseConfiguration)
 
 
 class AmbitBankLayoutConfiguration(BlimpBankLayoutConfiguration):
