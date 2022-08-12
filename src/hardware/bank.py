@@ -1,13 +1,15 @@
 import json
 import logging
 
-from src.configurations.hardware import HardwareConfiguration, BlimpHardwareConfiguration, AmbitHardwareConfiguration
+from src.configurations.hardware import HardwareConfiguration, \
+    BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration, \
+    AmbitHardwareConfiguration, BlimpPlusAmbitAmbitHardwareConfiguration, BlimpVectorPlusAmbitAmbitHardwareConfiguration
 from utils import performance
 from utils.bitmanip import byte_array_to_int, int_to_byte_array
 
 
 class Bank:
-    """Defines operations for a generic DRAM Bank"""
+    """Defines bank operations for a generic DRAM Bank"""
     def __init__(self, configuration: HardwareConfiguration, memory: list=None, default_byte_value: int=0xff):
         self._config = configuration
         self._logger = logging.getLogger(self.__class__.__name__)
@@ -137,13 +139,19 @@ class Bank:
 
 
 class BlimpBank(Bank):
-    """Defines operations for a BLIMP/-V DRAM Bank"""
+    """Defines bank operations for a BLIMP DRAM Bank"""
     def __init__(self, configuration: BlimpHardwareConfiguration, memory: list=None, default_byte_value: int=0xff):
         super(BlimpBank, self).__init__(configuration, memory, default_byte_value)
 
 
-class AmbitBank(BlimpBank):
-    """Defines operations for a BLIMP/-V controlled AMBIT DRAM Bank"""
+class BlimpVectorBank(BlimpBank):
+    """Defines bank operations for a BLIMP-V DRAM Bank"""
+    def __init__(self, configuration: BlimpVectorHardwareConfiguration, memory: list=None, default_byte_value: int=0xff):
+        super(BlimpVectorBank, self).__init__(configuration, memory, default_byte_value)
+
+
+class AmbitBank(Bank):
+    """Defines operations for an AMBIT DRAM Bank"""
 
     def __init__(self, configuration: AmbitHardwareConfiguration, memory: list = None, default_byte_value: int = 0xff):
         super(AmbitBank, self).__init__(configuration, memory, default_byte_value)
@@ -197,3 +205,15 @@ class AmbitBank(BlimpBank):
         self.set_raw_row(row_index_c, tra_value)
 
         return tra_value
+
+
+class BlimpAmbitBank(BlimpBank, AmbitBank):
+    """Defines bank operations for a BLIMP-orchestrated AMBIT DRAM Bank"""
+    def __init__(self, configuration: BlimpPlusAmbitAmbitHardwareConfiguration, memory: list=None, default_byte_value: int=0xff):
+        super(BlimpAmbitBank, self).__init__(configuration, memory, default_byte_value)
+
+
+class BlimpAmbitVectorBank(BlimpVectorBank, AmbitBank):
+    """Defines bank operations for a BLIMP-V-orchestrated AMBIT DRAM Bank"""
+    def __init__(self, configuration: BlimpVectorPlusAmbitAmbitHardwareConfiguration, memory: list=None, default_byte_value: int=0xff):
+        super(BlimpAmbitVectorBank, self).__init__(configuration, memory, default_byte_value)
