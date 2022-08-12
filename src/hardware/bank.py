@@ -38,6 +38,11 @@ class Bank:
                 self.memory.append(value)
         self._logger.info(f"bank loaded with {'initial' if memory else 'null'} memory state")
 
+    @property
+    def hardware_configuration(self):
+        """Get this bank hardware's configuration"""
+        return self._config
+
     def get_raw_row(self, row_index: int):
         """Fetch a row by its index and return integer representation of the byte array"""
         self._logger.debug(f"bank fetch at {hex(row_index * self._config.row_buffer_size_bytes)} (row {row_index})")
