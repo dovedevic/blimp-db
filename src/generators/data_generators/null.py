@@ -7,4 +7,4 @@ class NullDataGenerator(DataGenerator):
         super().__init__(0)
 
     def _generate(self):
-        return None
+        return 0
