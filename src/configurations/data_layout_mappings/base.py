@@ -3,10 +3,11 @@ import json
 from pydantic import BaseModel, Field
 from typing import Tuple
 
-from src.configurations.hardware import HardwareConfiguration
-from src.configurations.database import DatabaseConfiguration
+from configurations.hardware import HardwareConfiguration
+from configurations.database import DatabaseConfiguration
 from hardware import Bank
 from generators import DatabaseRecordGenerator
+from configurations.data_layout_mappings.methods import perform_packed_horizontal_layout
 
 
 RowMapping = Tuple[int, int]
@@ -67,49 +68,15 @@ class DataLayoutConfiguration:
 
     def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
-        temporary_row = 0
-        bytes_in_temporary = 0
-        generating_at_row = 0
-
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
 
-        for record in record_generator.get_raw_records():
-            if generating_at_row >= self._hardware_configuration.bank_rows:
-                break  # done placing
-
-            temporary_row <<= record_generator.record_size_bytes * 8
-            temporary_row += record
-            bytes_in_temporary += record_generator.record_size_bytes
-
-            if bytes_in_temporary == self.hardware_configuration.row_buffer_size_bytes:
-                # Place and reset
-                bank.set_raw_row(generating_at_row, temporary_row)
-                temporary_row = 0
-                bytes_in_temporary = 0
-                generating_at_row += 1
-            elif bytes_in_temporary > self._hardware_configuration.row_buffer_size_bytes:
-                # Overshot, chunk
-                bytes_overshot = bytes_in_temporary - self._hardware_configuration.row_buffer_size_bytes
-                overshot_mask = (2**(bytes_overshot * 8)) - 1
-                overshot_row = temporary_row & overshot_mask
-
-                temporary_row >>= bytes_overshot * 8
-                bank.set_raw_row(generating_at_row, temporary_row)
-
-                temporary_row = overshot_row
-                bytes_in_temporary = bytes_overshot
-                generating_at_row += 1
-            else:
-                # Undershot, continue loading data
-                pass
-
-        # Either no more records to process or we ran out of rows
-        if generating_at_row < self._hardware_configuration.bank_rows:
-            # Place what we have left
-            bytes_left_in_row = self.hardware_configuration.row_buffer_size_bytes - bytes_in_temporary
-            temporary_row <<= bytes_left_in_row * 8
-            bank.set_raw_row(generating_at_row, temporary_row)
+        perform_packed_horizontal_layout(
+            base_row=0,
+            row_count=bank.hardware_configuration.bank_rows,
+            bank=bank,
+            record_generator=record_generator
+        )
 
     @property
     def row_mapping(self):
