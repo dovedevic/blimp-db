@@ -19,6 +19,7 @@ class RowMappingSet(BaseModel):
 
 
 class LayoutMetadata(BaseModel):
+    """Metadata for standard DRAM data layout"""
     total_rows_for_records: int = Field(
         description="The total number of rows available to place data")
     total_records_processable: int = Field(
