@@ -1,30 +1,120 @@
-import math
 import json
 
-from src.configurations.hardware import AmbitHardwareConfiguration, BlimpHardwareConfiguration, HardwareConfiguration
-from src.configurations.database import AmbitDatabaseConfiguration, BlimpDatabaseConfiguration, DatabaseConfiguration
+from pydantic import BaseModel, Field
+from typing import Tuple
+
+from src.configurations.hardware import HardwareConfiguration
+from src.configurations.database import DatabaseConfiguration
+from hardware import Bank
+from generators import DatabaseRecordGenerator
 
 
-class BankLayoutConfiguration:
-    """Defines the row layout configuration for a standard DRAM database bank"""
+class RowMapping(BaseModel):
+    """Generic Mapping of row positions to their high-level representations"""
+    data: Tuple[int, int] = Field(
+        description="A tuple representing the start row address for data and the number of rows this region contains"
+    )
+
+
+class LayoutMetadata(BaseModel):
+    total_rows_for_records: int = Field(description="The total number of rows available to place data")
+    total_records_processable: int = Field(description="The total number of records that this configuration can handle")
+
+
+class DataLayoutConfiguration:
+    """
+    Defines the row/data layout configuration for a standard DRAM database bank. This base configuration places records
+    side by side within the bank fitting as many as possible row by row
+
+    An example of what this bank would look like is as follows:
+        [record] = (key,value) | (index,columns)
+
+    Bank:
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    - [     record     ][     record     ][     reco-
+    - rd     ]                                      -
+    -                      ...                      -
+    -                                               -
+    -                                               -
+    -                      ...                      -
+    -                                               -
+    -                                               -
+    -                                               -
+    -  ... [     record     ][     record     ]     -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    +-----------------------------------------------+
+    |                   ROW  BUFFER                 |
+    +-----------------------------------------------+
+
+    """
     def __init__(self, hardware: HardwareConfiguration, database: DatabaseConfiguration):
         self._hardware_configuration = hardware
         self._database_configuration = database
-        self._meta_configuration = {}
 
-    def display(self):
-        """Dump the configuration into the console for visual inspection"""
-        print("Hardware Configuration:")
-        self._hardware_configuration.display()
+        self._row_mapping = RowMapping(
+            data=(0, hardware.bank_rows)
+        )
 
-        print("Database Configuration:")
-        self._database_configuration.display()
+        self._layout_metadata = LayoutMetadata(
+            total_rows_for_records=hardware.bank_rows,
+            total_records_processable=hardware.bank_size_bytes // database.total_record_size_bytes
+        )
+
+    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+        """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
+        temporary_row = 0
+        bytes_in_temporary = 0
+        generating_at_row = 0
+
+        assert self._hardware_configuration.row_buffer_size_bytes == bank._config.row_buffer_size_bytes
+        assert self._hardware_configuration.bank_size_bytes == bank._config.bank_size_bytes
+
+        for record in record_generator.get_raw_records():
+            if generating_at_row >= self._hardware_configuration.bank_rows:
+                break  # done placing
+
+            temporary_row <<= record_generator.record_size_bytes * 8
+            temporary_row += record
+            bytes_in_temporary += record_generator.record_size_bytes
+
+            if bytes_in_temporary == self.hardware_configuration.row_buffer_size_bytes:
+                # Place and reset
+                bank.set_raw_row(generating_at_row, temporary_row)
+                temporary_row = 0
+                bytes_in_temporary = 0
+                generating_at_row += 1
+            elif bytes_in_temporary > self._hardware_configuration.row_buffer_size_bytes:
+                # Overshot, chunk
+                bytes_overshot = bytes_in_temporary - self._hardware_configuration.row_buffer_size_bytes
+                overshot_mask = (2**(bytes_overshot * 8)) - 1
+                overshot_row = temporary_row & overshot_mask
+
+                temporary_row >>= bytes_overshot * 8
+                bank.set_raw_row(generating_at_row, temporary_row)
+
+                temporary_row = overshot_row
+                bytes_in_temporary = bytes_overshot
+                generating_at_row += 1
+            else:
+                # Undershot, continue loading data
+                pass
+
+        # Either no more records to process or we ran out of rows
+        if generating_at_row < self._hardware_configuration.bank_rows:
+            # Place what we have left
+            bytes_left_in_row = self.hardware_configuration.row_buffer_size_bytes - bytes_in_temporary
+            temporary_row <<= bytes_left_in_row * 8
+            bank.set_raw_row(generating_at_row, temporary_row)
 
     @property
-    def address_mapping(self):
+    def row_mapping(self):
         """Return the row address mapping for this configuration"""
-        mapping = dict()
-        return mapping
+        return self._row_mapping
+
+    @property
+    def layout_metadata(self):
+        """Return the data layout metadata about this configuration"""
+        return self._layout_metadata
 
     @property
     def hardware_configuration(self):
@@ -36,6 +126,20 @@ class BankLayoutConfiguration:
         """Get the internal user-defined database configuration"""
         return self._database_configuration
 
+    def display(self):
+        """Dump the configuration into the console for visual inspection"""
+        print("Hardware Configuration:")
+        self._hardware_configuration.display()
+
+        print("Database Configuration:")
+        self._database_configuration.display()
+
+        print("Row Mapping:")
+        print(json.dumps(self.row_mapping.dict(), indent=4))
+
+        print("Layout Metadata:")
+        print(json.dumps(self.layout_metadata.dict(), indent=4))
+
     def save(self, path: str, compact=False):
         """
         Save the layout configuration as a JSON object
@@ -46,7 +150,10 @@ class BankLayoutConfiguration:
         configuration = {
             "hardware": self._hardware_configuration.dict(),
             "database": self._database_configuration.dict(),
-            "meta": self._meta_configuration
+            "meta": {
+                "row_mapping": self._row_mapping.dict(),
+                "layout_metadata": self._layout_metadata.dict()
+            }
         }
         with open(path, "w") as fp:
             if compact:
@@ -70,328 +177,3 @@ class BankLayoutConfiguration:
             configuration = json.load(fp)
             return cls(hardware_config(**configuration["hardware"]),
                        database_config(**configuration["database"]))
-
-
-class BlimpBankLayoutConfiguration(BankLayoutConfiguration):
-    """
-    Defines the row layout configuration for an BLIMP database bank
-
-    This layout configuration lays out data in the following manor
-
-    [BLIMP CODE]
-
-
-    """
-    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpDatabaseConfiguration):
-        super().__init__(hardware, database)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
-
-        # User-defined rows dedicated to storing BLIMP compute code
-        self.total_rows_for_blimp_code_region = int(math.ceil(self._database_configuration.blimp_code_region_size_bytes
-                                                    / self._hardware_configuration.row_buffer_size_bytes))
-
-        # Total rows to play with when configuring the layout
-        self.total_rows_for_configurable_data = self._hardware_configuration.bank_rows \
-            - self.total_rows_for_blimp_code_region
-
-        if self.total_rows_for_configurable_data < 0:
-            raise ValueError("There are not enough bank rows to satisfy static row constraints")
-
-        if self._database_configuration.total_record_size_bytes > self._hardware_configuration.row_buffer_size_bytes:
-            if self._database_configuration.total_record_size_bytes % self._hardware_configuration.row_buffer_size_bytes != 0:
-                raise ValueError("Record sizes must be row buffer aligned to at least a power of two")
-        else:
-            if self._hardware_configuration.row_buffer_size_bytes % self._database_configuration.total_record_size_bytes != 0:
-                raise ValueError("Record sizes must be row buffer aligned to at least a power of two")
-
-        data_rows = 0
-        hitmap_rows = 0
-        processable_records = 0
-        record_to_row_buffer_ratio = self._database_configuration.total_record_size_bytes \
-            / self._hardware_configuration.row_buffer_size_bytes
-        while data_rows + hitmap_rows < self.total_rows_for_configurable_data:
-            # Hitmap rows are calculated one bit per PI field, per each hitmap
-            new_hitmap_rows = self._database_configuration.hitmap_count
-            # Data rows are calculated by the row buffer width of records, multiplied by the size of the record
-            # rb * 8 * data / rb
-            new_data_rows = 8 * self._database_configuration.total_record_size_bytes
-
-            # Can we fit a full set of records into the bank?
-            if new_hitmap_rows + hitmap_rows + new_data_rows + data_rows < self.total_rows_for_configurable_data:
-                # If we can, add this new block into our existing set
-                hitmap_rows += new_hitmap_rows
-                data_rows += new_data_rows
-                processable_records += self._hardware_configuration.row_buffer_size_bytes * 8
-                continue
-
-            # Can we fit a subset of records into the bank?
-            elif new_hitmap_rows + hitmap_rows + data_rows < self.total_rows_for_configurable_data:
-                # If we can, ensure we can add at least one data record
-                if record_to_row_buffer_ratio >= 1 and (new_hitmap_rows + hitmap_rows +
-                   data_rows + record_to_row_buffer_ratio) > self.total_rows_for_configurable_data:
-                    # If we can't fit at least one record, break out
-                    break
-
-                # At this point at least one record is placeable, so place the blocks
-                hitmap_rows += new_hitmap_rows
-
-                rows_remaining = self.total_rows_for_configurable_data - hitmap_rows - data_rows
-                if record_to_row_buffer_ratio <= 1:
-                    records_per_row = self._hardware_configuration.row_buffer_size_bytes \
-                                      // self._database_configuration.total_record_size_bytes
-                    processable_records += rows_remaining * records_per_row
-                    data_rows += rows_remaining
-                else:
-                    records_in_remainder = rows_remaining // (
-                            self._database_configuration.total_record_size_bytes
-                            // self._hardware_configuration.row_buffer_size_bytes
-                    )
-                    processable_records += records_in_remainder
-                    data_rows += records_in_remainder * (
-                            self._database_configuration.total_record_size_bytes
-                            // self._hardware_configuration.row_buffer_size_bytes
-                    )
-                break
-
-            # Can no more blocks of rows can be placed
-            else:
-                break
-
-        # Done heuristically placing rows in bank, finalize configuration
-
-        # Total rows for BLIMP-format records (pi field + data / k + v)
-        self.total_rows_for_records = data_rows
-
-        # Total rows for BLIMP hitmap placement
-        self.total_rows_for_hitmaps = hitmap_rows
-
-        # Total number of records operable with this configuration
-        self.total_records_processable = processable_records
-
-        # Ensure we are inbounds
-        if data_rows + hitmap_rows > self.total_rows_for_configurable_data:
-            raise AssertionError("Heuristic placement failed, alter parameters or reserved rows")
-
-        self._meta_configuration["total_rows_for_configurable_data"] = self.total_rows_for_configurable_data
-        self._meta_configuration["total_records_processable"] = self.total_records_processable
-        self._meta_configuration["total_rows_for_blimp_code_region"] = self.total_rows_for_blimp_code_region
-        self._meta_configuration["total_rows_for_records"] = self.total_rows_for_records
-        self._meta_configuration["total_rows_for_hitmaps"] = self.total_rows_for_hitmaps
-
-    def display(self):
-        """Dump the configuration into the console for visual inspection"""
-        super().display()
-
-        print("Bank Meta Parameters")
-        print(f"    total_rows_for_configurable_data:       {self.total_rows_for_configurable_data}")
-        print(f"    total_records_processable:              {self.total_records_processable}")
-
-        print("Bank Row Mappings:")
-        print(f"    total_rows_for_blimp_code_region:       {self.total_rows_for_blimp_code_region}")
-        print(f"    total_rows_for_records:                 {self.total_rows_for_records}")
-        print(f"    total_rows_for_hitmaps:                 {self.total_rows_for_hitmaps}")
-
-    @property
-    def address_mapping(self):
-        """Return the row address mapping for this configuration"""
-        base = 0
-        mapping = dict()
-
-        # BLIMP Code region always starts at row 0
-        mapping["blimp_code_region"] = [base, self.total_rows_for_blimp_code_region]
-        base += self.total_rows_for_blimp_code_region
-
-        mapping["records"] = [base, self.total_rows_for_records]
-        base += self.total_rows_for_records
-
-        mapping["hitmaps"] = [base, self.total_rows_for_hitmaps]
-        base += self.total_rows_for_hitmaps
-
-        return mapping
-
-    @classmethod
-    def load(cls, path: str):
-        """Load a layout configuration object"""
-        return super().load(path, BlimpHardwareConfiguration, BlimpDatabaseConfiguration)
-
-
-class AmbitBankLayoutConfiguration(BlimpBankLayoutConfiguration):
-    """Defines the row layout configuration for an AMBIT-BLIMP database bank"""
-    def __init__(self, hardware: AmbitHardwareConfiguration, database: AmbitDatabaseConfiguration):
-        super().__init__(hardware, database)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
-
-        # Ambit compute region rows, B and C groups
-        self.total_rows_for_reserved_ambit_compute = self._hardware_configuration.ambit_dcc_rows * 2 + \
-            self._hardware_configuration.ambit_control_group_rows + \
-            self._hardware_configuration.ambit_temporary_register_rows
-
-        # User-defined temporary rows (ambit D group) for ambit calculations
-        self.total_rows_for_temporary_ambit_compute = self._database_configuration.ambit_temporary_bits
-
-        # User-defined rows dedicated to storing BLIMP compute code
-        self.total_rows_for_blimp_code_region = int(math.ceil(self._database_configuration.blimp_code_region_size_bytes
-                                                    / self._hardware_configuration.row_buffer_size_bytes))
-
-        # Total rows to play with when configuring the layout
-        self.total_rows_for_configurable_data = self._hardware_configuration.bank_rows \
-            - self.total_rows_for_reserved_ambit_compute \
-            - self.total_rows_for_temporary_ambit_compute \
-            - self.total_rows_for_blimp_code_region
-
-        if self.total_rows_for_configurable_data < 0:
-            raise ValueError("There are not enough bank rows to satisfy static row constraints")
-
-        if self._database_configuration.total_record_size_bytes > self._hardware_configuration.row_buffer_size_bytes:
-            if self._database_configuration.total_record_size_bytes % self._hardware_configuration.row_buffer_size_bytes != 0:
-                raise ValueError("Record sizes must be row buffer aligned to at least a power of two")
-        else:
-            if self._hardware_configuration.row_buffer_size_bytes % self._database_configuration.total_record_size_bytes != 0:
-                raise ValueError("Record sizes must be row buffer aligned to at least a power of two")
-
-        pi_rows = 0
-        data_rows = 0
-        hitmap_rows = 0
-        processable_records = 0
-        record_to_row_buffer_ratio = self._database_configuration.total_record_size_bytes \
-            / self._hardware_configuration.row_buffer_size_bytes
-        while pi_rows + data_rows + hitmap_rows < self.total_rows_for_configurable_data:
-            # PI Rows are calculated by the number of bits an index field is in length, due to the vertical layout
-            new_pi_rows = self._database_configuration.total_index_size_bytes * 8
-            # Hitmap rows are calculated one bit per PI field, per each hitmap
-            new_hitmap_rows = self._database_configuration.hitmap_count
-            # Data rows are calculated by the row buffer width of records, multiplied by the size of the record
-            # rb * 8 * data / rb
-            new_data_rows = 8 * self._database_configuration.total_record_size_bytes
-
-            # Can we fit a full set of records into the bank?
-            if new_pi_rows + pi_rows + \
-                    new_hitmap_rows + hitmap_rows + \
-                    new_data_rows + data_rows < self.total_rows_for_configurable_data:
-                # If we can, add this new block into our existing set
-                pi_rows += new_pi_rows
-                hitmap_rows += new_hitmap_rows
-                data_rows += new_data_rows
-                processable_records += self._hardware_configuration.row_buffer_size_bytes * 8
-                continue
-
-            # Can we fit a subset of records into the bank?
-            elif new_pi_rows + pi_rows + \
-                    new_hitmap_rows + hitmap_rows + \
-                    data_rows < self.total_rows_for_configurable_data:
-                # If we can, ensure we can add at least one data record
-                if record_to_row_buffer_ratio >= 1 and (new_pi_rows + pi_rows + new_hitmap_rows + hitmap_rows +
-                   data_rows + record_to_row_buffer_ratio) > self.total_rows_for_configurable_data:
-                    # If we can't fit at least one record, break out
-                    break
-
-                # At this point at least one record is placeable, so place the blocks
-                pi_rows += new_pi_rows
-                hitmap_rows += new_hitmap_rows
-
-                rows_remaining = self.total_rows_for_configurable_data - pi_rows - hitmap_rows - data_rows
-                if record_to_row_buffer_ratio <= 1:
-                    records_per_row = self._hardware_configuration.row_buffer_size_bytes \
-                                      // self._database_configuration.total_record_size_bytes
-                    processable_records += rows_remaining * records_per_row
-                    data_rows += rows_remaining
-                else:
-                    records_in_remainder = rows_remaining // (
-                            self._database_configuration.total_record_size_bytes
-                            // self._hardware_configuration.row_buffer_size_bytes
-                    )
-                    processable_records += records_in_remainder
-                    data_rows += records_in_remainder * (
-                            self._database_configuration.total_record_size_bytes
-                            // self._hardware_configuration.row_buffer_size_bytes
-                    )
-                break
-
-            # Can no more blocks of rows can be placed
-            else:
-                break
-
-        # Done heuristically placing rows in bank, finalize configuration
-
-        # Total rows for Ambit-format pi-field(s)
-        self.total_rows_for_ambit_pi_field = pi_rows
-
-        # Total rows for BLIMP-format records (pi field + data / k + v)
-        self.total_rows_for_records = data_rows
-
-        # Total rows for Ambit/BLIMP hitmap placement
-        self.total_rows_for_hitmaps = hitmap_rows
-
-        # Total number of records operable with this configuration
-        self.total_records_processable = processable_records
-
-        # Ensure we are inbounds
-        if pi_rows + data_rows + hitmap_rows > self.total_rows_for_configurable_data:
-            raise AssertionError("Heuristic placement failed, alter parameters or reserved rows")
-
-        self._meta_configuration["total_rows_for_configurable_data"] = self.total_rows_for_configurable_data
-        self._meta_configuration["total_records_processable"] = self.total_records_processable
-        self._meta_configuration["total_rows_for_blimp_code_region"] = self.total_rows_for_blimp_code_region
-        self._meta_configuration["total_rows_for_ambit_pi_field"] = self.total_rows_for_ambit_pi_field
-        self._meta_configuration["total_rows_for_temporary_ambit_compute"] = self.total_rows_for_temporary_ambit_compute
-        self._meta_configuration["total_rows_for_records"] = self.total_rows_for_records
-        self._meta_configuration["total_rows_for_hitmaps"] = self.total_rows_for_hitmaps
-        self._meta_configuration["total_rows_for_reserved_ambit_compute"] = self.total_rows_for_reserved_ambit_compute
-
-    def display(self):
-        """Dump the configuration into the console for visual inspection"""
-        super().display()
-
-        print("Bank Meta Parameters")
-        print(f"    total_rows_for_configurable_data:       {self.total_rows_for_configurable_data}")
-        print(f"    total_records_processable:              {self.total_records_processable}")
-
-        print("Bank Row Mappings:")
-        print(f"    total_rows_for_blimp_code_region:       {self.total_rows_for_blimp_code_region}")
-        print(f"    total_rows_for_ambit_pi_field:          {self.total_rows_for_ambit_pi_field}")
-        print(f"    total_rows_for_temporary_ambit_compute: {self.total_rows_for_temporary_ambit_compute}")
-        print(f"    total_rows_for_records:                 {self.total_rows_for_records}")
-        print(f"    total_rows_for_hitmaps:                 {self.total_rows_for_hitmaps}")
-        print(f"    total_rows_for_reserved_ambit_compute:  {self.total_rows_for_reserved_ambit_compute}")
-
-    @property
-    def address_mapping(self):
-        """Return the row address mapping for this configuration"""
-        base = 0
-        mapping = dict()
-
-        # BLIMP Code region always starts at row 0
-        mapping["blimp_code_region"] = [base, self.total_rows_for_blimp_code_region]
-        base += self.total_rows_for_blimp_code_region
-
-        mapping["ambit_pi_field"] = [base, self.total_rows_for_ambit_pi_field]
-        base += self.total_rows_for_ambit_pi_field
-
-        mapping["temporary_ambit_compute"] = [base, self.total_rows_for_temporary_ambit_compute]
-        base += self.total_rows_for_temporary_ambit_compute
-
-        mapping["records"] = [base, self.total_rows_for_records]
-        base += self.total_rows_for_records
-
-        mapping["hitmaps"] = [base, self.total_rows_for_hitmaps]
-        base += self.total_rows_for_hitmaps
-
-        # Ambit compute always resides at the last rows
-        mapping["reserved_ambit_compute"] = [
-            self._hardware_configuration.bank_rows - self.total_rows_for_reserved_ambit_compute,
-            self._hardware_configuration.bank_rows
-        ]
-
-        return mapping
-
-    @classmethod
-    def load(cls, path: str):
-        """Load a layout configuration object"""
-        with open(path, 'r') as fp:
-            configuration = json.load(fp)
-            return cls(AmbitHardwareConfiguration(**configuration["hardware"]),
-                       AmbitDatabaseConfiguration(**configuration["database"]))
