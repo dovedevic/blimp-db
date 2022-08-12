@@ -8,9 +8,6 @@ class DataGenerator:
         self._items_generated = pregenerated_items
         self._generatable = generatable
 
-        if data_size_in_bytes <= 0:
-            self._generate = self._null
-
     def generate_data(self) -> typing.Optional[int]:
         """
         @final no override
@@ -48,7 +45,3 @@ class DataGenerator:
         Overridable method for generating data
         """
         return 0
-
-    def _null(self):
-        """Used to fulfill null-data generation"""
-        return None
