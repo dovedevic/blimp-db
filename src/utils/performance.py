@@ -18,11 +18,11 @@ def end_performance_tracking() -> float:
     return difference
 
 
-def track_runtime(func, *args):
+def track_runtime(func, *args, **kwargs):
     """
     Wrap a function with performance trackers, return a tuple representing the function return value, and the time
     in seconds to perform said wrapped function
     """
     start = timer()
-    ret = func(*args)
+    ret = func(*args, **kwargs)
     return ret, timer() - start
