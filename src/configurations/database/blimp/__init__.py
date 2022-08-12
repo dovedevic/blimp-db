@@ -1,1 +1,4 @@
-from .blimp import BlimpDatabaseConfiguration, BlimpVectorDatabaseConfiguration
+from .blimp import BlimpDatabaseConfiguration, \
+    BlimpVectorDatabaseConfiguration, \
+    BlimpHitmapDatabaseConfiguration, \
+    BlimpHitmapDatabaseConfiguration
