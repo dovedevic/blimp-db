@@ -6,7 +6,7 @@ class BlimpDatabaseConfiguration(DatabaseConfiguration):
     # User-defined Values
     hitmap_count: int
     blimp_code_region_size_bytes: int
-    temporary_bytes: int
+    blimp_temporary_region_size_bytes: int
 
 
 class BlimpVectorDatabaseConfiguration(BlimpDatabaseConfiguration):
