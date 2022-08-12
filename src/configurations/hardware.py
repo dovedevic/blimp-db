@@ -48,10 +48,6 @@ class BlimpHardwareConfiguration(HardwareConfiguration):
     # Intrinsic Hardware Values
     blimp_frequency: int
     time_to_v0_transfer_ns: float
-    number_of_vALUs: int
-    number_of_vFPUs: int
-    blimpv_sew_max_bytes: int
-    blimpv_sew_min_bytes: int
     processor_bit_architecture: int
 
     # Calculated Fields
@@ -63,8 +59,17 @@ class BlimpHardwareConfiguration(HardwareConfiguration):
         self.time_per_blimp_cycle_ns = 1 / self.blimp_frequency * 1000000000
 
 
-class AmbitHardwareConfiguration(BlimpHardwareConfiguration):
-    """Defines unchanging AMBIT system configurations sitting on top of an existing BLIMP system configuration"""
+class BlimpVectorHardwareConfiguration(BlimpHardwareConfiguration):
+    """Defines unchanging BLIMP-V system configurations sitting on top of an existing BLIMP configuration"""
+    # Intrinsic Hardware Values
+    number_of_vALUs: int
+    number_of_vFPUs: int
+    blimpv_sew_max_bytes: int
+    blimpv_sew_min_bytes: int
+
+
+class AmbitHardwareConfiguration(HardwareConfiguration):
+    """Defines unchanging AMBIT system configurations with a standard CPU system configuration"""
     # Intrinsic Hardware Values
     ambit_temporary_register_rows: int
     ambit_dcc_rows: int
@@ -92,3 +97,13 @@ class AmbitHardwareConfiguration(BlimpHardwareConfiguration):
         # https://scholar.google.com/scholar?hl=en&as_sdt=0%2C39&q=simdram&btnG=
         # Section 2.2.2
         self.time_for_TRA_MAJ_ns = self.time_to_row_activate_ns + self.time_to_precharge_ns
+
+
+class BlimpPlusAmbitAmbitHardwareConfiguration(BlimpHardwareConfiguration, AmbitHardwareConfiguration):
+    """Defines unchanging AMBIT system configurations sitting on top of an existing BLIMP system configuration"""
+    pass
+
+
+class BlimpVectorPlusAmbitAmbitHardwareConfiguration(BlimpVectorHardwareConfiguration, AmbitHardwareConfiguration):
+    """Defines unchanging AMBIT system configurations sitting on top of an existing BLIMP-V system configuration"""
+    pass
