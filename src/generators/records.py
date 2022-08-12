@@ -1,8 +1,7 @@
 import logging
 
 
-from src.generators.data import DataGenerator, \
-    IncrementalDataGenerator, UniformRandomDataGenerator, ConstantDataGenerator
+from src.generators.data import DataGenerator
 
 
 class DatabaseRecordGenerator:
@@ -52,10 +51,12 @@ class DatabaseRecordGenerator:
         if index >= len(self.records) and self._total_records is None:
             self.__fill_records_to(index + 1)
         elif index >= len(self.records):
-            raise IndexError(f"Attempted to fetch record {index} outside of pre-generated record limit {self._total_records}")
+            raise IndexError(
+                f"Attempted to fetch record {index} outside of pre-generated record limit {self._total_records}"
+            )
         return self.records[index]
 
-    def get_records(self) -> tuple:
+    def get_records(self) -> iter:
         """Generate a stream of records, if no record limit is set, continuously generate records"""
         for record in self.records:
             yield record
@@ -66,7 +67,8 @@ class DatabaseRecordGenerator:
             while True:
                 yield self._add_record(self._generate_record())
 
-    def get_null_record(self) -> tuple:
+    @staticmethod
+    def get_null_record() -> tuple:
         """Return a null record used for padding or compliance"""
         return 0, 0
 
@@ -93,12 +95,13 @@ class DatabaseRecordGenerator:
         pi, data = self.get_record(index)
         return (pi << (self.data_size_bytes * 8)) | data
 
-    def get_raw_records(self) -> int:
+    def get_raw_records(self) -> iter:
         """Generate a stream of raw records, if no record limit is set, continuously generate and return raw records"""
         for pi, data in self.get_records():
             yield (pi << (self.data_size_bytes * 8)) | data
 
-    def get_raw_null_record(self) -> int:
+    @staticmethod
+    def get_raw_null_record() -> int:
         """Return a raw null record used for padding or compliance"""
         return 0
 
@@ -165,5 +168,3 @@ class DatabaseRecordGenerator:
             record_length,
             records
         )
-
-
