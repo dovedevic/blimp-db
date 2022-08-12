@@ -66,8 +66,8 @@ class DataLayoutConfiguration:
         bytes_in_temporary = 0
         generating_at_row = 0
 
-        assert self._hardware_configuration.row_buffer_size_bytes == bank._config.row_buffer_size_bytes
-        assert self._hardware_configuration.bank_size_bytes == bank._config.bank_size_bytes
+        assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
+        assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
 
         for record in record_generator.get_raw_records():
             if generating_at_row >= self._hardware_configuration.bank_rows:
