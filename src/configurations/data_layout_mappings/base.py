@@ -9,16 +9,20 @@ from hardware import Bank
 from generators import DatabaseRecordGenerator
 
 
-class RowMapping(BaseModel):
-    """Generic Mapping of row positions to their high-level representations"""
-    data: Tuple[int, int] = Field(
-        description="A tuple representing the start row address for data and the number of rows this region contains"
-    )
+RowMapping = Tuple[int, int]
+
+
+class RowMappingSet(BaseModel):
+    """Generic set of mapped row positions to their high-level representations"""
+    data: RowMapping = Field(
+        description="A row map representing the start row address for data and the number of rows this region contains")
 
 
 class LayoutMetadata(BaseModel):
-    total_rows_for_records: int = Field(description="The total number of rows available to place data")
-    total_records_processable: int = Field(description="The total number of records that this configuration can handle")
+    total_rows_for_records: int = Field(
+        description="The total number of rows available to place data")
+    total_records_processable: int = Field(
+        description="The total number of records that this configuration can handle")
 
 
 class DataLayoutConfiguration:
@@ -51,7 +55,7 @@ class DataLayoutConfiguration:
         self._hardware_configuration = hardware
         self._database_configuration = database
 
-        self._row_mapping = RowMapping(
+        self._row_mapping_set = RowMappingSet(
             data=(0, hardware.bank_rows)
         )
 
@@ -109,7 +113,7 @@ class DataLayoutConfiguration:
     @property
     def row_mapping(self):
         """Return the row address mapping for this configuration"""
-        return self._row_mapping
+        return self._row_mapping_set
 
     @property
     def layout_metadata(self):
@@ -151,7 +155,7 @@ class DataLayoutConfiguration:
             "hardware": self._hardware_configuration.dict(),
             "database": self._database_configuration.dict(),
             "meta": {
-                "row_mapping": self._row_mapping.dict(),
+                "row_mapping_set": self._row_mapping_set.dict(),
                 "layout_metadata": self._layout_metadata.dict()
             }
         }

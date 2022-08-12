@@ -1,1 +1,1 @@
-from .base import DataLayoutConfiguration, RowMapping, LayoutMetadata
+from .base import DataLayoutConfiguration, RowMapping, RowMappingSet, LayoutMetadata
