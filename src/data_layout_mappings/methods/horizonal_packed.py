@@ -30,17 +30,15 @@ def perform_record_packed_horizontal_layout(
     """
     temporary_row = 0
     bytes_in_temporary = 0
-    records_placed = 0
     generating_at_row = base_row
 
-    for record in record_generator.get_raw_records():
-        if generating_at_row >= base_row + row_count or records_placed >= total_records_processable:
+    for record_index in range(total_records_processable):
+        if generating_at_row >= base_row + row_count:
             break  # done placing
 
         temporary_row <<= record_generator.record_size_bytes * 8
-        temporary_row += record
+        temporary_row += record_generator.get_raw_record(record_index)
         bytes_in_temporary += record_generator.record_size_bytes
-        records_placed += 1
 
         if bytes_in_temporary == bank.hardware_configuration.row_buffer_size_bytes:
             # Place and reset
@@ -50,7 +48,8 @@ def perform_record_packed_horizontal_layout(
             generating_at_row += 1
         elif bytes_in_temporary >= bank.hardware_configuration.row_buffer_size_bytes:
             # Overshot, chunk
-            while bytes_in_temporary >= bank.hardware_configuration.row_buffer_size_bytes:
+            while bytes_in_temporary >= bank.hardware_configuration.row_buffer_size_bytes and \
+                    generating_at_row < base_row + row_count:
                 bytes_overshot = bytes_in_temporary - bank.hardware_configuration.row_buffer_size_bytes
                 overshot_mask = (2 ** (bytes_overshot * 8)) - 1
                 overshot_row = temporary_row & overshot_mask
