@@ -2,7 +2,7 @@ from generators import DatabaseRecordGenerator
 from hardware import Bank
 
 
-def perform_aligned_horizontal_layout(
+def perform_record_aligned_horizontal_layout(
         base_row: int,
         row_count: int,
         bank: Bank,

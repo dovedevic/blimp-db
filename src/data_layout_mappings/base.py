@@ -7,7 +7,7 @@ from configurations.hardware import HardwareConfiguration
 from configurations.database import DatabaseConfiguration
 from hardware import Bank
 from generators import DatabaseRecordGenerator
-from configurations.data_layout_mappings.methods import perform_packed_horizontal_layout
+from configurations.data_layout_mappings.methods import perform_record_packed_horizontal_layout
 
 
 RowMapping = Tuple[int, int]
@@ -71,11 +71,12 @@ class DataLayoutConfiguration:
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
 
-        perform_packed_horizontal_layout(
+        perform_record_packed_horizontal_layout(
             base_row=0,
             row_count=bank.hardware_configuration.bank_rows,
             bank=bank,
-            record_generator=record_generator
+            record_generator=record_generator,
+            total_records_processable=self.layout_metadata.total_records_processable
         )
 
     @property
