@@ -7,7 +7,7 @@ def perform_record_aligned_horizontal_layout(
         row_count: int,
         bank: Bank,
         record_generator: DatabaseRecordGenerator,
-        total_records_processable: int
+        limit: int
 ):
     """
     Places records in row-buffer-aligned chunks within a bank.
@@ -33,59 +33,70 @@ def perform_record_aligned_horizontal_layout(
         // record_generator.record_size_bytes
     records_placed = 0
 
-    if records_per_row > 0:
+    if records_per_row >= 1:
         # Multiple (or one) records per row; record size <= row buffer
         for row_index in range(row_count):
-            # Construct a temporary location for the row / records
-            records_in_row = []
+            # Do we need to end because we reached our limit?
+            if records_placed >= limit:
+                break
 
-            # Fetch all records in this row, if we are at the end, null pad with zeros
-            for sub_record_index in range(records_per_row):
-                if records_placed < total_records_processable:
-                    records_in_row.append(
-                        record_generator.get_raw_record(row_index * records_per_row + sub_record_index)
-                    )
-                    records_placed += 1
-                else:
-                    records_in_row.append(record_generator.get_null_record())
+            # Construct a temporary row
+            temporary_row = 0
+            bytes_in_temporary = 0
 
-            # Construct the raw value byte array for the hardware
-            raw_value = 0
-            for raw in records_in_row:
-                raw_value <<= (record_generator.record_size_bytes * 8)
-                raw_value |= raw
+            # Fetch all records in this row, if we are at the end, null pad with default bytes
+            while bytes_in_temporary + record_generator.record_size_bytes <= \
+                    bank.hardware_configuration.row_buffer_size_bytes and records_placed < limit:
+                temporary_row <<= record_generator.record_size_bytes * 8
+                temporary_row += record_generator.get_raw_record(records_placed)
+                bytes_in_temporary += record_generator.record_size_bytes
+                records_placed += 1
 
-            # Store this row with all the records placed
-            bank.set_raw_row(
-                base_row + row_index,
-                raw_value
-            )
+            # We either broke out because we filled an aligned buffer or we ran out of records to place
+            # First pad with default bytes
+            for _ in range(bank.hardware_configuration.row_buffer_size_bytes - bytes_in_temporary):
+                temporary_row <<= 8
+                temporary_row += bank.default_byte_value
+
+            # We have a full row, place it
+            bank.set_raw_row(base_row + row_index, temporary_row)
+
     else:
         # Multiple rows per record; row buffer < record size
         rows_per_record = record_generator.record_size_bytes \
                           // bank.hardware_configuration.row_buffer_size_bytes
+        generating_at_row = base_row
 
         # For all placeable records, extract row-buffer sized chunks and store them
-        for record_index in range(total_records_processable):
-            # Fetch/Generate the records
-            record = record_generator.get_raw_record(record_index)
+        for record_index in range(limit):
+            # Do we need to end early because we reached the row limit
+            if generating_at_row >= base_row + row_count:
+                break
 
-            # Chunk the record
-            for sub_row_index in range(rows_per_record):
-                # Construct the mask for each chunk
-                row_buffer_mask = (2 ** (bank.hardware_configuration.row_buffer_size_bytes * 8)) - 1
-                # Move the mask to the appropriate chunk
-                record_mask = row_buffer_mask << \
-                    (rows_per_record - 1 - sub_row_index) * \
-                    (bank.hardware_configuration.row_buffer_size_bytes * 8)
-                # Mask the record to extract the chunk
-                masked_record = record & record_mask
-                # Realign the chunk
-                record_chunk = masked_record >> \
-                    (rows_per_record - 1 - sub_row_index) * \
-                    (bank.hardware_configuration.row_buffer_size_bytes * 8)
-                # Save the chunk
-                bank.set_raw_row(
-                    base_row + (record_index * rows_per_record) + sub_row_index,
-                    record_chunk
-                )
+            # Fetch/Generate the records
+            temporary_row = record_generator.get_raw_record(record_index)
+            bytes_in_temporary = record_generator.record_size_bytes
+
+            # Row buffer align this
+            if bytes_in_temporary % bank.hardware_configuration.row_buffer_size_bytes == 0:
+                bytes_to_pad = 0
+            else:
+                bytes_to_pad = bank.hardware_configuration.row_buffer_size_bytes - \
+                           (bytes_in_temporary % bank.hardware_configuration.row_buffer_size_bytes)
+            for _ in range(bytes_to_pad):
+                temporary_row <<= 8
+                temporary_row += bank.default_byte_value
+                bytes_in_temporary += 1
+
+            while bytes_in_temporary >= bank.hardware_configuration.row_buffer_size_bytes and \
+                    generating_at_row < base_row + row_count:
+                bytes_overshot = bytes_in_temporary - bank.hardware_configuration.row_buffer_size_bytes
+                overshot_mask = (2 ** (bytes_overshot * 8)) - 1
+                overshot_row = temporary_row & overshot_mask
+
+                temporary_row >>= bytes_overshot * 8
+                bank.set_raw_row(generating_at_row, temporary_row)
+
+                temporary_row = overshot_row
+                bytes_in_temporary = bytes_overshot
+                generating_at_row += 1
