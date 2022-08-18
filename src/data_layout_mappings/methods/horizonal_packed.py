@@ -48,25 +48,28 @@ def perform_record_packed_horizontal_layout(
             temporary_row = 0
             bytes_in_temporary = 0
             generating_at_row += 1
-        elif bytes_in_temporary > bank.hardware_configuration.row_buffer_size_bytes:
+        elif bytes_in_temporary >= bank.hardware_configuration.row_buffer_size_bytes:
             # Overshot, chunk
-            bytes_overshot = bytes_in_temporary - bank.hardware_configuration.row_buffer_size_bytes
-            overshot_mask = (2 ** (bytes_overshot * 8)) - 1
-            overshot_row = temporary_row & overshot_mask
+            while bytes_in_temporary >= bank.hardware_configuration.row_buffer_size_bytes:
+                bytes_overshot = bytes_in_temporary - bank.hardware_configuration.row_buffer_size_bytes
+                overshot_mask = (2 ** (bytes_overshot * 8)) - 1
+                overshot_row = temporary_row & overshot_mask
 
-            temporary_row >>= bytes_overshot * 8
-            bank.set_raw_row(generating_at_row, temporary_row)
+                temporary_row >>= bytes_overshot * 8
+                bank.set_raw_row(generating_at_row, temporary_row)
 
-            temporary_row = overshot_row
-            bytes_in_temporary = bytes_overshot
-            generating_at_row += 1
+                temporary_row = overshot_row
+                bytes_in_temporary = bytes_overshot
+                generating_at_row += 1
         else:
             # Undershot, continue loading data
             pass
 
     # Either no more records to process or we ran out of rows
-    if generating_at_row < base_row + row_count:
+    if generating_at_row < base_row + row_count and bytes_in_temporary > 0:
         # Place what we have left
         bytes_left_in_row = bank.hardware_configuration.row_buffer_size_bytes - bytes_in_temporary
-        temporary_row <<= bytes_left_in_row * 8
+        for _ in range(bytes_left_in_row):
+            temporary_row <<= 8
+            temporary_row += bank.default_byte_value
         bank.set_raw_row(generating_at_row, temporary_row)
