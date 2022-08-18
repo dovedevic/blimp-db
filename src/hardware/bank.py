@@ -11,6 +11,7 @@ class Bank:
     def __init__(self, configuration: HardwareConfiguration, memory: list=None, default_byte_value: int=0xff):
         self._config = configuration
         self._logger = logging.getLogger(self.__class__.__name__)
+        self.default_byte_value = default_byte_value
 
         # Ensure the default value is only one byte
         if default_byte_value < 0 or default_byte_value >= 256:
