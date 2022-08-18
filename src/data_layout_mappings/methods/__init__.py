@@ -10,3 +10,5 @@ from .vertical_msb import \
     perform_record_msb_vertical_layout, \
     perform_index_msb_vertical_layout, \
     perform_data_msb_vertical_layout
+from .hitmaps import \
+    place_hitmap
