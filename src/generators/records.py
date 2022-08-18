@@ -46,6 +46,11 @@ class DatabaseRecordGenerator:
         while len(self.records) < length:
             self._add_record(self._generate_record())
 
+    @staticmethod
+    def get_null_record() -> tuple:
+        """Return a null record used for padding or compliance"""
+        return 0, 0
+
     def get_record(self, index) -> tuple:
         """Fetch a record from the corpus given an index"""
         if index >= len(self.records) and self._total_records is None:
@@ -55,6 +60,16 @@ class DatabaseRecordGenerator:
                 f"Attempted to fetch record {index} outside of pre-generated record limit {self._total_records}"
             )
         return self.records[index]
+
+    def get_pi_field(self, index) -> int:
+        """Fetch just the primary/index field"""
+        pi, _ = self.get_record(index)
+        return pi
+
+    def get_data_field(self, index) -> int:
+        """Fetch just the data field"""
+        _, data = self.get_record(index)
+        return data
 
     def get_records(self) -> iter:
         """Generate a stream of records, if no record limit is set, continuously generate records"""
@@ -67,23 +82,12 @@ class DatabaseRecordGenerator:
             while True:
                 yield self._add_record(self._generate_record())
 
-    @staticmethod
-    def get_null_record() -> tuple:
-        """Return a null record used for padding or compliance"""
-        return 0, 0
-
-    def get_pi_field(self, index) -> int:
-        """Fetch just the primary/index field"""
-        pi, _ = self.get_record(index)
-        return pi
-
-    def get_data_field(self, index) -> int:
-        """Fetch just the data field"""
-        _, data = self.get_record(index)
-        return data
-
     def get_key_field(self, index) -> int:
         """Fetch just the key field, aliased to :func:get_pi_field"""
+        return self.get_pi_field(index)
+
+    def get_index_field(self, index) -> int:
+        """Fetch just the index field, aliased to :func:get_pi_field"""
         return self.get_pi_field(index)
 
     def get_value_field(self, index) -> int:
@@ -105,6 +109,26 @@ class DatabaseRecordGenerator:
         """Return a raw null record used for padding or compliance"""
         return 0
 
+    def get_raw_pi_field(self, index) -> int:
+        """Fetch a raw pi field record from the corpus given an index"""
+        return self.get_pi_field(index)
+
+    def get_raw_index_field(self, index) -> int:
+        """Fetch a raw index field record from the corpus given an index, aliased to :func:get_raw_pi_field"""
+        return self.get_raw_pi_field(index)
+
+    def get_raw_key_field(self, index) -> int:
+        """Fetch a raw key field record from the corpus given an index, aliased to :func:get_raw_pi_field"""
+        return self.get_raw_pi_field(index)
+
+    def get_raw_data_field(self, index) -> int:
+        """Fetch a raw data field record from the corpus given an index"""
+        return self.get_data_field(index)
+
+    def get_raw_value_field(self, index) -> int:
+        """Fetch a raw value field record from the corpus given an index, aliased to :func:get_raw_data_field"""
+        return self.get_raw_data_field(index)
+
     @property
     def pi_size_bytes(self) -> int:
         """Return the primary index generator size in bytes"""
@@ -113,6 +137,11 @@ class DatabaseRecordGenerator:
     @property
     def key_size_bytes(self) -> int:
         """Return the key generator size in bytes, aliased to :func:pi_size_bytes"""
+        return self.pi_size_bytes
+
+    @property
+    def index_size_bytes(self) -> int:
+        """Return the index generator size in bytes, aliased to :func:pi_size_bytes"""
         return self.pi_size_bytes
 
     @property
