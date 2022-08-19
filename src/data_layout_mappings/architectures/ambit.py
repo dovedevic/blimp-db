@@ -436,7 +436,7 @@ class AmbitHitmapBankLayoutConfiguration(DataLayoutConfiguration):
     @classmethod
     def load(cls, path: str,
              hardware_config: callable = AmbitHardwareConfiguration,
-             database_config: callable = AmbitDatabaseConfiguration
+             database_config: callable = AmbitHitmapDatabaseConfiguration
              ):
         """Load a layout configuration object"""
         return super().load(path, hardware_config, database_config)
@@ -599,7 +599,7 @@ class AmbitIndexHitmapBankLayoutConfiguration(DataLayoutConfiguration):
     @classmethod
     def load(cls, path: str,
              hardware_config: callable = AmbitHardwareConfiguration,
-             database_config: callable = AmbitDatabaseConfiguration
+             database_config: callable = AmbitHitmapDatabaseConfiguration
              ):
         """Load a layout configuration object"""
         return super().load(path, hardware_config, database_config)
