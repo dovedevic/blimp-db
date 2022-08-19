@@ -8,7 +8,7 @@ from hardware import Bank
 from generators import DatabaseRecordGenerator
 from data_layout_mappings import RowMappingSet, RowMapping, LayoutMetadata, DataLayoutConfiguration
 from data_layout_mappings.methods import perform_record_aligned_horizontal_layout, place_hitmap, \
-    perform_index_aligned_horizontal_layout
+    perform_index_aligned_horizontal_layout, perform_record_msb_vertical_layout, perform_index_msb_vertical_layout
 
 
 class BlimpRowMapping(RowMappingSet):
@@ -120,7 +120,7 @@ class StandardBlimpBankLayoutConfiguration(DataLayoutConfiguration):
             data_rows = total_rows_for_configurable_data
         # Multiple rows per one record
         else:
-            whole_rows_to_record = int(math.ceil(self._database_configuration.total_record_size_bytes //
+            whole_rows_to_record = int(math.ceil(self._database_configuration.total_record_size_bytes /
                                                  self._hardware_configuration.row_buffer_size_bytes))
             processable_records = total_rows_for_configurable_data // whole_rows_to_record
             data_rows = total_rows_for_configurable_data - total_rows_for_configurable_data % whole_rows_to_record
@@ -441,7 +441,7 @@ class BlimpIndexBankLayoutConfiguration(DataLayoutConfiguration):
             data_rows = total_rows_for_configurable_data
         # Multiple rows per one index
         else:
-            whole_rows_to_index = int(math.ceil(self._database_configuration.total_index_size_bytes //
+            whole_rows_to_index = int(math.ceil(self._database_configuration.total_index_size_bytes /
                                                 self._hardware_configuration.row_buffer_size_bytes))
             processable_indices = total_rows_for_configurable_data // whole_rows_to_index
             data_rows = total_rows_for_configurable_data - total_rows_for_configurable_data % whole_rows_to_index
@@ -678,6 +678,230 @@ class BlimpIndexHitmapBankLayoutConfiguration(BlimpIndexBankLayoutConfiguration)
     def load(cls, path: str,
              hardware_config: callable=BlimpHardwareConfiguration,
              database_config: callable=BlimpHitmapDatabaseConfiguration
+             ):
+        """Load a layout configuration object"""
+        return super().load(path, hardware_config, database_config)
+
+
+class BlimpRecordBitweaveBankLayoutConfiguration(DataLayoutConfiguration):
+    """
+    Defines the row/data layout configuration for a BLIMP database bank. This configuration places records
+    vertically in the bank fitting as many whole-records into a row buffer as it can at a time
+
+    An example of what this bank would look like is as follows:
+        [record] = (key,value) | (index,columns) | (index,data)
+
+    Bank:
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    -                  BLIMP CODE                   -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    -                  BLIMP TEMP                   -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    - [ [ [ [ [                                [    -
+    - r r r r r                                r    -
+    - e e e e e            ...                 e    -
+    - c c c c c                                c    -
+    - o o o o o                                o    -
+    - r r r r r            ...                 r    -
+    - d d d d d                                d    -
+    - ] ] ] ] ]                                ]    -
+    -                                               -
+    -                                               -
+    -                                               -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    +-----------------------------------------------+
+    |                   ROW  BUFFER                 |
+    +-----------------------------------------------+
+
+    """
+
+    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpDatabaseConfiguration):
+        super().__init__(hardware, database)
+
+        self._hardware_configuration = hardware
+        self._database_configuration = database
+
+        # User-defined rows dedicated to storing BLIMP compute code
+        total_rows_for_blimp_code_region = int(
+            math.ceil(
+                self._database_configuration.blimp_code_region_size_bytes /
+                self._hardware_configuration.row_buffer_size_bytes
+            )
+        )
+
+        # User-defined rows dedicated to BLIMP temporary storage
+        total_rows_for_blimp_temp_region = int(
+            math.ceil(
+                self._database_configuration.blimp_temporary_region_size_bytes /
+                self._hardware_configuration.row_buffer_size_bytes
+            )
+        )
+
+        # Total rows to play with when configuring the layout
+        total_rows_for_configurable_data = self._hardware_configuration.bank_rows \
+            - (total_rows_for_blimp_code_region + total_rows_for_blimp_temp_region)
+
+        if total_rows_for_configurable_data < 0:
+            raise ValueError("There are not enough bank rows to satisfy static BLIMP row constraints")
+
+        total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
+            (total_rows_for_configurable_data // (self._database_configuration.total_record_size_bytes * 8))
+
+        self._layout_metadata = BlimpLayoutMetadata(
+            total_rows_for_records=total_rows_for_configurable_data,
+            total_records_processable=total_records_processable,
+            total_rows_for_configurable_data=total_rows_for_configurable_data,
+            total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
+            total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
+        )
+
+        base = 0
+
+        # BLIMP Code region always starts at row 0
+        blimp_code_region = (base, total_rows_for_blimp_code_region)
+        base += total_rows_for_blimp_code_region
+
+        blimp_temp_region = (base, total_rows_for_blimp_temp_region)
+        base += total_rows_for_blimp_temp_region
+
+        data_region = (base, total_rows_for_configurable_data)
+        base += total_rows_for_configurable_data
+
+        self._row_mapping_set = BlimpRowMapping(
+            blimp_code_region=blimp_code_region,
+            blimp_temp_region=blimp_temp_region,
+            data=data_region,
+        )
+
+    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+        """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
+        assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
+        assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
+
+        perform_record_msb_vertical_layout(
+            base_row=self.row_mapping.data[0],
+            row_count=self.row_mapping.data[1],
+            bank=bank,
+            record_generator=record_generator,
+            limit=self.layout_metadata.total_records_processable
+        )
+
+    @classmethod
+    def load(cls, path: str,
+             hardware_config: callable = BlimpHardwareConfiguration,
+             database_config: callable = BlimpDatabaseConfiguration
+             ):
+        """Load a layout configuration object"""
+        return super().load(path, hardware_config, database_config)
+
+
+class BlimpIndexBitweaveBankLayoutConfiguration(DataLayoutConfiguration):
+    """
+    Defines the row/data layout configuration for a BLIMP database bank. This configuration places record
+    indices vertically in the bank fitting as many whole-index records into a row buffer as it can at a time
+
+    An example of what this bank would look like is as follows:
+        [record] = (key,value) | (index,columns) | (index,data)
+
+    Bank:
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    -                  BLIMP CODE                   -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    -                  BLIMP TEMP                   -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    - [ [ [ [ [                                [    -
+    - i i i i i                                i    -
+    - n n n n n            ...                 n    -
+    - d d d d d                                d    -
+    - e e e e e                                e    -
+    - x x x x x            ...                 x    -
+    - ] ] ] ] ]                                ]    -
+    -                                               -
+    -                                               -
+    -                                               -
+    -                                               -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    +-----------------------------------------------+
+    |                   ROW  BUFFER                 |
+    +-----------------------------------------------+
+
+    """
+
+    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpDatabaseConfiguration):
+        super().__init__(hardware, database)
+
+        self._hardware_configuration = hardware
+        self._database_configuration = database
+
+        # User-defined rows dedicated to storing BLIMP compute code
+        total_rows_for_blimp_code_region = int(
+            math.ceil(
+                self._database_configuration.blimp_code_region_size_bytes /
+                self._hardware_configuration.row_buffer_size_bytes
+            )
+        )
+
+        # User-defined rows dedicated to BLIMP temporary storage
+        total_rows_for_blimp_temp_region = int(
+            math.ceil(
+                self._database_configuration.blimp_temporary_region_size_bytes /
+                self._hardware_configuration.row_buffer_size_bytes
+            )
+        )
+
+        # Total rows to play with when configuring the layout
+        total_rows_for_configurable_data = self._hardware_configuration.bank_rows \
+            - (total_rows_for_blimp_code_region + total_rows_for_blimp_temp_region)
+
+        if total_rows_for_configurable_data < 0:
+            raise ValueError("There are not enough bank rows to satisfy static BLIMP row constraints")
+
+        total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
+            (total_rows_for_configurable_data // (self._database_configuration.total_index_size_bytes * 8))
+
+        self._layout_metadata = BlimpLayoutMetadata(
+            total_rows_for_records=total_rows_for_configurable_data,
+            total_records_processable=total_records_processable,
+            total_rows_for_configurable_data=total_rows_for_configurable_data,
+            total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
+            total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
+        )
+
+        base = 0
+
+        # BLIMP Code region always starts at row 0
+        blimp_code_region = (base, total_rows_for_blimp_code_region)
+        base += total_rows_for_blimp_code_region
+
+        blimp_temp_region = (base, total_rows_for_blimp_temp_region)
+        base += total_rows_for_blimp_temp_region
+
+        data_region = (base, total_rows_for_configurable_data)
+        base += total_rows_for_configurable_data
+
+        self._row_mapping_set = BlimpRowMapping(
+            blimp_code_region=blimp_code_region,
+            blimp_temp_region=blimp_temp_region,
+            data=data_region,
+        )
+
+    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+        """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
+        assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
+        assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
+
+        perform_index_msb_vertical_layout(
+            base_row=self.row_mapping.data[0],
+            row_count=self.row_mapping.data[1],
+            bank=bank,
+            record_generator=record_generator,
+            limit=self.layout_metadata.total_records_processable
+        )
+
+    @classmethod
+    def load(cls, path: str,
+             hardware_config: callable = BlimpHardwareConfiguration,
+             database_config: callable = BlimpDatabaseConfiguration
              ):
         """Load a layout configuration object"""
         return super().load(path, hardware_config, database_config)
