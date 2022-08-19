@@ -4,7 +4,7 @@ from configurations.hardware import HardwareConfiguration
 class AmbitHardwareConfiguration(HardwareConfiguration):
     """Defines unchanging AMBIT system configurations with a standard CPU system configuration"""
     # Intrinsic Hardware Values
-    ambit_temporary_register_rows: int
+    ambit_compute_register_rows: int
     ambit_dcc_rows: int
 
     # Calculated Fields
