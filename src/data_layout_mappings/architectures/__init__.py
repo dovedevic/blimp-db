@@ -9,3 +9,10 @@ from .ambit import \
     AmbitIndexBankLayoutConfiguration, \
     AmbitHitmapBankLayoutConfiguration, \
     AmbitIndexHitmapBankLayoutConfiguration
+from .cpu import \
+    StandardPackedDataLayout, \
+    StandardAlignedDataLayout, \
+    StandardPackedIndexDataLayout, \
+    StandardAlignedIndexDataLayout, \
+    StandardBitweaveVerticalDataLayout, \
+    StandardBitweaveVerticalIndexDataLayout
