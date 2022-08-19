@@ -8,4 +8,7 @@ class ConstantDataGenerator(DataGenerator):
         self._constant = constant
 
     def _generate(self):
-        return self._constant
+        if self._data_size_in_bytes > 0:
+            return self._constant
+        else:
+            return 0
