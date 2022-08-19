@@ -5,6 +5,8 @@ from .blimp import \
     BlimpIndexBankLayoutConfiguration, \
     BlimpRecordBitweaveBankLayoutConfiguration, \
     BlimpIndexBitweaveBankLayoutConfiguration, \
+    BlimpHitmapRecordBitweaveBankLayoutConfiguration, \
+    BlimpHitmapIndexBitweaveBankLayoutConfiguration, \
     BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping, BlimpLayoutMetadata, BlimpRowMapping
 from .ambit import \
     StandardAmbitBankLayoutConfiguration, \
