@@ -11,6 +11,7 @@ class HardwareConfiguration(BaseModel):
     time_to_row_activate_ns: float
     time_to_column_activate_ns: float
     time_to_precharge_ns: float
+    time_to_bank_communicate_ns: float
 
     # Calculated Fields
     bank_rows: int = None
