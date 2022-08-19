@@ -7,6 +7,8 @@ from generators import DatabaseRecordGenerator
 from data_layout_mappings.methods import \
     perform_record_packed_horizontal_layout, \
     perform_record_aligned_horizontal_layout, \
+    perform_index_packed_horizontal_layout, \
+    perform_index_aligned_horizontal_layout, \
     perform_record_msb_vertical_layout, \
     perform_index_msb_vertical_layout
 from data_layout_mappings import RowMappingSet, LayoutMetadata, DataLayoutConfiguration
@@ -111,7 +113,7 @@ class StandardAlignedDataLayout(DataLayoutConfiguration):
             data_rows = hardware.bank_rows
         # Multiple rows per one record
         else:
-            whole_rows_to_record = int(math.ceil(self._database_configuration.total_record_size_bytes //
+            whole_rows_to_record = int(math.ceil(self._database_configuration.total_record_size_bytes /
                                                  self._hardware_configuration.row_buffer_size_bytes))
             processable_records = hardware.bank_rows // whole_rows_to_record
             data_rows = hardware.bank_rows - hardware.bank_rows % whole_rows_to_record
@@ -186,7 +188,7 @@ class StandardPackedIndexDataLayout(DataLayoutConfiguration):
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
 
-        perform_record_packed_horizontal_layout(
+        perform_index_packed_horizontal_layout(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
@@ -238,7 +240,7 @@ class StandardAlignedIndexDataLayout(DataLayoutConfiguration):
             data_rows = hardware.bank_rows
         # Multiple rows per one index
         else:
-            whole_rows_to_index = int(math.ceil(self._database_configuration.total_index_size_bytes //
+            whole_rows_to_index = int(math.ceil(self._database_configuration.total_index_size_bytes /
                                                 self._hardware_configuration.row_buffer_size_bytes))
             processable_indices = hardware.bank_rows // whole_rows_to_index
             data_rows = hardware.bank_rows - hardware.bank_rows % whole_rows_to_index
@@ -250,6 +252,19 @@ class StandardAlignedIndexDataLayout(DataLayoutConfiguration):
         self._layout_metadata = LayoutMetadata(
             total_rows_for_records=data_rows,
             total_records_processable=processable_indices
+        )
+
+    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+        """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
+        assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
+        assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
+
+        perform_index_aligned_horizontal_layout(
+            base_row=self.row_mapping.data[0],
+            row_count=self.row_mapping.data[1],
+            bank=bank,
+            record_generator=record_generator,
+            limit=self.layout_metadata.total_records_processable
         )
 
 
