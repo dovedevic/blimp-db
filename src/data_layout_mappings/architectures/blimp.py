@@ -495,3 +495,189 @@ class BlimpIndexBankLayoutConfiguration(DataLayoutConfiguration):
              ):
         """Load a layout configuration object"""
         return super().load(path, hardware_config, database_config)
+
+
+class BlimpIndexHitmapBankLayoutConfiguration(BlimpIndexBankLayoutConfiguration):
+    """
+    Defines the row/data layout configuration for a BLIMP database bank with hitmaps. This configuration places record
+    indices in row-buffer-aligned chunks fitting as many whole-index records into a row buffer as it can at a time
+
+    An example of what this bank would look like is as follows:
+        [record] = (key,value) | (index,columns) | (index,data)
+
+    Bank:
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    -                  BLIMP CODE                   -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    -                  BLIMP TEMP                   -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    - [     index     ][     index     ]            -
+    - [     index     ]                             -
+    -                      ...                      -
+    -                                               -
+    -                                               -
+    -                      ...                      -
+    -                                               -
+    -                                               -
+    -                                               -
+    -  ... [     index     ][     index     ]       -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    -                    HITMAPS                    -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
+    +-----------------------------------------------+
+    |                   ROW  BUFFER                 |
+    +-----------------------------------------------+
+
+    """
+    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpHitmapDatabaseConfiguration):
+        super().__init__(hardware, database)
+
+        self._hardware_configuration = hardware
+        self._database_configuration = database
+
+        # User-defined rows dedicated to storing BLIMP compute code
+        total_rows_for_blimp_code_region = int(
+            math.ceil(
+                self._database_configuration.blimp_code_region_size_bytes /
+                self._hardware_configuration.row_buffer_size_bytes
+            )
+        )
+
+        # User-defined rows dedicated to BLIMP temporary storage
+        total_rows_for_blimp_temp_region = int(
+            math.ceil(
+                self._database_configuration.blimp_temporary_region_size_bytes /
+                self._hardware_configuration.row_buffer_size_bytes
+            )
+        )
+
+        # Total rows to play with when configuring the layout
+        total_rows_for_configurable_data = self._hardware_configuration.bank_rows \
+            - (total_rows_for_blimp_code_region + total_rows_for_blimp_temp_region)
+
+        if total_rows_for_configurable_data < 0:
+            raise ValueError("There are not enough bank rows to satisfy static BLIMP row constraints")
+
+        if self._database_configuration.total_index_size_bytes > self._hardware_configuration.row_buffer_size_bytes:
+            if self._database_configuration.total_index_size_bytes % \
+                    self._hardware_configuration.row_buffer_size_bytes != 0:
+                raise ValueError("Index sizes must be row buffer aligned to at least a power of two")
+        else:
+            if self._hardware_configuration.row_buffer_size_bytes % \
+                    self._database_configuration.total_index_size_bytes != 0:
+                raise ValueError("Index sizes must be row buffer aligned to at least a power of two")
+
+        data_rows = 0
+        hitmap_rows = 0
+        processable_indices = 0
+        index_to_row_buffer_ratio = self._database_configuration.total_index_size_bytes \
+            / self._hardware_configuration.row_buffer_size_bytes
+        while data_rows + hitmap_rows < total_rows_for_configurable_data:
+            # Hitmap rows are calculated one bit per PI field, per each hitmap
+            new_hitmap_rows = self._database_configuration.hitmap_count
+            # Data rows are calculated by the row buffer width of indices, multiplied by the size of the index
+            # rb * 8 * data / rb
+            new_data_rows = 8 * self._database_configuration.total_index_size_bytes
+
+            # Can we fit a full set of indices into the bank?
+            if new_hitmap_rows + hitmap_rows + new_data_rows + data_rows < total_rows_for_configurable_data:
+                # If we can, add this new block into our existing set
+                hitmap_rows += new_hitmap_rows
+                data_rows += new_data_rows
+                processable_indices += self._hardware_configuration.row_buffer_size_bytes * 8
+                continue
+
+            # Can we fit a subset of indices into the bank?
+            elif new_hitmap_rows + hitmap_rows + data_rows < total_rows_for_configurable_data:
+                # If we can, ensure we can add at least one data index
+                if index_to_row_buffer_ratio >= 1 and (new_hitmap_rows + hitmap_rows +
+                   data_rows + index_to_row_buffer_ratio) > total_rows_for_configurable_data:
+                    # If we can't fit at least one index, break out
+                    break
+
+                # At this point at least one index is placeable, so place the blocks
+                hitmap_rows += new_hitmap_rows
+
+                rows_remaining = total_rows_for_configurable_data - hitmap_rows - data_rows
+                if index_to_row_buffer_ratio <= 1:
+                    indices_per_row = self._hardware_configuration.row_buffer_size_bytes \
+                                      // self._database_configuration.total_index_size_bytes
+                    processable_indices += rows_remaining * indices_per_row
+                    data_rows += rows_remaining
+                else:
+                    indices_in_remainder = rows_remaining // (
+                            self._database_configuration.total_index_size_bytes
+                            // self._hardware_configuration.row_buffer_size_bytes
+                    )
+                    processable_indices += indices_in_remainder
+                    data_rows += indices_in_remainder * (
+                            self._database_configuration.total_index_size_bytes
+                            // self._hardware_configuration.row_buffer_size_bytes
+                    )
+                break
+
+            # Can no more blocks of rows can be placed
+            else:
+                break
+
+        # Done heuristically placing rows in bank, finalize configuration
+        # Ensure we are inbounds
+        if data_rows + hitmap_rows > total_rows_for_configurable_data:
+            raise AssertionError("Heuristic placement failed, alter parameters or reserved rows")
+
+        total_rows_for_indices = data_rows  # Total rows for BLIMP-format indices (pi field / key)
+        total_rows_for_hitmaps = hitmap_rows  # Total rows for BLIMP hitmap placement
+        total_indices_processable = processable_indices  # Total number of indices operable with this configuration
+
+        self._layout_metadata = BlimpHitmapLayoutMetadata(
+            total_rows_for_records=total_rows_for_indices,
+            total_records_processable=total_indices_processable,
+            total_rows_for_hitmaps=total_rows_for_hitmaps,
+            total_rows_for_configurable_data=total_rows_for_configurable_data,
+            total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
+            total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
+        )
+
+        base = 0
+
+        # BLIMP Code region always starts at row 0
+        blimp_code_region = (base, total_rows_for_blimp_code_region)
+        base += total_rows_for_blimp_code_region
+
+        blimp_temp_region = (base, total_rows_for_blimp_temp_region)
+        base += total_rows_for_blimp_temp_region
+
+        data_region = (base, total_rows_for_indices)
+        base += total_rows_for_indices
+
+        hitmaps_region = (base, total_rows_for_hitmaps)
+        base += total_rows_for_hitmaps
+
+        self._row_mapping_set = BlimpHitmapRowMapping(
+            blimp_code_region=blimp_code_region,
+            blimp_temp_region=blimp_temp_region,
+            data=data_region,
+            hitmaps=hitmaps_region,
+        )
+
+    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+        """Given a bank hardware and record generator, attempt to place as many indices into the bank as possible"""
+        super().perform_data_layout(bank, record_generator)
+
+        rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
+        for hitmap in range(self._database_configuration.hitmap_count):
+            place_hitmap(
+                self._row_mapping_set.hitmaps[0] + hitmap * rows_per_hitmap,
+                rows_per_hitmap,
+                bank,
+                True,
+                self.layout_metadata.total_records_processable
+            )
+
+    @classmethod
+    def load(cls, path: str,
+             hardware_config: callable=BlimpHardwareConfiguration,
+             database_config: callable=BlimpHitmapDatabaseConfiguration
+             ):
+        """Load a layout configuration object"""
+        return super().load(path, hardware_config, database_config)
