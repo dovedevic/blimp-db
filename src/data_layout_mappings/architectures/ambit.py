@@ -43,7 +43,33 @@ class AmbitHitmapLayoutMetadata(AmbitLayoutMetadata):
         description="The total number of rows reserved for hitmaps")
 
 
-class StandardAmbitBankLayoutConfiguration(DataLayoutConfiguration):
+class GenericAmbitBankLayoutConfiguration(DataLayoutConfiguration):
+
+    def reset_ambit_control_rows(self, bank: Bank):
+        """Reset/Initialize all ambit controlled rows; This sets the C-group, and defines the B-group rows"""
+        self._logger.info("initializing ambit-reserved control and bitwise rows, temporary ambit D-group space")
+
+        _ambit_one = (2 ** (bank.hardware_configuration.row_buffer_size_bytes * 8)) - 1
+        _ambit_zero = 0
+
+        # Set the C-group rows
+        # C0
+        bank.set_raw_row(self._row_mapping_set.ambit_control_rows[0], _ambit_zero)
+        # C1
+        bank.set_raw_row(self._row_mapping_set.ambit_control_rows[0] + 1, _ambit_one)
+
+        # Set the B-group rows
+        # Set the Dual-Contact-Cells (DCC)
+        for dcc in range(bank.hardware_configuration.ambit_dcc_rows):
+            # DCCi / !DCCi
+            bank.set_raw_row(self._row_mapping_set.ambit_dcc_rows[0] + 2 * dcc, _ambit_zero)
+            bank.set_raw_row(self._row_mapping_set.ambit_dcc_rows[0] + 2 * dcc + 1, _ambit_one)
+        # Set the Compute/Temp (T) registers
+        for t in range(bank.hardware_configuration.ambit_compute_register_rows):
+            bank.set_raw_row(self._row_mapping_set.ambit_compute_rows[0] + t, _ambit_zero)
+
+
+class StandardAmbitBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
     """
     Defines the row/data layout configuration for a standard Ambit database bank. This configuration places records
     vertically in the bank fitting as many whole-records into a row buffer as it can at a time
@@ -165,7 +191,7 @@ class StandardAmbitBankLayoutConfiguration(DataLayoutConfiguration):
         return super().load(path, hardware_config, database_config)
 
 
-class AmbitIndexBankLayoutConfiguration(DataLayoutConfiguration):
+class AmbitIndexBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
     """
     Defines the row/data layout configuration for an Ambit database bank. This configuration places record indices
     vertically in the bank fitting as many whole-indices into a row buffer as it can at a time
@@ -287,7 +313,7 @@ class AmbitIndexBankLayoutConfiguration(DataLayoutConfiguration):
         return super().load(path, hardware_config, database_config)
 
 
-class AmbitHitmapBankLayoutConfiguration(DataLayoutConfiguration):
+class AmbitHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
     """
     Defines the row/data layout configuration for a Ambit database bank  with hitmaps. This configuration places records
     vertically in the bank fitting as many whole-records into a row buffer as it can at a time
@@ -454,7 +480,7 @@ class AmbitHitmapBankLayoutConfiguration(DataLayoutConfiguration):
         return super().load(path, hardware_config, database_config)
 
 
-class AmbitIndexHitmapBankLayoutConfiguration(DataLayoutConfiguration):
+class AmbitIndexHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
     """
     Defines the row/data layout configuration for an Ambit database bank with hitmaps. This configuration places record
     indices vertically in the bank fitting as many whole-index records into a row buffer as it can at a time
