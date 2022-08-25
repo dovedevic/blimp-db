@@ -67,6 +67,7 @@ class StandardAmbitBankLayoutConfiguration(DataLayoutConfiguration):
     + - - - - - - - - - - - - - - - - - - - - - - - +
     -            AMBIT TEMPORARY SWAP SPACE         -
     + - - - - - - - - - - - - - - - - - - - - - - - +
+    + - - - - - - - - - - - - - - - - - - - - - - - +
     -                AMBIT CONTROL ZERO             -
     + - - - - - - - - - - - - - - - - - - - - - - - +
     -                AMBIT CONTROL ONE              -
@@ -122,14 +123,17 @@ class StandardAmbitBankLayoutConfiguration(DataLayoutConfiguration):
         ambit_temp_region = (base, total_rows_for_temporary_ambit_compute)
         base += total_rows_for_temporary_ambit_compute
 
-        ambit_control_region = (base, self._hardware_configuration.ambit_control_group_rows)
-        base += self._hardware_configuration.ambit_control_group_rows
+        # Ambit regions are always at the bottom
+        base = self._hardware_configuration.bank_rows
 
-        ambit_dcc_region = (base, self._hardware_configuration.ambit_dcc_rows)
-        base += self._hardware_configuration.ambit_dcc_rows
-
+        base -= self._hardware_configuration.ambit_compute_register_rows
         ambit_compute_region = (base, self._hardware_configuration.ambit_compute_register_rows)
-        base += self._hardware_configuration.ambit_compute_register_rows
+
+        base -= self._hardware_configuration.ambit_dcc_rows * 2
+        ambit_dcc_region = (base, self._hardware_configuration.ambit_dcc_rows * 2)
+
+        base -= self._hardware_configuration.ambit_control_group_rows
+        ambit_control_region = (base, self._hardware_configuration.ambit_control_group_rows)
 
         self._row_mapping_set = AmbitRowMapping(
             ambit_temp_rows=ambit_temp_region,
@@ -184,6 +188,7 @@ class AmbitIndexBankLayoutConfiguration(DataLayoutConfiguration):
     -                                               -
     + - - - - - - - - - - - - - - - - - - - - - - - +
     -            AMBIT TEMPORARY SWAP SPACE         -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
     + - - - - - - - - - - - - - - - - - - - - - - - +
     -                AMBIT CONTROL ZERO             -
     + - - - - - - - - - - - - - - - - - - - - - - - +
@@ -240,14 +245,17 @@ class AmbitIndexBankLayoutConfiguration(DataLayoutConfiguration):
         ambit_temp_region = (base, total_rows_for_temporary_ambit_compute)
         base += total_rows_for_temporary_ambit_compute
 
-        ambit_control_region = (base, self._hardware_configuration.ambit_control_group_rows)
-        base += self._hardware_configuration.ambit_control_group_rows
+        # Ambit regions are always at the bottom
+        base = self._hardware_configuration.bank_rows
 
-        ambit_dcc_region = (base, self._hardware_configuration.ambit_dcc_rows)
-        base += self._hardware_configuration.ambit_dcc_rows
-
+        base -= self._hardware_configuration.ambit_compute_register_rows
         ambit_compute_region = (base, self._hardware_configuration.ambit_compute_register_rows)
-        base += self._hardware_configuration.ambit_compute_register_rows
+
+        base -= self._hardware_configuration.ambit_dcc_rows * 2
+        ambit_dcc_region = (base, self._hardware_configuration.ambit_dcc_rows * 2)
+
+        base -= self._hardware_configuration.ambit_control_group_rows
+        ambit_control_region = (base, self._hardware_configuration.ambit_control_group_rows)
 
         self._row_mapping_set = AmbitRowMapping(
             ambit_temp_rows=ambit_temp_region,
@@ -304,6 +312,7 @@ class AmbitHitmapBankLayoutConfiguration(DataLayoutConfiguration):
     -                     HITMAPS                   -
     + - - - - - - - - - - - - - - - - - - - - - - - +
     -            AMBIT TEMPORARY SWAP SPACE         -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
     + - - - - - - - - - - - - - - - - - - - - - - - +
     -                AMBIT CONTROL ZERO             -
     + - - - - - - - - - - - - - - - - - - - - - - - +
@@ -392,14 +401,17 @@ class AmbitHitmapBankLayoutConfiguration(DataLayoutConfiguration):
         ambit_temp_region = (base, total_rows_for_temporary_ambit_compute)
         base += total_rows_for_temporary_ambit_compute
 
-        ambit_control_region = (base, self._hardware_configuration.ambit_control_group_rows)
-        base += self._hardware_configuration.ambit_control_group_rows
+        # Ambit regions are always at the bottom
+        base = self._hardware_configuration.bank_rows
 
-        ambit_dcc_region = (base, self._hardware_configuration.ambit_dcc_rows)
-        base += self._hardware_configuration.ambit_dcc_rows
-
+        base -= self._hardware_configuration.ambit_compute_register_rows
         ambit_compute_region = (base, self._hardware_configuration.ambit_compute_register_rows)
-        base += self._hardware_configuration.ambit_compute_register_rows
+
+        base -= self._hardware_configuration.ambit_dcc_rows * 2
+        ambit_dcc_region = (base, self._hardware_configuration.ambit_dcc_rows * 2)
+
+        base -= self._hardware_configuration.ambit_control_group_rows
+        ambit_control_region = (base, self._hardware_configuration.ambit_control_group_rows)
 
         self._row_mapping_set = AmbitHitmapRowMapping(
             hitmaps=hitmap_region,
@@ -467,6 +479,7 @@ class AmbitIndexHitmapBankLayoutConfiguration(DataLayoutConfiguration):
     -                     HITMAPS                   -
     + - - - - - - - - - - - - - - - - - - - - - - - +
     -            AMBIT TEMPORARY SWAP SPACE         -
+    + - - - - - - - - - - - - - - - - - - - - - - - +
     + - - - - - - - - - - - - - - - - - - - - - - - +
     -                AMBIT CONTROL ZERO             -
     + - - - - - - - - - - - - - - - - - - - - - - - +
@@ -555,14 +568,17 @@ class AmbitIndexHitmapBankLayoutConfiguration(DataLayoutConfiguration):
         ambit_temp_region = (base, total_rows_for_temporary_ambit_compute)
         base += total_rows_for_temporary_ambit_compute
 
-        ambit_control_region = (base, self._hardware_configuration.ambit_control_group_rows)
-        base += self._hardware_configuration.ambit_control_group_rows
+        # Ambit regions are always at the bottom
+        base = self._hardware_configuration.bank_rows
 
-        ambit_dcc_region = (base, self._hardware_configuration.ambit_dcc_rows)
-        base += self._hardware_configuration.ambit_dcc_rows
-
+        base -= self._hardware_configuration.ambit_compute_register_rows
         ambit_compute_region = (base, self._hardware_configuration.ambit_compute_register_rows)
-        base += self._hardware_configuration.ambit_compute_register_rows
+
+        base -= self._hardware_configuration.ambit_dcc_rows * 2
+        ambit_dcc_region = (base, self._hardware_configuration.ambit_dcc_rows * 2)
+
+        base -= self._hardware_configuration.ambit_control_group_rows
+        ambit_control_region = (base, self._hardware_configuration.ambit_control_group_rows)
 
         self._row_mapping_set = AmbitHitmapRowMapping(
             hitmaps=hitmap_region,
