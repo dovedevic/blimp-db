@@ -1,4 +1,5 @@
 import json
+import logging
 
 from pydantic import BaseModel, Field
 from typing import Tuple
@@ -56,6 +57,7 @@ class DataLayoutConfiguration:
     def __init__(self, hardware: HardwareConfiguration, database: DatabaseConfiguration):
         self._hardware_configuration = hardware
         self._database_configuration = database
+        self._logger = logging.getLogger(self.__class__.__name__)
 
         self._row_mapping_set = RowMappingSet(
             data=(0, hardware.bank_rows)
