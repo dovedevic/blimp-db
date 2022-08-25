@@ -1,118 +1,46 @@
-from src.configurations.bank_layout import AmbitBankLayoutConfiguration
-from src.hardware.bank import AmbitBank
-from src.generators.records import DatabaseRecordGenerator
-from src.simulators.blimp import SimulatedBlimpBank
-from src.utils import performance
-from src.utils import bitmanip
+from src.hardware.architectures import AmbitBank
+from src.simulators.simulator import SimulatedBank
 from src.simulators.result import RuntimeResult
 
 
-class SimulatedAmbitBank(SimulatedBlimpBank):
-    """Defines simulation parameters for a AMBIT/BLIMP-capable DRAM Bank"""
+class SimulatedAmbitBank(SimulatedBank):
+    """Defines simulation parameters for an AMBIT-capable DRAM Bank"""
     def __init__(
             self,
-            layout_configuration: AmbitBankLayoutConfiguration,
             bank_hardware: AmbitBank,
             logger=None
             ):
-        super(SimulatedAmbitBank, self).__init__(layout_configuration, bank_hardware, logger)
-        self.configuration = layout_configuration
+        super(SimulatedAmbitBank, self).__init__(bank_hardware, logger)
         self.bank_hardware = bank_hardware
 
-        # Define static row mappings
-        self._ambit_control_0_row = self.configuration.address_mapping["reserved_ambit_compute"][0] + 0
-        self._ambit_control_1_row = self.configuration.address_mapping["reserved_ambit_compute"][0] + 1
-
         # Define ambit common-used values
-        self._ambit_one = (2**(self.configuration.hardware_configuration.row_buffer_size_bytes * 8)) - 1
+        self._ambit_one = (2**(self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1
         self._ambit_zero = 0
+
+        # C/T Mappings
+        self._ambit_t_map = {}
+        self._ambit_t_base = self.bank_hardware.hardware_configuration.bank_rows - \
+            self.bank_hardware.hardware_configuration.ambit_compute_register_rows
+        for t in range(self.bank_hardware.hardware_configuration.ambit_compute_register_rows):
+            self._ambit_t_map[self._ambit_t_base + t] = t
 
         # DCC Mappings
         self._ambit_dcc_map = {}
-        self._ambit_dcc_base = self.configuration.address_mapping["reserved_ambit_compute"][0] + 2
-        for dcc in range(self.configuration.hardware_configuration.ambit_dcc_rows):
+        self._ambit_dcc_base = self._ambit_t_base - (2 * self.bank_hardware.hardware_configuration.ambit_dcc_rows)
+        for dcc in range(self.bank_hardware.hardware_configuration.ambit_dcc_rows):
             # DCCi / !DCCi
             self._ambit_dcc_map[self._ambit_dcc_base + 2 * dcc] = (self._ambit_dcc_base + 2 * dcc + 1, dcc)
             self._ambit_dcc_map[self._ambit_dcc_base + 2 * dcc + 1] = (self._ambit_dcc_base + 2 * dcc, dcc)
 
-        # T Mappings
-        self._ambit_t_map = {}
-        self._ambit_t_base = self._ambit_dcc_base + 2 * self.configuration.hardware_configuration.ambit_dcc_rows
-        for t in range(self.configuration.hardware_configuration.ambit_temporary_register_rows):
-            self._ambit_t_map[self._ambit_t_base + t] = t
+        # Define static row mappings
+        self._ambit_control_0_row = self._ambit_dcc_base - 2
+        self._ambit_control_1_row = self._ambit_dcc_base - 1
 
-        self._logger.info(f"simulator loaded")
-
-    def layout(self, record_set: DatabaseRecordGenerator, **kwargs):
-        """
-        Given a record set, vertically layout pi/key data for AMBIT, then horizontally layout data record by record
-        for BLIMP, and optionally reset and initialize hitmaps.
-
-        @param record_set: The record generator to use for filling the bank
-        @kwarg reset_control_rows: Default (True); When performing layout, reset/initialize all ambit control rows
-        @kwarg reset_hitmaps: Default (True); When performing layout, reset/initialize all hitmaps
-        @kwarg hitmap_default_value: Default (True); If @reset_hitmaps is set, set hitmaps to this initial value
-        """
-        super().layout(record_set, **kwargs)
-
-        self._logger.info(f"beginning ambit layout procedure")
-        performance.start_performance_tracking()
-
-        # Place PI/Key fields vertically
-        self.place_ambit_pi_fields(record_set)
-
-        # Reset/Initialize ambit control rows if specified
-        reset_control_rows = kwargs.get('reset_control_rows', True)
-        if reset_control_rows:
-            self._logger.info(f"beginning ambit control row reset/initialization")
-            self.reset_ambit_control_rows()
-        self._logger.info(f"ambit layout completed in {performance.end_performance_tracking()}s")
-
-    def place_ambit_pi_fields(self, record_generator: DatabaseRecordGenerator):
-        """Given a record generator, place pi fields/keys into the AMBIT D-group region vertically"""
-        self._logger.info(f"ambit vertical layout beginning")
-        performance.start_performance_tracking()
-
-        base_ambit_pi_row, ambit_pi_row_count = self.configuration.address_mapping["ambit_pi_field"]
-
-        # Load the P/I fields into the ambit rows
-        for pi_row in range(ambit_pi_row_count):
-            # Calculate meta-specifics
-            record_page = pi_row // (self.configuration.database_configuration.total_index_size_bytes * 8)
-            record_bit_index = pi_row % (self.configuration.database_configuration.total_index_size_bytes * 8)
-            start_record = record_page * self.configuration.hardware_configuration.row_buffer_size_bytes * 8
-
-            # Generate a new constructed row based on the current meta-specifics
-            raw_value = 0
-            for j in range(self.configuration.hardware_configuration.row_buffer_size_bytes * 8):
-                # Ensure we are placing the same number of records in ambit rows as we are in data
-                if start_record + j < self.configuration.total_records_processable:
-                    # Fetch a record from the bank based on it's index
-                    raw_value <<= 1
-                    pi = record_generator.get_pi_field(start_record + j)
-                    bit = bitmanip.msb_bit(
-                        pi,
-                        record_bit_index,
-                        self.configuration.database_configuration.total_index_size_bytes * 8
-                    )
-                    raw_value += bit
-                else:
-                    # If we reach our limit, null pad the rest of ambit rows
-                    raw_value <<= 1
-
-            # Set this new translated row into the bank
-            self.bank_hardware.set_raw_row(base_ambit_pi_row + pi_row, raw_value)
-        self._logger.info(f"data layout completed in {performance.end_performance_tracking()}s")
+        self._logger.info(f"ambit simulator loaded")
 
     def reset_ambit_control_rows(self):
         """Reset/Initialize all ambit controlled rows; This sets the C-group, and defines the B-group rows"""
         self._logger.info("initializing ambit-reserved control and bitwise rows, temporary ambit D-group space")
-        # Get the base ambit-temp-bits row, as well as the number of total rows
-        base_ambit_temp_rows, ambit_temp_row_count = self.configuration.address_mapping["temporary_ambit_compute"]
-
-        # Set all temp-bits in the D-group to zero
-        for temp_row in range(ambit_temp_row_count):
-            self.bank_hardware.set_raw_row(base_ambit_temp_rows + temp_row, self._ambit_zero)
 
         # Set the C-group rows
         # C0
@@ -122,12 +50,12 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
 
         # Set the B-group rows
         # Set the Dual-Contact-Cells (DCC)
-        for dcc in range(self.configuration.hardware_configuration.ambit_dcc_rows):
+        for dcc in range(self.bank_hardware.hardware_configuration.ambit_dcc_rows):
             # DCCi / !DCCi
             self.bank_hardware.set_raw_row(self._ambit_dcc_base + 2 * dcc, self._ambit_zero)
             self.bank_hardware.set_raw_row(self._ambit_dcc_base + 2 * dcc + 1, self._ambit_one)
-        # Set the Temporary (T) registers
-        for t in range(self.configuration.hardware_configuration.ambit_temporary_register_rows):
+        # Set the Compute/Temp (T) registers
+        for t in range(self.bank_hardware.hardware_configuration.ambit_compute_register_rows):
             self.bank_hardware.set_raw_row(self._ambit_t_base + t, self._ambit_zero)
 
     @property
@@ -140,9 +68,9 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
         """The Ambit C-group row for all ones"""
         return self._ambit_control_1_row
 
-    def ambit_temporary_register(self, register_index):
+    def ambit_compute_register(self, register_index):
         """Get an Ambit B-group temporary register"""
-        if register_index >= self.configuration.hardware_configuration.ambit_temporary_register_rows:
+        if register_index >= self.bank_hardware.hardware_configuration.ambit_compute_register_rows:
             raise RuntimeError(f"register T{register_index} does not exist in this configuration")
         return self._ambit_t_base + register_index
 
@@ -159,41 +87,41 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
     @property
     def ambit_t0(self):
         """Ambit B-group T0 register"""
-        return self.ambit_temporary_register(0)
+        return self.ambit_compute_register(0)
 
     @property
     def ambit_t1(self):
         """Ambit B-group T1 register"""
-        return self.ambit_temporary_register(1)
+        return self.ambit_compute_register(1)
 
     @property
     def ambit_t2(self):
         """Ambit B-group T2 register"""
-        return self.ambit_temporary_register(2)
+        return self.ambit_compute_register(2)
 
     @property
     def ambit_t3(self):
         """Ambit B-group T3 register"""
-        return self.ambit_temporary_register(3)
+        return self.ambit_compute_register(3)
 
     @property
     def ambit_t4(self):
         """Ambit B-group T4 register"""
-        return self.ambit_temporary_register(4)
+        return self.ambit_compute_register(4)
 
     @property
     def ambit_t5(self):
         """Ambit B-group T5 register"""
-        return self.ambit_temporary_register(5)
+        return self.ambit_compute_register(5)
 
     @property
     def ambit_t6(self):
         """Ambit B-group T6 register"""
-        return self.ambit_temporary_register(6)
+        return self.ambit_compute_register(6)
 
     def ambit_dcc_register(self, dcc_index):
         """Get an Ambit B-group DCC register"""
-        if dcc_index >= self.configuration.hardware_configuration.ambit_dcc_rows:
+        if dcc_index >= self.bank_hardware.hardware_configuration.ambit_dcc_rows:
             raise RuntimeError(f"dcc register DCC{dcc_index} does not exist in this configuration")
         return self._ambit_dcc_base + (dcc_index * 2)
 
@@ -258,8 +186,8 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
             self.bank_hardware.set_raw_row(self._ambit_dcc_map[dst_row][0], inverted_value)
 
         # Return the result of the operation
-        return self.ambit_blimp_dispatch(return_labels) + RuntimeResult(
-            self.configuration.hardware_configuration.time_for_AAP_rowclone_ns,
+        return RuntimeResult(
+            self.bank_hardware.hardware_configuration.time_for_AAP_rowclone_ns,
             f"AAP {self._get_row_nice_name(src_row)} -> {self._get_row_nice_name(dst_row)}" if return_labels else ""
         )
 
@@ -317,8 +245,8 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
             inverted_value = self.bank_hardware.get_inverted_raw_row(c_row)
             self.bank_hardware.set_raw_row(self._ambit_dcc_map[c_row][0], inverted_value)
 
-        return self.ambit_blimp_dispatch(return_labels) + RuntimeResult(
-            self.configuration.hardware_configuration.time_for_TRA_MAJ_ns,
+        return RuntimeResult(
+            self.bank_hardware.hardware_configuration.time_for_TRA_MAJ_ns,
             f"TRA {self._get_row_nice_name(a_row)} {self._get_row_nice_name(b_row)} {self._get_row_nice_name(c_row)}"
             if return_labels else ""
         )
@@ -345,6 +273,9 @@ class SimulatedAmbitBank(SimulatedBlimpBank):
         # Return the result
         return ambit_setup + tra_runtime
 
-    def ambit_blimp_dispatch(self, return_labels=True) -> RuntimeResult:
-        """Have BLIMP send an AMBIT command sequence"""
-        return self.blimp_cycle(label='bbop[ambit]  ; blimp dispatch' if return_labels else "")
+    def cpu_ambit_dispatch(self, return_labels=True) -> RuntimeResult:
+        """Have the CPU send an AMBIT command sequence"""
+        return RuntimeResult(
+            self.bank_hardware.hardware_configuration.time_to_bank_communicate_ns,
+            'bbop[ambit]  ; cpu dispatch' if return_labels else ""
+        )
