@@ -1,11 +1,20 @@
+from typing import Generic, TypeVar
+
 from simulators.result import RuntimeResult, SimulationResult
 from simulators.simulator import SimulatedBank
+from data_layout_mappings import DataLayoutConfiguration
 
 
-class Query:
+Simulator = TypeVar('Simulator', bound=SimulatedBank)
+LayoutConfiguration = TypeVar('LayoutConfiguration', bound=DataLayoutConfiguration)
+
+
+class Query(Generic[Simulator, LayoutConfiguration]):
     """Base class for query operations"""
-    def __init__(self, simulator: SimulatedBank):
-        self.sim = simulator
+    def __init__(self, simulator: Simulator, layout_configuration: LayoutConfiguration):
+        self.simulator = simulator
+        self.hardware = simulator.bank_hardware
+        self.layout_configuration = layout_configuration
 
     def perform_operation(self, **kwargs) -> (RuntimeResult, SimulationResult):
         """
