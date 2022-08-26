@@ -268,7 +268,7 @@ class StandardAlignedIndexDataLayout(DataLayoutConfiguration):
         )
 
 
-class StandardBitweaveVerticalDataLayout(DataLayoutConfiguration):
+class StandardBitweaveVerticalRecordDataLayout(DataLayoutConfiguration):
     """
     Defines the row/data layout configuration for a standard DRAM database bank. This base configuration places records
     vertically within the bank fitting as many as possible row by row

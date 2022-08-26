@@ -18,7 +18,7 @@ from .cpu import \
     StandardAlignedDataLayout, \
     StandardPackedIndexDataLayout, \
     StandardAlignedIndexDataLayout, \
-    StandardBitweaveVerticalDataLayout, \
+    StandardBitweaveVerticalRecordDataLayout, \
     StandardBitweaveVerticalIndexDataLayout
 from .blimp_ambit import BlimpAmbitHitmapBankLayoutConfiguration, \
     BlimpAmbitHitmapLayoutMetadata, BlimpAmbitHitmapRowMapping
