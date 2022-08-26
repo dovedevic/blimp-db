@@ -87,6 +87,8 @@ def plot_record_charts(save_name, studies):
     )
 
     record_ax.legend()
+    record_ax.yaxis.set_major_formatter(matplotlib.ticker.StrMethodFormatter('{x:,.0f}'))
+    record_zoom_ax.yaxis.set_major_formatter(matplotlib.ticker.StrMethodFormatter('{x:,.0f}'))
     plt.tight_layout()
     plt.savefig(f"{save_name}.records_chart.png")
     plt.show()
@@ -173,8 +175,8 @@ def plot_index_charts(save_name, studies):
     )
 
     index_ax.legend()
-    index_ax.ticklabel_format(useOffset=False, style='plain', axis='y')
-    index_zoom_ax.ticklabel_format(useOffset=False, style='plain', axis='y')
+    index_ax.yaxis.set_major_formatter(matplotlib.ticker.StrMethodFormatter('{x:,.0f}'))
+    index_zoom_ax.yaxis.set_major_formatter(matplotlib.ticker.StrMethodFormatter('{x:,.0f}'))
     plt.tight_layout()
     plt.savefig(f"{save_name}.index_chart.png")
     plt.show()
