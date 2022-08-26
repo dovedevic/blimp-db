@@ -38,9 +38,10 @@ class Bank(Generic[HardwareConfig]):
             self.memory = []
             for row in range(configuration.bank_rows):
                 value = 0
-                for _ in range(configuration.row_buffer_size_bytes):
-                    value <<= 8
-                    value += default_byte_value
+                if default_byte_value:
+                    for _ in range(configuration.row_buffer_size_bytes):
+                        value <<= 8
+                        value += default_byte_value
                 self.memory.append(value)
         self._logger.info(f"bank loaded with {'initial' if memory else 'null'} memory state")
 
