@@ -1,12 +1,14 @@
 import math
 
-from src.hardware.architectures import BlimpBank
+from src.hardware.architectures import BlimpBank, BlimpVectorBank
 from src.simulators.simulator import SimulatedBank
 from src.simulators.result import RuntimeResult
 from src.utils.bitmanip import byte_array_to_int, int_to_byte_array
 
 
-class SimulatedBlimpBank(SimulatedBank):
+class SimulatedBlimpBank(
+    SimulatedBank
+):
     """Defines simulation parameters for a BLIMP-capable DRAM Bank"""
     def __init__(
             self,
@@ -105,7 +107,7 @@ class SimulatedBlimpBank(SimulatedBank):
             self.bank_hardware.hardware_configuration.time_to_row_activate_ns +
             self.bank_hardware.hardware_configuration.time_to_precharge_ns,
             f"mem[{hex(row * self.bank_hardware.hardware_configuration.row_buffer_size_bytes)}] -> {self.blimp_v0}"
-                if return_labels else ""
+            if return_labels else ""
         )
 
         # The row buffer (and now v0) is loaded with data, transfer it via the mux if necessary
@@ -155,12 +157,40 @@ class SimulatedBlimpBank(SimulatedBank):
         # Return the result of the operation
         return result
 
+    def _blimp_set_scratchpad_to_(self, ones: bool, return_labels=True) -> RuntimeResult:
+        """Set the data scratchpad to all zeros or ones"""
+        total_bits = self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8
+        processor_bits = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture
+        operations = int(math.ceil(total_bits / processor_bits))
+        cycles_per_operation = 2  # mov x <- ones | jne i
+
+        result = self.blimp_cycle(label="; loop start", return_labels=return_labels)
+        result += self.blimp_cycle(
+            cycles=operations * cycles_per_operation
+        )
+
+        self.registers[self.blimp_data_scratchpad] = \
+            int_to_byte_array(
+                (2**(self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1 if ones else 0,
+                self.bank_hardware.hardware_configuration.row_buffer_size_bytes
+            )
+
+        return result
+
+    def blimp_set_scratchpad_to_zero(self, return_labels=True) -> RuntimeResult:
+        """Set the data scratchpad to all zeros"""
+        return self._blimp_set_scratchpad_to_(False, return_labels)
+
+    def blimp_set_scratchpad_to_one(self, return_labels=True) -> RuntimeResult:
+        """Set the data scratchpad to all ones"""
+        return self._blimp_set_scratchpad_to_(True, return_labels)
+
 
 class SimulatedBlimpVBank(SimulatedBlimpBank):
     """Defines simulation parameters for a BLIMP-V-capable DRAM Bank"""
     def __init__(
             self,
-            bank_hardware: BlimpBank,
+            bank_hardware: BlimpVectorBank,
             logger=None
             ):
         super(SimulatedBlimpVBank, self).__init__(bank_hardware, logger)
