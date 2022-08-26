@@ -41,7 +41,11 @@ class BlimpHitmapLayoutMetadata(BlimpLayoutMetadata):
         description="The total number of rows reserved for hitmaps")
 
 
-class StandardBlimpBankLayoutConfiguration(DataLayoutConfiguration):
+class StandardBlimpBankLayoutConfiguration(
+    DataLayoutConfiguration[
+        BlimpHardwareConfiguration, BlimpDatabaseConfiguration, BlimpLayoutMetadata, BlimpRowMapping
+    ],
+):
     """
     Defines the row/data layout configuration for a standard BLIMP database bank. This configuration places records
     in row-buffer-aligned chunks fitting as many whole-records into a row buffer as it can at a time
@@ -176,7 +180,12 @@ class StandardBlimpBankLayoutConfiguration(DataLayoutConfiguration):
         return super().load(path, hardware_config, database_config)
 
 
-class BlimpHitmapBankLayoutConfiguration(StandardBlimpBankLayoutConfiguration):
+class BlimpHitmapBankLayoutConfiguration(
+    StandardBlimpBankLayoutConfiguration,
+    DataLayoutConfiguration[
+        BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
+    ]
+):
     """
     Defines the row/data layout configuration for a BLIMP database bank with hitmaps. This configuration places records
     in row-buffer-aligned chunks fitting as many whole-records into a row buffer as it can at a time
@@ -342,6 +351,16 @@ class BlimpHitmapBankLayoutConfiguration(StandardBlimpBankLayoutConfiguration):
     def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         super().perform_data_layout(bank, record_generator)
+        assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
+        assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
+
+        perform_record_aligned_horizontal_layout(
+            base_row=self.row_mapping.data[0],
+            row_count=self.row_mapping.data[1],
+            bank=bank,
+            record_generator=record_generator,
+            limit=self.layout_metadata.total_records_processable
+        )
 
         rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
         for hitmap in range(self._database_configuration.hitmap_count):
@@ -362,7 +381,11 @@ class BlimpHitmapBankLayoutConfiguration(StandardBlimpBankLayoutConfiguration):
         return super().load(path, hardware_config, database_config)
 
 
-class BlimpIndexBankLayoutConfiguration(DataLayoutConfiguration):
+class BlimpIndexBankLayoutConfiguration(
+    DataLayoutConfiguration[
+        BlimpHardwareConfiguration, BlimpDatabaseConfiguration, BlimpLayoutMetadata, BlimpRowMapping
+    ]
+):
     """
     Defines the row/data layout configuration for a standard BLIMP database bank. This configuration places record
     indices in row-buffer-aligned chunks fitting as many whole-index-records into a row buffer as it can at a time
@@ -497,7 +520,12 @@ class BlimpIndexBankLayoutConfiguration(DataLayoutConfiguration):
         return super().load(path, hardware_config, database_config)
 
 
-class BlimpIndexHitmapBankLayoutConfiguration(BlimpIndexBankLayoutConfiguration):
+class BlimpIndexHitmapBankLayoutConfiguration(
+    BlimpIndexBankLayoutConfiguration,
+    DataLayoutConfiguration[
+        BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
+    ]
+):
     """
     Defines the row/data layout configuration for a BLIMP database bank with hitmaps. This configuration places record
     indices in row-buffer-aligned chunks fitting as many whole-index records into a row buffer as it can at a time
@@ -683,7 +711,11 @@ class BlimpIndexHitmapBankLayoutConfiguration(BlimpIndexBankLayoutConfiguration)
         return super().load(path, hardware_config, database_config)
 
 
-class BlimpRecordBitweaveBankLayoutConfiguration(DataLayoutConfiguration):
+class BlimpRecordBitweaveBankLayoutConfiguration(
+    DataLayoutConfiguration[
+        BlimpHardwareConfiguration, BlimpDatabaseConfiguration, BlimpLayoutMetadata, BlimpRowMapping
+    ]
+):
     """
     Defines the row/data layout configuration for a BLIMP database bank. This configuration places records
     vertically in the bank fitting as many whole-records into a row buffer as it can at a time
@@ -795,7 +827,11 @@ class BlimpRecordBitweaveBankLayoutConfiguration(DataLayoutConfiguration):
         return super().load(path, hardware_config, database_config)
 
 
-class BlimpIndexBitweaveBankLayoutConfiguration(DataLayoutConfiguration):
+class BlimpIndexBitweaveBankLayoutConfiguration(
+    DataLayoutConfiguration[
+        BlimpHardwareConfiguration, BlimpDatabaseConfiguration, BlimpLayoutMetadata, BlimpRowMapping
+    ]
+):
     """
     Defines the row/data layout configuration for a BLIMP database bank. This configuration places record
     indices vertically in the bank fitting as many whole-index records into a row buffer as it can at a time
@@ -907,7 +943,11 @@ class BlimpIndexBitweaveBankLayoutConfiguration(DataLayoutConfiguration):
         return super().load(path, hardware_config, database_config)
 
 
-class BlimpHitmapRecordBitweaveBankLayoutConfiguration(DataLayoutConfiguration):
+class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
+    DataLayoutConfiguration[
+        BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
+    ]
+):
     """
     Defines the row/data layout configuration for a BLIMP database bank with hitmaps. This configuration places records
     vertically in the bank fitting as many whole-records into a row buffer as it can at a time
@@ -1065,7 +1105,11 @@ class BlimpHitmapRecordBitweaveBankLayoutConfiguration(DataLayoutConfiguration):
         return super().load(path, hardware_config, database_config)
 
 
-class BlimpHitmapIndexBitweaveBankLayoutConfiguration(DataLayoutConfiguration):
+class BlimpHitmapIndexBitweaveBankLayoutConfiguration(
+    DataLayoutConfiguration[
+        BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
+    ]
+):
     """
     Defines the row/data layout configuration for a BLIMP database bank with hitmaps. This configuration places record
     indices vertically in the bank fitting as many whole-index records into a row buffer as it can at a time
@@ -1184,7 +1228,7 @@ class BlimpHitmapIndexBitweaveBankLayoutConfiguration(DataLayoutConfiguration):
         hitmap_region = (base, total_rows_for_hitmaps)
         base += total_rows_for_hitmaps
 
-        self._row_mapping_set = BlimpRowMapping(
+        self._row_mapping_set = BlimpHitmapRowMapping(
             hitmaps=hitmap_region,
             blimp_code_region=blimp_code_region,
             blimp_temp_region=blimp_temp_region,

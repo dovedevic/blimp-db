@@ -2,7 +2,7 @@ import json
 import logging
 
 from pydantic import BaseModel, Field
-from typing import Tuple
+from typing import Tuple, Generic, TypeVar
 
 from configurations.hardware import HardwareConfiguration
 from configurations.database import DatabaseConfiguration
@@ -28,7 +28,13 @@ class LayoutMetadata(BaseModel):
         description="The total number of records that this configuration can handle")
 
 
-class DataLayoutConfiguration:
+HardwareConfig = TypeVar('HardwareConfig', bound=HardwareConfiguration)
+DatabaseConfig = TypeVar('DatabaseConfig', bound=DatabaseConfiguration)
+LayoutMeta = TypeVar('LayoutMeta', bound=LayoutMetadata)
+RowMap = TypeVar('RowMap', bound=RowMappingSet)
+
+
+class DataLayoutConfiguration(Generic[HardwareConfig, DatabaseConfig, LayoutMeta, RowMap]):
     """
     Defines the row/data layout configuration for a standard DRAM database bank. This base configuration places records
     side by side within the bank fitting as many as possible row by row
@@ -54,7 +60,7 @@ class DataLayoutConfiguration:
     +-----------------------------------------------+
 
     """
-    def __init__(self, hardware: HardwareConfiguration, database: DatabaseConfiguration):
+    def __init__(self, hardware: HardwareConfig, database: DatabaseConfig):
         self._hardware_configuration = hardware
         self._database_configuration = database
         self._logger = logging.getLogger(self.__class__.__name__)
@@ -82,22 +88,22 @@ class DataLayoutConfiguration:
         )
 
     @property
-    def row_mapping(self):
+    def row_mapping(self) -> RowMap:
         """Return the row address mapping for this configuration"""
         return self._row_mapping_set
 
     @property
-    def layout_metadata(self):
+    def layout_metadata(self) -> LayoutMeta:
         """Return the data layout metadata about this configuration"""
         return self._layout_metadata
 
     @property
-    def hardware_configuration(self):
+    def hardware_configuration(self) -> HardwareConfig:
         """Get the internal hardware configuration"""
         return self._hardware_configuration
 
     @property
-    def database_configuration(self):
+    def database_configuration(self) -> DatabaseConfig:
         """Get the internal user-defined database configuration"""
         return self._database_configuration
 

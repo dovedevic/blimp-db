@@ -8,7 +8,7 @@ from src.configurations.database.ambit import \
     BlimpPlusAmbitDatabaseConfiguration, BlimpPlusAmbitHitmapDatabaseConfiguration
 from hardware import Bank
 from generators import DatabaseRecordGenerator
-from data_layout_mappings import RowMapping
+from data_layout_mappings import RowMapping, DataLayoutConfiguration
 from data_layout_mappings.architectures.ambit import \
     AmbitRowMapping, AmbitHitmapRowMapping, AmbitLayoutMetadata, AmbitHitmapLayoutMetadata, \
     GenericAmbitBankLayoutConfiguration
@@ -59,7 +59,13 @@ class GenericBlimpAmbitBankLayoutConfiguration(GenericAmbitBankLayoutConfigurati
     pass
 
 
-class StandardBlimpAmbitBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
+class StandardBlimpAmbitBankLayoutConfiguration(
+    GenericAmbitBankLayoutConfiguration,
+    DataLayoutConfiguration[
+        BlimpPlusAmbitHardwareConfiguration, BlimpPlusAmbitDatabaseConfiguration,
+        BlimpAmbitLayoutMetadata, BlimpAmbitRowMapping
+    ]
+):
     """
     Defines the row/data layout configuration for a standard BLIMP orchestrated Ambit database bank. This configuration
     places indices vertically in the bank while fitting whole-records horizontally into the bank
@@ -132,7 +138,13 @@ class StandardBlimpAmbitBankLayoutConfiguration(GenericAmbitBankLayoutConfigurat
         return super().load(path, hardware_config, database_config)
 
 
-class BlimpAmbitHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
+class BlimpAmbitHitmapBankLayoutConfiguration(
+    GenericAmbitBankLayoutConfiguration,
+    DataLayoutConfiguration[
+        BlimpPlusAmbitHitmapHardwareConfiguration, BlimpPlusAmbitHitmapDatabaseConfiguration,
+        BlimpAmbitHitmapLayoutMetadata, BlimpAmbitHitmapRowMapping
+    ]
+):
     """
     Defines the row/data layout configuration for a standard BLIMP orchestrated Ambit database bank. This configuration
     places indices vertically in the bank while fitting whole-records horizontally into the bank with reservations for
