@@ -27,6 +27,8 @@ class AmbitLayoutMetadata(LayoutMetadata):
     """Metadata for standard BLIMP layout"""
     total_rows_for_configurable_data: int = Field(
         description="The total number of rows that are available after reservations are taken into effect")
+    total_rows_for_ambit_temp_region: int = Field(
+        description="The total number of rows reserved for Ambit D-row temporary compute")
     total_rows_for_ambit_compute_region: int = Field(
         description="The total number of rows reserved for Ambit compute")
 
@@ -121,11 +123,11 @@ class StandardAmbitBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
         total_rows_for_reserved_ambit_compute = \
             self._hardware_configuration.ambit_dcc_rows * 2 + \
             self._hardware_configuration.ambit_control_group_rows + \
-            self._hardware_configuration.ambit_compute_register_rows + \
-            total_rows_for_temporary_ambit_compute
+            self._hardware_configuration.ambit_compute_register_rows
 
         # "Read-only" data rows remaining
-        total_rows_for_data = self._hardware_configuration.bank_rows - total_rows_for_reserved_ambit_compute
+        total_rows_for_data = self._hardware_configuration.bank_rows - \
+            (total_rows_for_reserved_ambit_compute + total_rows_for_temporary_ambit_compute)
 
         if total_rows_for_data < 0:
             raise ValueError("There are not enough bank rows to satisfy static row constraints")
@@ -138,6 +140,7 @@ class StandardAmbitBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
             total_records_processable=total_records_processable,
             total_rows_for_configurable_data=total_rows_for_data,
             total_rows_for_ambit_compute_region=total_rows_for_reserved_ambit_compute,
+            total_rows_for_ambit_temp_region=total_rows_for_temporary_ambit_compute,
         )
 
         base = 0
@@ -243,11 +246,11 @@ class AmbitIndexBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
         total_rows_for_reserved_ambit_compute = \
             self._hardware_configuration.ambit_dcc_rows * 2 + \
             self._hardware_configuration.ambit_control_group_rows + \
-            self._hardware_configuration.ambit_compute_register_rows + \
-            total_rows_for_temporary_ambit_compute
+            self._hardware_configuration.ambit_compute_register_rows
 
         # "Read-only" data rows remaining
-        total_rows_for_data = self._hardware_configuration.bank_rows - total_rows_for_reserved_ambit_compute
+        total_rows_for_data = self._hardware_configuration.bank_rows - \
+            (total_rows_for_reserved_ambit_compute + total_rows_for_temporary_ambit_compute)
 
         if total_rows_for_data < 0:
             raise ValueError("There are not enough bank rows to satisfy static row constraints")
@@ -260,6 +263,7 @@ class AmbitIndexBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
             total_records_processable=total_records_processable,
             total_rows_for_configurable_data=total_rows_for_data,
             total_rows_for_ambit_compute_region=total_rows_for_reserved_ambit_compute,
+            total_rows_for_ambit_temp_region=total_rows_for_temporary_ambit_compute,
         )
 
         base = 0
@@ -367,11 +371,11 @@ class AmbitHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
         total_rows_for_reserved_ambit_compute = \
             self._hardware_configuration.ambit_dcc_rows * 2 + \
             self._hardware_configuration.ambit_control_group_rows + \
-            self._hardware_configuration.ambit_compute_register_rows + \
-            total_rows_for_temporary_ambit_compute
+            self._hardware_configuration.ambit_compute_register_rows
 
         # Data rows remaining for data and hitmaps
-        total_rows_configurable = self._hardware_configuration.bank_rows - total_rows_for_reserved_ambit_compute
+        total_rows_configurable = self._hardware_configuration.bank_rows - \
+            (total_rows_for_reserved_ambit_compute + total_rows_for_temporary_ambit_compute)
 
         if total_rows_configurable < 0:
             raise ValueError("There are not enough bank rows to satisfy static row constraints")
@@ -413,6 +417,7 @@ class AmbitHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
             total_records_processable=total_records_processable,
             total_rows_for_configurable_data=total_rows_configurable,
             total_rows_for_ambit_compute_region=total_rows_for_reserved_ambit_compute,
+            total_rows_for_ambit_temp_region=total_rows_for_temporary_ambit_compute,
         )
 
         base = 0
@@ -534,11 +539,11 @@ class AmbitIndexHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguratio
         total_rows_for_reserved_ambit_compute = \
             self._hardware_configuration.ambit_dcc_rows * 2 + \
             self._hardware_configuration.ambit_control_group_rows + \
-            self._hardware_configuration.ambit_compute_register_rows + \
-            total_rows_for_temporary_ambit_compute
+            self._hardware_configuration.ambit_compute_register_rows
 
         # Data rows remaining for data and hitmaps
-        total_rows_configurable = self._hardware_configuration.bank_rows - total_rows_for_reserved_ambit_compute
+        total_rows_configurable = self._hardware_configuration.bank_rows - \
+            (total_rows_for_reserved_ambit_compute + total_rows_for_temporary_ambit_compute)
 
         if total_rows_configurable < 0:
             raise ValueError("There are not enough bank rows to satisfy static row constraints")
@@ -580,6 +585,7 @@ class AmbitIndexHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguratio
             total_records_processable=total_records_processable,
             total_rows_for_configurable_data=total_rows_configurable,
             total_rows_for_ambit_compute_region=total_rows_for_reserved_ambit_compute,
+            total_rows_for_ambit_temp_region=total_rows_for_temporary_ambit_compute,
         )
 
         base = 0
