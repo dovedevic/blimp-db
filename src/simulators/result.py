@@ -15,7 +15,7 @@ class RuntimeResult:
             return self
         raise NotImplemented()
 
-    def step(self, runtime: int, label: str=None):
+    def step(self, runtime: float, label: str=None):
         """Perform a simulation step, similar to adding two results"""
         self.history.append((runtime, label))
         self.runtime += runtime
