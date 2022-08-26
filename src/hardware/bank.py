@@ -1,14 +1,19 @@
 import json
 import logging
 
+from typing import Generic, TypeVar
+
 from src.configurations import HardwareConfiguration
 from utils import performance
 from utils.bitmanip import byte_array_to_int, int_to_byte_array
 
 
-class Bank:
+HardwareConfig = TypeVar('HardwareConfig', bound=HardwareConfiguration)
+
+
+class Bank(Generic[HardwareConfig]):
     """Defines bank operations for a generic DRAM Bank"""
-    def __init__(self, configuration: HardwareConfiguration, memory: list=None, default_byte_value: int=0xff):
+    def __init__(self, configuration: HardwareConfig, memory: list=None, default_byte_value: int=0xff):
         self._config = configuration
         self._logger = logging.getLogger(self.__class__.__name__)
         self.default_byte_value = default_byte_value
@@ -40,7 +45,7 @@ class Bank:
         self._logger.info(f"bank loaded with {'initial' if memory else 'null'} memory state")
 
     @property
-    def hardware_configuration(self):
+    def hardware_configuration(self) -> HardwareConfig:
         """Get this bank hardware's configuration"""
         return self._config
 

@@ -3,7 +3,9 @@ from configurations.hardware.ambit import AmbitHardwareConfiguration
 from utils.bitmanip import int_to_byte_array
 
 
-class AmbitBank(Bank):
+class AmbitBank(
+    Bank[AmbitHardwareConfiguration]
+):
     """Defines operations for an AMBIT DRAM Bank"""
 
     def __init__(self, configuration: AmbitHardwareConfiguration, memory: list = None, default_byte_value: int = 0xff):
