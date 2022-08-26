@@ -6,7 +6,7 @@ class BlimpHardwareConfiguration(HardwareConfiguration):
     # Intrinsic Hardware Values
     blimp_frequency: int
     time_to_v0_transfer_ns: float
-    processor_bit_architecture: int
+    blimp_processor_bit_architecture: int
 
     # Calculated Fields
     time_per_blimp_cycle_ns: float = None
