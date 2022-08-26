@@ -9,6 +9,7 @@ from generators import DatabaseRecordGenerator
 from data_layout_mappings import RowMappingSet, RowMapping, LayoutMetadata, DataLayoutConfiguration
 from data_layout_mappings.methods import perform_record_msb_vertical_layout, perform_index_msb_vertical_layout, \
     place_hitmap
+from utils.generic import ceil_to_multiple
 
 
 class AmbitRowMapping(RowMappingSet):
@@ -383,10 +384,11 @@ class AmbitHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (total_rows_configurable // (self._database_configuration.total_record_size_bytes * 8))
 
-        total_rows_for_data = int(math.ceil(
+        total_rows_for_data = ceil_to_multiple(
             total_records_processable * (self._database_configuration.total_record_size_bytes * 8) /
-            (self._hardware_configuration.row_buffer_size_bytes * 8)
-        ))
+            (self._hardware_configuration.row_buffer_size_bytes * 8),
+            base=self._database_configuration.total_record_size_bytes * 8
+        )
         total_rows_for_hitmaps = int(math.ceil(
             total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
         ) * self._database_configuration.hitmap_count
@@ -399,10 +401,11 @@ class AmbitHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration):
                 total_records_processable -= total_records_processable % \
                                              (self.hardware_configuration.row_buffer_size_bytes * 8)
             # Recalc
-            total_rows_for_data = int(math.ceil(
+            total_rows_for_data = ceil_to_multiple(
                 total_records_processable * (self._database_configuration.total_record_size_bytes * 8) /
-                (self._hardware_configuration.row_buffer_size_bytes * 8)
-            ))
+                (self._hardware_configuration.row_buffer_size_bytes * 8),
+                base=self._database_configuration.total_record_size_bytes * 8
+            )
             total_rows_for_hitmaps = int(math.ceil(
                 total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
             ) * self._database_configuration.hitmap_count
@@ -551,10 +554,11 @@ class AmbitIndexHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguratio
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (total_rows_configurable // (self._database_configuration.total_index_size_bytes * 8))
 
-        total_rows_for_data = int(math.ceil(
+        total_rows_for_data = ceil_to_multiple(
             total_records_processable * (self._database_configuration.total_index_size_bytes * 8) /
-            (self._hardware_configuration.row_buffer_size_bytes * 8)
-        ))
+            (self._hardware_configuration.row_buffer_size_bytes * 8),
+            base=self._database_configuration.total_index_size_bytes * 8
+        )
         total_rows_for_hitmaps = int(math.ceil(
             total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
         ) * self._database_configuration.hitmap_count
@@ -567,10 +571,11 @@ class AmbitIndexHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguratio
                 total_records_processable -= total_records_processable % \
                                              (self.hardware_configuration.row_buffer_size_bytes * 8)
             # Recalc
-            total_rows_for_data = int(math.ceil(
+            total_rows_for_data = ceil_to_multiple(
                 total_records_processable * (self._database_configuration.total_index_size_bytes * 8) /
-                (self._hardware_configuration.row_buffer_size_bytes * 8)
-            ))
+                (self._hardware_configuration.row_buffer_size_bytes * 8),
+                base=self._database_configuration.total_index_size_bytes * 8
+            )
             total_rows_for_hitmaps = int(math.ceil(
                 total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
             ) * self._database_configuration.hitmap_count
