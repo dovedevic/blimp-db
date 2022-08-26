@@ -195,7 +195,7 @@ generator = IncrementalKeyConstantDataRecordGenerator(
 )
 
 
-def main():
+def main(save_name=""):
 
     for layout_format in layout_formats:
         print(f"Evaluating study `{layout_format.name or '<no name given>'}`...")
@@ -252,7 +252,7 @@ def main():
         layout_format.layout_metadata = layout_class.layout_metadata
         layout_format.row_mapping = layout_class.row_mapping
 
-    with open(input(" > Provide a save name: "), "w") as fp:
+    with open(save_name or input(" > Provide a save name: "), "w") as fp:
         for layout in layout_formats:
             fp.write(f"{layout.name}\n")
             fp.write(f"\t{json.dumps(layout.layout_metadata.dict())}\n")
