@@ -1,2 +1,3 @@
 from .ambit import AmbitDatabaseConfiguration, AmbitHitmapDatabaseConfiguration
-from .blimp_ambit import BlimpPlusAmbitDatabaseConfiguration, BlimpVectorPlusAmbitDatabaseConfiguration
+from .blimp_ambit import BlimpPlusAmbitDatabaseConfiguration, BlimpVectorPlusAmbitDatabaseConfiguration, \
+    BlimpPlusAmbitHitmapDatabaseConfiguration

@@ -1,2 +1,3 @@
 from .ambit import AmbitHardwareConfiguration
-from .blimp_ambit import BlimpPlusAmbitAmbitHardwareConfiguration, BlimpVectorPlusAmbitAmbitHardwareConfiguration
+from .blimp_ambit import BlimpPlusAmbitHardwareConfiguration, BlimpVectorPlusAmbitHardwareConfiguration, \
+    BlimpPlusAmbitHitmapHardwareConfiguration
