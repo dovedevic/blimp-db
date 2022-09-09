@@ -24,4 +24,3 @@ class BlimpVectorHardwareConfiguration(BlimpHardwareConfiguration):
     number_of_vFPUs: int
     blimpv_sew_max_bytes: int
     blimpv_sew_min_bytes: int
-
