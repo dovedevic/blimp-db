@@ -16,10 +16,12 @@ class HardwareConfiguration(BaseModel):
 
     # Calculated Fields
     bank_rows: int = None
+    time_per_cpu_cycle_ns: float = None
 
     def __init__(self, **data):
         super().__init__(**data)
         self.bank_rows = self.bank_size_bytes // self.row_buffer_size_bytes
+        self.time_per_cpu_cycle_ns = 1 / self.cpu_frequency * 1000000000
 
     def display(self):
         """Dump the configuration into the console for visual inspection"""
