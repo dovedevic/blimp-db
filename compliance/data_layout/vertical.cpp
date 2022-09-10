@@ -32,14 +32,9 @@ int main(int argc, char* argv[]) {
 
     for(uint64_t i = data_size; i <= region_size; i+=data_size){
         src_memory_region[i - 1] = (uint8_t)((i/data_size)-1);
-        std::cout << (int)src_memory_region[i - 1] << " ";
-		    if ((i+1) % data_size == 0) {
-		        std::cout << std::endl;
-		    }
     }
 
     int z = 0;
-
 	for (uint64_t t = 0; t < trials; t++) {  // perform [trials] benchmarks...
 
         // Do some perf-timing
@@ -47,13 +42,11 @@ int main(int argc, char* argv[]) {
 
 	    /// Begin Vertical Data Layout
 		for (uint64_t i = 0; i < region_size / chunk_size; i+=1) {       // for each chunk...
-		    int chunk_page = i / (data_size * 8);
             int chunk_bit_index = i % (data_size * 8);
-
-            int start_data_index = chunk_page * chunk_size * 8;
-
             int byte_offset = chunk_bit_index / 8;
             int byte_bit = chunk_bit_index % 8;
+
+            int start_data_index = i / (data_size * 8) * chunk_size * 8;
 
             uint8_t tmp = 0;
             for (uint64_t j = 0; j < chunk_size * 8; j+=1) {  // for each bit per chunk
@@ -62,7 +55,7 @@ int main(int argc, char* argv[]) {
 
                 uint8_t data = src_memory_region[src_address];
                 tmp <<= 1;
-                uint8_t bit = (data & (128 >> byte_bit)) > 0 ? 1 : 0;
+                uint8_t bit = (data & (128 >> byte_bit)) >> (7 - byte_bit);
                 tmp += bit;
 
                 if ((j + 1) % 8 == 0) {
