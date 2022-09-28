@@ -1,8 +1,4 @@
-// compliance.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
-
 #include <iostream>
-
 #include <stdint.h>
 #include <stdio.h>
 #include <math.h>
