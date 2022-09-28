@@ -12,7 +12,6 @@
 
 uint8_t* src_memory_region;
 uint8_t* dst_memory_region;
-uint8_t* tmp_chunk_region;
 
 
 int main(int argc, char* argv[]) {
@@ -34,7 +33,6 @@ int main(int argc, char* argv[]) {
     // Set up our memory byte regions
     src_memory_region = (uint8_t*)malloc(region_size);
     dst_memory_region = (uint8_t*)malloc(region_size);
-    tmp_chunk_region = (uint8_t*)malloc(chunk_size);
 
     // Book keeping for trials
     std::vector<float> bench_times(trials);
