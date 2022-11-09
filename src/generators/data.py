@@ -4,6 +4,10 @@ import typing
 class DataGenerator:
     """Base Class for generic data generation"""
     def __init__(self, data_size_in_bytes: int, pregenerated_items: int=0, generatable: bool=True):
+
+        assert data_size_in_bytes >= 0, "Data sizes must be positive integers"
+        assert pregenerated_items >= 0, "Item counts must be positive integers"
+
         self._data_size_in_bytes = data_size_in_bytes
         self._items_generated = pregenerated_items
         self._generatable = generatable
@@ -16,7 +20,7 @@ class DataGenerator:
         if not self._generatable:
             raise RuntimeError("This generator is not able to generate more records")
 
-        data = self._generate()
+        data = 0 if self._data_size_in_bytes <= 0 else self._generate()
         self._items_generated += 1
         return data
 
