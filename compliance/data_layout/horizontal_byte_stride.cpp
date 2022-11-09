@@ -8,40 +8,48 @@
 #include <chrono>
 
 
-uint64_t* src_memory_region;
-uint64_t* dst_memory_region;
+uint8_t* src_memory_region;
+uint8_t* dst_memory_region;
 
 
 int main(int argc, char* argv[]) {
-	if (argc <= 1 || argc >= 4) {
+	if (argc != 3) {
 		std::cerr << "Usage: " << argv[0] << " [region_size_bytes] [trials]" << std::endl;
 		return -1;
 	}
-	uint64_t region_size = std::stoll(argv[1]);
-	uint64_t trials = std::stoll(argv[2]);
-
-	const uint64_t word_size = sizeof(uint64_t);
-	const uint64_t bank_index = 0;
-	const uint64_t target_bank = bank_index * word_size;
+	uint64_t region_size = std::stoll(argv[1]);  // the total region byte size
+	uint64_t trials = std::stoll(argv[2]);       // the number of trials to perform the placement study
+    const uint64_t target_bank_index = 0;
 	const uint64_t banks_per_chip = 8;
+	const uint64_t bank_size = 33554432;
 
-	src_memory_region = (uint64_t*)malloc(region_size);
-	dst_memory_region = (uint64_t*)malloc(region_size * word_size);  // multiplied by word_size only to remove seg-faults
+    std::cout << "Region Size: " << region_size << "B\n";
+    std::cout << "Trials: " << trials << "\n";
 
+    // Set up our memory byte regions
+	src_memory_region = (uint8_t*)malloc(region_size);
+	dst_memory_region = (uint8_t*)malloc(region_size * banks_per_chip + bank_size * target_bank_index);  // multiplied by banks_per_chip only to remove seg-faults
+
+    // Book keeping for trials
     std::vector<float> bench_times(trials);
 
-	for (uint64_t t = 0; t < trials; t++) {  // perform [trials] benchmarks...
+    // Zero out the memory region, not particularly needed but done for easy debugging
+#if defined _DEBUG || ALLOW_CACHE
+    for (uint64_t i = 0; i < region_size; i++) {
+        src_memory_region[i] = 0;
+        dst_memory_region[i] = 0;
+    }
+#endif
+
+    // perform [trials] benchmarks...
+	for (uint64_t t = 0; t < trials; t++) {
 
         // Do some perf-timing
         std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
 
 	    /// Begin Horizontal Data Layout
-		for (uint64_t i = 0; i < region_size / word_size; i+=word_size) {       // for each word...
-			uint64_t data = src_memory_region[i];                                   // fetch the word
-			for (uint64_t j = 0; j < banks_per_chip * word_size; j+=word_size) {    // for each byte in the word...
-			    dst_memory_region[i+j] =                                                // send each byte to a bank-
-			        ((data & (0xFF00000000000000 >> j)) <<  j) >> target_bank;          // aligned address
-			}
+		for (uint64_t i = 0; i < region_size; i+=1) {  // for each byte...
+			dst_memory_region[i * banks_per_chip + bank_size * target_bank_index] = src_memory_region[i];
 		}
 		/// End Horizontal Data Layout
 
