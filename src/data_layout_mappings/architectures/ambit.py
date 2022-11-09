@@ -7,7 +7,9 @@ from src.configurations.database.ambit import AmbitDatabaseConfiguration, AmbitH
 from hardware import Bank
 from generators import DatabaseRecordGenerator
 from data_layout_mappings import RowMappingSet, RowMapping, LayoutMetadata, DataLayoutConfiguration
-from data_layout_mappings.methods import perform_record_msb_vertical_layout, perform_index_msb_vertical_layout, \
+from data_layout_mappings.methods import \
+    perform_record_msb_vertical_layout, \
+    perform_index_msb_vertical_layout, \
     place_hitmap
 from utils.generic import ceil_to_multiple
 
@@ -72,6 +74,24 @@ class GenericAmbitBankLayoutConfiguration(
         # Set the Compute/Temp (T) registers
         for t in range(bank.hardware_configuration.ambit_compute_register_rows):
             bank.set_raw_row(self._row_mapping_set.ambit_compute_rows[0] + t, _ambit_zero)
+
+
+class GenericAmbitHitmapBankLayoutConfiguration(
+    GenericAmbitBankLayoutConfiguration
+):
+    def reset_hitmaps_to_value(self, bank: Bank, value: bool):
+        for hitmap in range(self._database_configuration.hitmap_count):
+            self.reset_hitmap_index_to_value(bank, value, hitmap)
+
+    def reset_hitmap_index_to_value(self, bank: Bank, value: bool, index: int):
+        rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
+        place_hitmap(
+            self._row_mapping_set.hitmaps[0] + index * rows_per_hitmap,
+            rows_per_hitmap,
+            bank,
+            value,
+            self._layout_metadata.total_records_processable
+        )
 
 
 class StandardAmbitBankLayoutConfiguration(
@@ -331,7 +351,7 @@ class AmbitIndexBankLayoutConfiguration(
 
 
 class AmbitHitmapBankLayoutConfiguration(
-    GenericAmbitBankLayoutConfiguration,
+    GenericAmbitHitmapBankLayoutConfiguration,
     DataLayoutConfiguration[
         AmbitHardwareConfiguration, AmbitHitmapDatabaseConfiguration, AmbitHitmapLayoutMetadata, AmbitHitmapRowMapping
     ]
@@ -486,15 +506,10 @@ class AmbitHitmapBankLayoutConfiguration(
             limit=self.layout_metadata.total_records_processable
         )
 
-        rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
-        for hitmap in range(self._database_configuration.hitmap_count):
-            place_hitmap(
-                self._row_mapping_set.hitmaps[0] + hitmap * rows_per_hitmap,
-                rows_per_hitmap,
-                bank,
-                False,
-                self.layout_metadata.total_records_processable
-            )
+        self.reset_hitmaps_to_value(
+            bank=bank,
+            value=False
+        )
 
     @classmethod
     def load(cls, path: str,
@@ -506,7 +521,7 @@ class AmbitHitmapBankLayoutConfiguration(
 
 
 class AmbitIndexHitmapBankLayoutConfiguration(
-    GenericAmbitBankLayoutConfiguration,
+    GenericAmbitHitmapBankLayoutConfiguration,
     DataLayoutConfiguration[
         AmbitHardwareConfiguration, AmbitHitmapDatabaseConfiguration, AmbitHitmapLayoutMetadata, AmbitHitmapRowMapping
     ]
@@ -661,15 +676,10 @@ class AmbitIndexHitmapBankLayoutConfiguration(
             limit=self.layout_metadata.total_records_processable
         )
 
-        rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
-        for hitmap in range(self._database_configuration.hitmap_count):
-            place_hitmap(
-                self._row_mapping_set.hitmaps[0] + hitmap * rows_per_hitmap,
-                rows_per_hitmap,
-                bank,
-                False,
-                self.layout_metadata.total_records_processable
-            )
+        self.reset_hitmaps_to_value(
+            bank=bank,
+            value=False
+        )
 
     @classmethod
     def load(cls, path: str,
