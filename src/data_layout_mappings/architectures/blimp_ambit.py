@@ -2,8 +2,7 @@ import math
 
 from pydantic import Field
 
-from src.configurations.hardware.ambit import \
-    BlimpPlusAmbitHardwareConfiguration, BlimpPlusAmbitHitmapHardwareConfiguration
+from src.configurations.hardware.ambit import BlimpPlusAmbitHardwareConfiguration
 from src.configurations.database.ambit import \
     BlimpPlusAmbitDatabaseConfiguration, BlimpPlusAmbitHitmapDatabaseConfiguration
 from hardware import Bank
@@ -141,7 +140,7 @@ class StandardBlimpAmbitBankLayoutConfiguration(
 class BlimpAmbitHitmapBankLayoutConfiguration(
     GenericAmbitBankLayoutConfiguration,
     DataLayoutConfiguration[
-        BlimpPlusAmbitHitmapHardwareConfiguration, BlimpPlusAmbitHitmapDatabaseConfiguration,
+        BlimpPlusAmbitHardwareConfiguration, BlimpPlusAmbitHitmapDatabaseConfiguration,
         BlimpAmbitHitmapLayoutMetadata, BlimpAmbitHitmapRowMapping
     ]
 ):
@@ -196,7 +195,7 @@ class BlimpAmbitHitmapBankLayoutConfiguration(
     """
 
     def __init__(self,
-                 hardware: BlimpPlusAmbitHitmapHardwareConfiguration,
+                 hardware: BlimpPlusAmbitHardwareConfiguration,
                  database: BlimpPlusAmbitHitmapDatabaseConfiguration):
         super().__init__(hardware, database)
 
@@ -376,7 +375,7 @@ class BlimpAmbitHitmapBankLayoutConfiguration(
 
     @classmethod
     def load(cls, path: str,
-             hardware_config: callable = BlimpPlusAmbitHitmapHardwareConfiguration,
+             hardware_config: callable = BlimpPlusAmbitHardwareConfiguration,
              database_config: callable = BlimpPlusAmbitHitmapDatabaseConfiguration
              ):
         """Load a layout configuration object"""
