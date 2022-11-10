@@ -10,9 +10,3 @@ class BlimpPlusAmbitHardwareConfiguration(BlimpHardwareConfiguration, AmbitHardw
 class BlimpVectorPlusAmbitHardwareConfiguration(BlimpVectorHardwareConfiguration, AmbitHardwareConfiguration):
     """Defines unchanging AMBIT system configurations sitting on top of an existing BLIMP-V system configuration"""
     pass
-
-
-class BlimpPlusAmbitHitmapHardwareConfiguration(BlimpHardwareConfiguration, AmbitHardwareConfiguration):
-    """Defines unchanging AMBIT system configurations sitting on top of an existing BLIMP system configuration with
-    hitmaps"""
-    pass
