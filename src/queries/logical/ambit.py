@@ -1,18 +1,12 @@
-from enum import Enum
-
 from src.queries.query import Query
 from src.simulators.result import RuntimeResult, SimulationResult
 from src.data_layout_mappings import DataLayoutConfiguration
 from src.configurations.hardware.ambit import AmbitHardwareConfiguration
 from src.configurations.database.ambit import AmbitHitmapDatabaseConfiguration
 from src.data_layout_mappings.architectures.ambit import AmbitHitmapLayoutMetadata, AmbitHitmapRowMapping
+from src.queries.logical.operations import HitmapLogicalOperation
 
 from src.simulators.ambit import SimulatedAmbitBank
-
-
-class HitmapLogicalOperation(str, Enum):
-    AND = "AND"
-    OR = "OR"
 
 
 class _AmbitHitmapLogical(
@@ -64,8 +58,8 @@ class _AmbitHitmapLogical(
         hitmap_b_base = self.layout_configuration.row_mapping.hitmaps[0] + rows_per_hitmap * hitmap_index_b
         hitmap_r_base = self.layout_configuration.row_mapping.hitmaps[0] + rows_per_hitmap * hitmap_index_result
 
-        # Begin by enabling AMBIT
-        runtime = self.simulator.cpu_ambit_dispatch(return_labels)  # Just send a dummy command
+        # Begin
+        runtime = self.simulator.cpu_cycle(1, "; prog start", return_labels)  # Just send a dummy command
 
         # Iterate over all hitmap rows
         runtime += self.simulator.cpu_cycle(3, "; loop start", return_labels)
@@ -76,7 +70,7 @@ class _AmbitHitmapLogical(
             hitmap_row_b = hitmap_b_base + h
             hitmap_row_r = hitmap_r_base + h
 
-            # Performing the AND Operation
+            # Performing the Operation
             # move hitmap[a] into ambit compute region
             runtime += self.simulator.cpu_ambit_dispatch(return_labels)
             runtime += self.simulator.ambit_copy(
