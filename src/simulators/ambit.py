@@ -3,7 +3,7 @@ from src.simulators.simulator import SimulatedBank
 from src.simulators.result import RuntimeResult
 
 
-class SimulatedAmbitBank(SimulatedBank):
+class SimulatedAmbitBank(SimulatedBank[AmbitBank]):
     """Defines simulation parameters for an AMBIT-capable DRAM Bank"""
     def __init__(
             self,

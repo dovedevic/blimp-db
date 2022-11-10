@@ -7,7 +7,7 @@ from src.utils.bitmanip import byte_array_to_int, int_to_byte_array
 
 
 class SimulatedBlimpBank(
-    SimulatedBank
+    SimulatedBank[BlimpBank]
 ):
     """Defines simulation parameters for a BLIMP-capable DRAM Bank"""
     def __init__(

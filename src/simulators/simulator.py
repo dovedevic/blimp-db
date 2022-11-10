@@ -1,14 +1,19 @@
 import logging
 
+from typing import Generic, TypeVar
+
 from src.hardware.bank import Bank
 from src.simulators.result import RuntimeResult
 
 
-class SimulatedBank:
+BankHardware = TypeVar('BankHardware', bound=Bank)
+
+
+class SimulatedBank(Generic[BankHardware]):
     """Defines base simulation parameters for a generic DRAM Bank"""
     def __init__(
             self,
-            bank_hardware: Bank,
+            bank_hardware: BankHardware,
             logger=None
             ):
         self._logger = logger or logging.getLogger(self.__class__.__name__)
