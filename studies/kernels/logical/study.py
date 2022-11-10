@@ -100,7 +100,7 @@ def perform_study_sweep(studies: [LogicalStudy], hitmap_size_bytes: int, save_di
                 time_to_row_activate_ns=33.0,
                 time_to_column_activate_ns=15.0,
                 time_to_precharge_ns=14.06,
-                time_to_bank_communicate_ns=0,
+                time_to_bank_communicate_ns=1257.24,
                 cpu_frequency=2200000000,
                 number_of_vALUs=32,
                 number_of_vFPUs=0,
