@@ -21,7 +21,9 @@ class SimulatedBlimpBank(
         self.registers = {
             self._v0(): [],
             self._instr_buffer(): [],
-            self._data_pad(): []
+            self._data_pad(): [],
+            self._v1(): [],
+            self._v2(): [],
         }
 
         self._logger.info(f"blimp simulator loaded")
@@ -30,6 +32,16 @@ class SimulatedBlimpBank(
     def _v0():
         """Register name for the pseudo-register linked to the row buffer"""
         return "v0"
+
+    @staticmethod
+    def _v1():
+        """Register name for the first BLIMP-V vector register"""
+        return "v1"
+
+    @staticmethod
+    def _v2():
+        """Register name for the second BLIMP-V vector register"""
+        return "v2"
 
     @staticmethod
     def _instr_buffer():
@@ -45,6 +57,16 @@ class SimulatedBlimpBank(
     def blimp_v0(self):
         """BLIMP V0 pseudo-row-buffer register"""
         return self._v0()
+
+    @property
+    def blimp_v1(self):
+        """BLIMP-V V1 vector register"""
+        return self._v1()
+
+    @property
+    def blimp_v2(self):
+        """BLIMP-V V2 vector register"""
+        return self._v2()
 
     @property
     def blimp_instruction_buffer(self):
@@ -185,6 +207,332 @@ class SimulatedBlimpBank(
         """Set the data scratchpad to all ones"""
         return self._blimp_set_scratchpad_to_(True, return_labels)
 
+    def _blimp_alu_unary_operation(self, register_a, start_byte_index, end_byte_index, operation, invert):
+        """Perform a BLIMP unary operation and store the result in Register A"""
+        # Sanity checking
+        if register_a not in self.registers:
+            raise RuntimeError(f"Register '{register_a}' does not exist")
+        elif end_byte_index < 0 or start_byte_index < 0:
+            raise RuntimeError("Byte indices must be positive")
+        elif end_byte_index > self.bank_hardware.hardware_configuration.row_buffer_size_bytes:
+            raise RuntimeError("End byte indices must be smaller than the row buffer size")
+        elif end_byte_index < start_byte_index:
+            raise RuntimeError("end_byte_index must come after start_byte_index")
+        elif end_byte_index - start_byte_index > self.bank_hardware.hardware_configuration.row_buffer_size_bytes:
+            raise RuntimeError(f"Byte index range exceeds hardware capability")
+
+        word_size = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8
+        words = math.ceil((end_byte_index - start_byte_index) / word_size)
+
+        for word in range(words):
+            a = byte_array_to_int(
+                self.registers
+                [register_a]
+                [word * word_size + start_byte_index: word * word_size + start_byte_index + word_size]
+            )
+            c = operation(a)
+            c = ((~c if invert else c) & (2 ** (word_size * 8)) - 1)  # eliminate any carry's and invert if needed
+            c = int_to_byte_array(c, word_size)
+            for byte in range(word_size):
+                self.registers[register_a][word * word_size + start_byte_index + byte] = c[byte]
+
+    def _blimp_alu_binary_operation(self, register_a, register_b, start_byte_index, end_byte_index, operation, invert):
+        """Perform a BLIMP-V binary operation and store the result in Register B"""
+        # Sanity checking
+        if register_a not in self.registers:
+            raise RuntimeError(f"Register '{register_a}' does not exist")
+        elif register_b not in self.registers:
+            raise RuntimeError(f"Register '{register_b}' does not exist")
+        elif end_byte_index < 0 or start_byte_index < 0:
+            raise RuntimeError("Byte indices must be positive")
+        elif end_byte_index > self.bank_hardware.hardware_configuration.row_buffer_size_bytes:
+            raise RuntimeError("End byte indices must be smaller than the row buffer size")
+        elif end_byte_index < start_byte_index:
+            raise RuntimeError("end_byte_index must come after start_byte_index")
+        elif end_byte_index - start_byte_index > self.bank_hardware.hardware_configuration.row_buffer_size_bytes:
+            raise RuntimeError(f"Byte index range exceeds hardware capability")
+
+        word_size = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8
+        words = math.ceil((end_byte_index - start_byte_index) / word_size)
+
+        for word in range(words):
+            a = byte_array_to_int(
+                self.registers
+                  [register_a]
+                    [word * word_size + start_byte_index : word * word_size + start_byte_index + word_size]
+            )
+            b = byte_array_to_int(
+                self.registers
+                  [register_b]
+                    [word * word_size + start_byte_index : word * word_size + start_byte_index + word_size]
+            )
+            c = operation(a, b)
+            c = ((~c if invert else c) & (2 ** (word_size * 8)) - 1)  # eliminate any carry's and invert if needed
+            c = int_to_byte_array(c, word_size)
+            for byte in range(word_size):
+                self.registers[register_b][word * word_size + start_byte_index + byte] = c[byte]
+
+    def _blimp_alu_int_un_op(self, register_a, start_byte_index, end_byte_index, operation, invert, op_name,
+                             return_labels=True) -> RuntimeResult:
+        """
+        Perform a BLIMP unary operation on register a starting at a specified byte index and ending on a specified
+        byte index then store the result in register a
+        """
+        # Perform the operation
+        self._blimp_alu_unary_operation(
+            register_a,
+            start_byte_index,
+            end_byte_index,
+            operation,
+            invert
+        )
+
+        # Calculate the number of cycles this operation takes
+        cycles = 1
+        # Calculate how many words we are processing
+        words = math.ceil(
+            (end_byte_index - start_byte_index) /
+            (self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
+        )
+        # Calculate how many ALU rounds are needed
+        alu_rounds = words
+        # Assumption; ALU takes a CPU cycle to execute, at least once extra cycle for looping per alu round
+        cycles += alu_rounds * 2
+
+        # Return the runtime result
+        return self.blimp_cycle(
+            cycles=cycles,
+            label=f"\t{register_a}[{start_byte_index}:{end_byte_index}] <- {op_name} {register_a}[{start_byte_index}:{end_byte_index}]",
+            return_labels=return_labels
+        )
+
+    def _blimp_alu_int_bin_op(self, register_a, register_b, start_byte_index, end_byte_index, operation, invert,
+                              op_name, return_labels=True) -> RuntimeResult:
+        """
+        Perform a BLIMP binary operation on register a and b starting at a specified byte index and ending on a
+        specified byte index then store the result in register b
+        """
+        # Perform the operation
+        self._blimp_alu_binary_operation(
+            register_a,
+            register_b,
+            start_byte_index,
+            end_byte_index,
+            operation,
+            invert
+        )
+
+        # Calculate the number of cycles this operation takes
+        cycles = 1
+        # Calculate how many words we are processing
+        words = math.ceil(
+            (end_byte_index - start_byte_index) /
+            (self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
+        )
+        # Calculate how many ALU rounds are needed
+        alu_rounds = words
+        # Assumption; ALU takes a CPU cycle to execute, at least once extra cycle for looping per alu round
+        cycles += alu_rounds * 2
+
+        # Return the runtime result
+        return self.blimp_cycle(
+            cycles=cycles,
+            label=f"\t{register_b}[{start_byte_index}:{end_byte_index}] <- {register_a}[{start_byte_index}:{end_byte_index}] {op_name} {register_b}[{start_byte_index}:{end_byte_index}]",
+            return_labels=return_labels
+        )
+
+    def blimp_alu_int_and(self, register_a, register_b, start_byte_index, end_byte_index, return_labels=True
+                          ) -> RuntimeResult:
+        """
+        Perform a BLIMP AND operation on register a and b starting at a specified byte index and ending on a specified
+        byte index then store the result in register b
+        """
+        # Perform the operation
+        return self._blimp_alu_int_bin_op(
+            register_a,
+            register_b,
+            start_byte_index,
+            end_byte_index,
+            lambda a, b: a & b,
+            False,
+            "AND",
+            return_labels
+        )
+
+    def blimp_alu_int_or(self, register_a, register_b, start_byte_index, end_byte_index, return_labels=True
+                         ) -> RuntimeResult:
+        """
+        Perform a BLIMP OR operation on register a and b starting at a specified byte index and ending on a specified
+        byte index then store the result in register b
+        """
+        # Perform the operation
+        return self._blimp_alu_int_bin_op(
+            register_a,
+            register_b,
+            start_byte_index,
+            end_byte_index,
+            lambda a, b: a | b,
+            False,
+            "OR",
+            return_labels
+        )
+
+    def blimp_alu_int_xor(self, register_a, register_b, start_byte_index, end_byte_index, return_labels=True
+                          ) -> RuntimeResult:
+        """
+        Perform a BLIMP XOR operation on register a and b starting at a specified byte index and ending on a specified
+        byte index then store the result in register b
+        """
+        # Perform the operation
+        return self._blimp_alu_int_bin_op(
+            register_a,
+            register_b,
+            start_byte_index,
+            end_byte_index,
+            lambda a, b: a ^ b,
+            False,
+            "XOR",
+            return_labels
+        )
+
+    def blimp_alu_int_nand(self, register_a, register_b, start_byte_index, end_byte_index, return_labels=True
+                           ) -> RuntimeResult:
+        """
+        Perform a BLIMP NAND operation on register a and b starting at a specified byte index and ending on a specified
+        byte index then store the result in register b
+        """
+        # Perform the operation
+        return self._blimp_alu_int_bin_op(
+            register_a,
+            register_b,
+            start_byte_index,
+            end_byte_index,
+            lambda a, b: a & b,
+            True,
+            "NAND",
+            return_labels
+        )
+
+    def blimp_alu_int_nor(self, register_a, register_b, start_byte_index, end_byte_index, return_labels=True
+                          ) -> RuntimeResult:
+        """
+        Perform a BLIMP NOR operation on register a and b starting at a specified byte index and ending on a specified
+        byte index then store the result in register b
+        """
+        # Perform the operation
+        return self._blimp_alu_int_bin_op(
+            register_a,
+            register_b,
+            start_byte_index,
+            end_byte_index,
+            lambda a, b: a | b,
+            True,
+            "NOR",
+            return_labels
+        )
+
+    def blimp_alu_int_xnor(self, register_a, register_b, start_byte_index, end_byte_index, return_labels=True
+                          ) -> RuntimeResult:
+        """
+        Perform a BLIMP XNOR operation on register a and b starting at a specified byte index and ending on a specified
+        byte index then store the result in register b
+        """
+        # Perform the operation
+        return self._blimp_alu_int_bin_op(
+            register_a,
+            register_b,
+            start_byte_index,
+            end_byte_index,
+            lambda a, b: a ^ b,
+            True,
+            "XNOR",
+            return_labels
+        )
+
+    def blimp_alu_int_add(self, register_a, register_b, start_byte_index, end_byte_index, return_labels=True
+                          ) -> RuntimeResult:
+        """
+        Perform a BLIMP ADD operation on register a and b starting at a specified byte index and ending on a specified
+        byte index then store the result in register b
+        """
+        # Perform the operation
+        return self._blimp_alu_int_bin_op(
+            register_a,
+            register_b,
+            start_byte_index,
+            end_byte_index,
+            lambda a, b: a + b,
+            False,
+            "ADD",
+            return_labels
+        )
+
+    def blimp_alu_int_sub(self, register_a, register_b, start_byte_index, end_byte_index, return_labels=True
+                          ) -> RuntimeResult:
+        """
+        Perform a BLIMP SUB operation on register a and b starting at a specified byte index and ending on a specified
+        byte index then store the result in register b
+        """
+        # Perform the operation
+        return self._blimp_alu_int_bin_op(
+            register_a,
+            register_b,
+            start_byte_index,
+            end_byte_index,
+            lambda a, b: a - b,
+            False,
+            "SUB",
+            return_labels
+        )
+
+    def blimp_alu_int_not(self, register_a, start_byte_index, end_byte_index, return_labels=True) -> RuntimeResult:
+        """
+        Perform a BLIMP NOT operation on register a starting at a specified byte index and ending on a specified
+        byte index then store the result in register a
+        """
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_byte_index,
+            end_byte_index,
+            lambda a: ~a,
+            False,
+            "NOT",
+            return_labels
+        )
+
+    def blimp_alu_int_acc(self, register_a, start_byte_index, end_byte_index, return_labels=True) -> RuntimeResult:
+        """
+        Perform a BLIMP ACC operation on register a starting at a specified byte index and ending on a specified
+        byte index then store the result in register a
+        """
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_byte_index,
+            end_byte_index,
+            lambda a: a + 1,
+            False,
+            "ACC",
+            return_labels
+        )
+
+    def blimp_alu_int_zero(self, register_a, start_byte_index, end_byte_index, return_labels=True) -> RuntimeResult:
+        """
+        Perform a BLIMP ISZERO operation on register a starting at a specified byte index and ending on a specified
+        byte index then store the result in register a
+        """
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_byte_index,
+            end_byte_index,
+            lambda a: int(a == 0),
+            False,
+            "ZERO",
+            return_labels
+        )
+
 
 class SimulatedBlimpVBank(SimulatedBlimpBank):
     """Defines simulation parameters for a BLIMP-V-capable DRAM Bank"""
@@ -196,30 +544,7 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         super(SimulatedBlimpVBank, self).__init__(bank_hardware, logger)
         self.bank_hardware = bank_hardware
 
-        self.registers[self._v1()] = []
-        self.registers[self._v2()] = []
-
         self._logger.info(f"blimpv simulator loaded")
-
-    @staticmethod
-    def _v1():
-        """Register name for the first BLIMP-V vector register"""
-        return "v1"
-
-    @staticmethod
-    def _v2():
-        """Register name for the second BLIMP-V vector register"""
-        return "v2"
-
-    @property
-    def blimp_v1(self):
-        """BLIMP-V V1 vector register"""
-        return self._v1()
-
-    @property
-    def blimp_v2(self):
-        """BLIMP-V V2 vector register"""
-        return self._v2()
 
     def _blimpv_alu_unary_operation(self, register_a, sew, operation, invert):
         """Perform a BLIMP-V unary operation and store the result in Register A"""
