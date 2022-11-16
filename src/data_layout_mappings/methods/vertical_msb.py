@@ -37,6 +37,10 @@ def perform_record_msb_vertical_layout(
         record_bit_index = pi_row % (record_generator.record_size_bytes * 8)
         start_record = record_page * bank.hardware_configuration.row_buffer_size_bytes * 8
 
+        # Do we need to end because we reached our limit?
+        if start_record >= limit:
+            break
+
         # Generate a new constructed row based on the current meta-specifics
         raw_value = 0
         for j in range(bank.hardware_configuration.row_buffer_size_bytes * 8):
@@ -98,6 +102,10 @@ def perform_index_msb_vertical_layout(
         record_bit_index = pi_row % (record_generator.index_size_bytes * 8)
         start_record = record_page * bank.hardware_configuration.row_buffer_size_bytes * 8
 
+        # Do we need to end because we reached our limit?
+        if start_record >= limit:
+            break
+
         # Generate a new constructed row based on the current meta-specifics
         raw_value = 0
         for j in range(bank.hardware_configuration.row_buffer_size_bytes * 8):
@@ -158,6 +166,10 @@ def perform_data_msb_vertical_layout(
         record_page = data_row // (record_generator.data_size_bytes * 8)
         record_bit_index = data_row % (record_generator.data_size_bytes * 8)
         start_record = record_page * bank.hardware_configuration.row_buffer_size_bytes * 8
+
+        # Do we need to end because we reached our limit?
+        if start_record >= limit:
+            break
 
         # Generate a new constructed row based on the current meta-specifics
         raw_value = 0
