@@ -138,8 +138,12 @@ class StandardAmbitBankLayoutConfiguration(
 
     """
 
-    def __init__(self, hardware: AmbitHardwareConfiguration, database: AmbitDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: AmbitHardwareConfiguration,
+            database: AmbitDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -163,9 +167,13 @@ class StandardAmbitBankLayoutConfiguration(
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (total_rows_for_data // (self._database_configuration.total_record_size_bytes * 8))
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = AmbitLayoutMetadata(
             total_rows_for_records=total_rows_for_data,
-            total_records_processable=total_records_processable,
+            total_records_processable=limit_records,
             total_rows_for_configurable_data=total_rows_for_data,
             total_rows_for_ambit_compute_region=total_rows_for_reserved_ambit_compute,
             total_rows_for_ambit_temp_region=total_rows_for_temporary_ambit_compute,
@@ -200,7 +208,7 @@ class StandardAmbitBankLayoutConfiguration(
             data=ambit_data_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -209,17 +217,9 @@ class StandardAmbitBankLayoutConfiguration(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = AmbitHardwareConfiguration,
-             database_config: callable = AmbitDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class AmbitIndexBankLayoutConfiguration(
@@ -266,8 +266,12 @@ class AmbitIndexBankLayoutConfiguration(
 
     """
 
-    def __init__(self, hardware: AmbitHardwareConfiguration, database: AmbitDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: AmbitHardwareConfiguration,
+            database: AmbitDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -291,9 +295,13 @@ class AmbitIndexBankLayoutConfiguration(
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (total_rows_for_data // (self._database_configuration.total_index_size_bytes * 8))
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = AmbitLayoutMetadata(
             total_rows_for_records=total_rows_for_data,
-            total_records_processable=total_records_processable,
+            total_records_processable=limit_records,
             total_rows_for_configurable_data=total_rows_for_data,
             total_rows_for_ambit_compute_region=total_rows_for_reserved_ambit_compute,
             total_rows_for_ambit_temp_region=total_rows_for_temporary_ambit_compute,
@@ -328,7 +336,7 @@ class AmbitIndexBankLayoutConfiguration(
             data=ambit_data_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -337,17 +345,9 @@ class AmbitIndexBankLayoutConfiguration(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = AmbitHardwareConfiguration,
-             database_config: callable = AmbitDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class AmbitHitmapBankLayoutConfiguration(
@@ -396,8 +396,13 @@ class AmbitHitmapBankLayoutConfiguration(
 
     """
 
-    def __init__(self, hardware: AmbitHardwareConfiguration, database: AmbitHitmapDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: AmbitHardwareConfiguration,
+            database: AmbitHitmapDatabaseConfiguration,
+            generator: DatabaseRecordGenerator
+    ):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -421,40 +426,44 @@ class AmbitHitmapBankLayoutConfiguration(
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (total_rows_configurable // (self._database_configuration.total_record_size_bytes * 8))
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         total_rows_for_data = ceil_to_multiple(
-            total_records_processable * (self._database_configuration.total_record_size_bytes * 8) /
+            limit_records * (self._database_configuration.total_record_size_bytes * 8) /
             (self._hardware_configuration.row_buffer_size_bytes * 8),
             base=self._database_configuration.total_record_size_bytes * 8
         )
         total_rows_for_hitmaps = int(math.ceil(
-            total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+            limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
         ) * self._database_configuration.hitmap_count
 
-        while total_rows_for_hitmaps + total_rows_for_data > total_rows_configurable and total_records_processable > 0:
+        while total_rows_for_hitmaps + total_rows_for_data > total_rows_configurable and limit_records > 0:
             # Start cutting back
-            if total_records_processable % (self.hardware_configuration.row_buffer_size_bytes * 8) == 0:
-                total_records_processable -= self.hardware_configuration.row_buffer_size_bytes * 8
+            if limit_records % (self.hardware_configuration.row_buffer_size_bytes * 8) == 0:
+                limit_records -= self.hardware_configuration.row_buffer_size_bytes * 8
             else:
-                total_records_processable -= total_records_processable % \
+                limit_records -= limit_records % \
                                              (self.hardware_configuration.row_buffer_size_bytes * 8)
             # Recalc
             total_rows_for_data = ceil_to_multiple(
-                total_records_processable * (self._database_configuration.total_record_size_bytes * 8) /
+                limit_records * (self._database_configuration.total_record_size_bytes * 8) /
                 (self._hardware_configuration.row_buffer_size_bytes * 8),
                 base=self._database_configuration.total_record_size_bytes * 8
             )
             total_rows_for_hitmaps = int(math.ceil(
-                total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+                limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
             ) * self._database_configuration.hitmap_count
 
         # Ensure we have at least a non-zero number of records processable
-        if total_records_processable <= 0:
+        if limit_records <= 0:
             raise ValueError("There are not enough bank rows to satisfy dynamic row constraints")
 
         self._layout_metadata = AmbitHitmapLayoutMetadata(
             total_rows_for_hitmaps=total_rows_for_hitmaps,
             total_rows_for_records=total_rows_for_data,
-            total_records_processable=total_records_processable,
+            total_records_processable=limit_records,
             total_rows_for_configurable_data=total_rows_configurable,
             total_rows_for_ambit_compute_region=total_rows_for_reserved_ambit_compute,
             total_rows_for_ambit_temp_region=total_rows_for_temporary_ambit_compute,
@@ -493,7 +502,7 @@ class AmbitHitmapBankLayoutConfiguration(
             data=ambit_data_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -502,7 +511,7 @@ class AmbitHitmapBankLayoutConfiguration(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -510,14 +519,6 @@ class AmbitHitmapBankLayoutConfiguration(
             bank=bank,
             value=False
         )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = AmbitHardwareConfiguration,
-             database_config: callable = AmbitHitmapDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class AmbitIndexHitmapBankLayoutConfiguration(
@@ -566,8 +567,12 @@ class AmbitIndexHitmapBankLayoutConfiguration(
 
     """
 
-    def __init__(self, hardware: AmbitHardwareConfiguration, database: AmbitHitmapDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: AmbitHardwareConfiguration,
+            database: AmbitHitmapDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -591,40 +596,44 @@ class AmbitIndexHitmapBankLayoutConfiguration(
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (total_rows_configurable // (self._database_configuration.total_index_size_bytes * 8))
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         total_rows_for_data = ceil_to_multiple(
-            total_records_processable * (self._database_configuration.total_index_size_bytes * 8) /
+            limit_records * (self._database_configuration.total_index_size_bytes * 8) /
             (self._hardware_configuration.row_buffer_size_bytes * 8),
             base=self._database_configuration.total_index_size_bytes * 8
         )
         total_rows_for_hitmaps = int(math.ceil(
-            total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+            limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
         ) * self._database_configuration.hitmap_count
 
-        while total_rows_for_hitmaps + total_rows_for_data > total_rows_configurable and total_records_processable > 0:
+        while total_rows_for_hitmaps + total_rows_for_data > total_rows_configurable and limit_records > 0:
             # Start cutting back
-            if total_records_processable % (self.hardware_configuration.row_buffer_size_bytes * 8) == 0:
-                total_records_processable -= self.hardware_configuration.row_buffer_size_bytes * 8
+            if limit_records % (self.hardware_configuration.row_buffer_size_bytes * 8) == 0:
+                limit_records -= self.hardware_configuration.row_buffer_size_bytes * 8
             else:
-                total_records_processable -= total_records_processable % \
+                limit_records -= limit_records % \
                                              (self.hardware_configuration.row_buffer_size_bytes * 8)
             # Recalc
             total_rows_for_data = ceil_to_multiple(
-                total_records_processable * (self._database_configuration.total_index_size_bytes * 8) /
+                limit_records * (self._database_configuration.total_index_size_bytes * 8) /
                 (self._hardware_configuration.row_buffer_size_bytes * 8),
                 base=self._database_configuration.total_index_size_bytes * 8
             )
             total_rows_for_hitmaps = int(math.ceil(
-                total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+                limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
             ) * self._database_configuration.hitmap_count
 
         # Ensure we have at least a non-zero number of index/records processable
-        if total_records_processable <= 0:
+        if limit_records <= 0:
             raise ValueError("There are not enough bank rows to satisfy dynamic row constraints")
 
         self._layout_metadata = AmbitHitmapLayoutMetadata(
             total_rows_for_hitmaps=total_rows_for_hitmaps,
             total_rows_for_records=total_rows_for_data,
-            total_records_processable=total_records_processable,
+            total_records_processable=limit_records,
             total_rows_for_configurable_data=total_rows_configurable,
             total_rows_for_ambit_compute_region=total_rows_for_reserved_ambit_compute,
             total_rows_for_ambit_temp_region=total_rows_for_temporary_ambit_compute,
@@ -663,7 +672,7 @@ class AmbitIndexHitmapBankLayoutConfiguration(
             data=ambit_data_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many indecies into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -672,7 +681,7 @@ class AmbitIndexHitmapBankLayoutConfiguration(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -680,11 +689,3 @@ class AmbitIndexHitmapBankLayoutConfiguration(
             bank=bank,
             value=False
         )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = AmbitHardwareConfiguration,
-             database_config: callable = AmbitHitmapDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)

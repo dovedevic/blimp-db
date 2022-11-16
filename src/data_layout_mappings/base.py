@@ -60,9 +60,10 @@ class DataLayoutConfiguration(Generic[HardwareConfig, DatabaseConfig, LayoutMeta
     +-----------------------------------------------+
 
     """
-    def __init__(self, hardware: HardwareConfig, database: DatabaseConfig):
+    def __init__(self, hardware: HardwareConfig, database: DatabaseConfig, generator: DatabaseRecordGenerator):
         self._hardware_configuration = hardware
         self._database_configuration = database
+        self._record_generator = generator
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._row_mapping_set = RowMappingSet(
@@ -74,7 +75,7 @@ class DataLayoutConfiguration(Generic[HardwareConfig, DatabaseConfig, LayoutMeta
             total_records_processable=hardware.bank_size_bytes // database.total_record_size_bytes
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -83,7 +84,7 @@ class DataLayoutConfiguration(Generic[HardwareConfig, DatabaseConfig, LayoutMeta
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -141,11 +142,13 @@ class DataLayoutConfiguration(Generic[HardwareConfig, DatabaseConfig, LayoutMeta
                 json.dump(configuration, fp)
             else:
                 json.dump(configuration, fp, indent=4)
+        self._record_generator.save(path + '.gen')
 
     @classmethod
     def load(cls, path: str,
              hardware_config: callable=HardwareConfiguration,
-             database_config: callable=DatabaseConfiguration
+             database_config: callable=DatabaseConfiguration,
+             record_generator: callable=DatabaseRecordGenerator
              ):
         """
         Load a layout configuration object
@@ -153,8 +156,10 @@ class DataLayoutConfiguration(Generic[HardwareConfig, DatabaseConfig, LayoutMeta
         @param path: The path and filename to load the configuration
         @param hardware_config: The constructor for a HardwareConfiguration. Defaults to `HardwareConfiguration`
         @param database_config: The constructor for a DatabaseConfiguration. Defaults to `DatabaseConfiguration`
+        @param record_generator: The constructor for a DatabaseRecordGenerator. Defaults to `DatabaseRecordGenerator`
         """
         with open(path, 'r') as fp:
             configuration = json.load(fp)
             return cls(hardware_config(**configuration["hardware"]),
-                       database_config(**configuration["database"]))
+                       database_config(**configuration["database"]),
+                       DatabaseRecordGenerator.load(path + '.gen'))

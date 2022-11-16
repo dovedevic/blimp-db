@@ -111,30 +111,24 @@ class StandardBlimpAmbitBankLayoutConfiguration(
 
     """
 
-    def __init__(self,
-                 hardware: BlimpPlusAmbitHardwareConfiguration,
-                 database: BlimpPlusAmbitDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: BlimpPlusAmbitHardwareConfiguration,
+            database: BlimpPlusAmbitDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
 
         # TODO
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
 
         # TODO
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = BlimpPlusAmbitHardwareConfiguration,
-             database_config: callable = BlimpPlusAmbitDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class BlimpAmbitHitmapBankLayoutConfiguration(
@@ -194,10 +188,12 @@ class BlimpAmbitHitmapBankLayoutConfiguration(
 
     """
 
-    def __init__(self,
-                 hardware: BlimpPlusAmbitHardwareConfiguration,
-                 database: BlimpPlusAmbitHitmapDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: BlimpPlusAmbitHardwareConfiguration,
+            database: BlimpPlusAmbitHitmapDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -250,37 +246,41 @@ class BlimpAmbitHitmapBankLayoutConfiguration(
             total_records_processable = total_rows_configurable // whole_rows_to_record
             total_rows_for_horizontal_data = total_records_processable * whole_rows_to_record
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         total_rows_for_vertical_data = ceil_to_multiple(
-            total_records_processable * (self._database_configuration.total_index_size_bytes * 8) /
+            limit_records * (self._database_configuration.total_index_size_bytes * 8) /
             (self._hardware_configuration.row_buffer_size_bytes * 8),
             base=self._database_configuration.total_index_size_bytes * 8
         )
 
         total_rows_for_hitmaps = int(math.ceil(
-            total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+            limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
         ) * self._database_configuration.hitmap_count
 
         while total_rows_for_hitmaps + total_rows_for_vertical_data + total_rows_for_horizontal_data > \
-                total_rows_configurable and total_records_processable > 0:
+                total_rows_configurable and limit_records > 0:
             # Start cutting back
-            total_records_processable -= 1
+            limit_records -= 1
 
             # Recalc
             if whole_records_to_row_buffer >= 1:
-                total_rows_for_horizontal_data = int(math.ceil(total_records_processable / whole_records_to_row_buffer))
+                total_rows_for_horizontal_data = int(math.ceil(limit_records / whole_records_to_row_buffer))
             else:
-                total_rows_for_horizontal_data = total_records_processable * whole_rows_to_record
+                total_rows_for_horizontal_data = limit_records * whole_rows_to_record
             total_rows_for_vertical_data = ceil_to_multiple(
-                total_records_processable * (self._database_configuration.total_index_size_bytes * 8) /
+                limit_records * (self._database_configuration.total_index_size_bytes * 8) /
                 (self._hardware_configuration.row_buffer_size_bytes * 8),
                 base=self._database_configuration.total_index_size_bytes * 8
             )
             total_rows_for_hitmaps = int(math.ceil(
-                total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+                limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
             ) * self._database_configuration.hitmap_count
 
         # Ensure we have at least a non-zero number of records processable
-        if total_records_processable <= 0:
+        if limit_records <= 0:
             raise ValueError("There are not enough bank rows to satisfy dynamic row constraints")
 
         self._layout_metadata = BlimpAmbitHitmapLayoutMetadata(
@@ -293,7 +293,7 @@ class BlimpAmbitHitmapBankLayoutConfiguration(
             total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
             total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
             total_rows_for_records=total_rows_for_horizontal_data + total_rows_for_vertical_data,
-            total_records_processable=total_records_processable,
+            total_records_processable=limit_records,
         )
 
         base = 0
@@ -342,7 +342,7 @@ class BlimpAmbitHitmapBankLayoutConfiguration(
             data=(vertical_data_region[0], total_rows_for_vertical_data + total_rows_for_horizontal_data),
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -351,7 +351,7 @@ class BlimpAmbitHitmapBankLayoutConfiguration(
             base_row=self.row_mapping.vertical_region[0],
             row_count=self.row_mapping.vertical_region[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -359,7 +359,7 @@ class BlimpAmbitHitmapBankLayoutConfiguration(
             base_row=self.row_mapping.horizontal_region[0],
             row_count=self.row_mapping.horizontal_region[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -372,14 +372,6 @@ class BlimpAmbitHitmapBankLayoutConfiguration(
                 False,
                 self.layout_metadata.total_records_processable
             )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = BlimpPlusAmbitHardwareConfiguration,
-             database_config: callable = BlimpPlusAmbitHitmapDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class BlimpAmbitIndexHitmapBankLayoutConfiguration(
@@ -433,10 +425,12 @@ class BlimpAmbitIndexHitmapBankLayoutConfiguration(
 
     """
 
-    def __init__(self,
-                 hardware: BlimpPlusAmbitHardwareConfiguration,
-                 database: BlimpPlusAmbitHitmapDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: BlimpPlusAmbitHardwareConfiguration,
+            database: BlimpPlusAmbitHitmapDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -477,34 +471,38 @@ class BlimpAmbitIndexHitmapBankLayoutConfiguration(
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (total_rows_configurable // (self._database_configuration.total_index_size_bytes * 8))
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         total_rows_for_data = ceil_to_multiple(
-            total_records_processable * (self._database_configuration.total_index_size_bytes * 8) /
+            limit_records * (self._database_configuration.total_index_size_bytes * 8) /
             (self._hardware_configuration.row_buffer_size_bytes * 8),
             base=self._database_configuration.total_index_size_bytes * 8
         )
         total_rows_for_hitmaps = int(math.ceil(
-            total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+            limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
         ) * self._database_configuration.hitmap_count
 
-        while total_rows_for_hitmaps + total_rows_for_data > total_rows_configurable and total_records_processable > 0:
+        while total_rows_for_hitmaps + total_rows_for_data > total_rows_configurable and limit_records > 0:
             # Start cutting back
-            if total_records_processable % (self.hardware_configuration.row_buffer_size_bytes * 8) == 0:
-                total_records_processable -= self.hardware_configuration.row_buffer_size_bytes * 8
+            if limit_records % (self.hardware_configuration.row_buffer_size_bytes * 8) == 0:
+                limit_records -= self.hardware_configuration.row_buffer_size_bytes * 8
             else:
-                total_records_processable -= total_records_processable % \
+                limit_records -= limit_records % \
                                              (self.hardware_configuration.row_buffer_size_bytes * 8)
             # Recalc
             total_rows_for_data = ceil_to_multiple(
-                total_records_processable * (self._database_configuration.total_index_size_bytes * 8) /
+                limit_records * (self._database_configuration.total_index_size_bytes * 8) /
                 (self._hardware_configuration.row_buffer_size_bytes * 8),
                 base=self._database_configuration.total_index_size_bytes * 8
             )
             total_rows_for_hitmaps = int(math.ceil(
-                total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+                limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
             ) * self._database_configuration.hitmap_count
 
         # Ensure we have at least a non-zero number of records processable
-        if total_records_processable <= 0:
+        if limit_records <= 0:
             raise ValueError("There are not enough bank rows to satisfy dynamic row constraints")
 
         self._layout_metadata = BlimpAmbitHitmapLayoutMetadata(
@@ -517,7 +515,7 @@ class BlimpAmbitIndexHitmapBankLayoutConfiguration(
             total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
             total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
             total_rows_for_records=total_rows_for_data,
-            total_records_processable=total_records_processable,
+            total_records_processable=limit_records,
         )
 
         base = 0
@@ -566,7 +564,7 @@ class BlimpAmbitIndexHitmapBankLayoutConfiguration(
             data=(vertical_data_region[0], total_rows_for_data),
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -575,7 +573,7 @@ class BlimpAmbitIndexHitmapBankLayoutConfiguration(
             base_row=self.row_mapping.vertical_region[0],
             row_count=self.row_mapping.vertical_region[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -583,7 +581,7 @@ class BlimpAmbitIndexHitmapBankLayoutConfiguration(
             base_row=self.row_mapping.horizontal_region[0],
             row_count=self.row_mapping.horizontal_region[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -596,11 +594,3 @@ class BlimpAmbitIndexHitmapBankLayoutConfiguration(
                 False,
                 self.layout_metadata.total_records_processable
             )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = BlimpPlusAmbitHardwareConfiguration,
-             database_config: callable = BlimpPlusAmbitHitmapDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)

@@ -41,8 +41,12 @@ class StandardPackedDataLayout(DataLayoutConfiguration):
 
     """
 
-    def __init__(self, hardware: HardwareConfiguration, database: DatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: HardwareConfiguration,
+            database: DatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -51,12 +55,16 @@ class StandardPackedDataLayout(DataLayoutConfiguration):
             data=(0, hardware.bank_rows)
         )
 
+        limit_records = hardware.bank_size_bytes // database.total_record_size_bytes
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = LayoutMetadata(
             total_rows_for_records=hardware.bank_rows,
-            total_records_processable=hardware.bank_size_bytes // database.total_record_size_bytes
+            total_records_processable=limit_records
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -65,7 +73,7 @@ class StandardPackedDataLayout(DataLayoutConfiguration):
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -97,8 +105,12 @@ class StandardAlignedDataLayout(DataLayoutConfiguration):
 
     """
 
-    def __init__(self, hardware: HardwareConfiguration, database: DatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: HardwareConfiguration,
+            database: DatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -122,12 +134,16 @@ class StandardAlignedDataLayout(DataLayoutConfiguration):
             data=(0, data_rows)
         )
 
+        limit_records = processable_records
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = LayoutMetadata(
             total_rows_for_records=data_rows,
-            total_records_processable=processable_records
+            total_records_processable=limit_records
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -136,7 +152,7 @@ class StandardAlignedDataLayout(DataLayoutConfiguration):
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -168,8 +184,12 @@ class StandardPackedIndexDataLayout(DataLayoutConfiguration):
 
     """
 
-    def __init__(self, hardware: HardwareConfiguration, database: DatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: HardwareConfiguration,
+            database: DatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -178,12 +198,16 @@ class StandardPackedIndexDataLayout(DataLayoutConfiguration):
             data=(0, hardware.bank_rows)
         )
 
+        limit_records = hardware.bank_size_bytes // database.total_index_size_bytes
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = LayoutMetadata(
             total_rows_for_records=hardware.bank_rows,
-            total_records_processable=hardware.bank_size_bytes // database.total_index_size_bytes
+            total_records_processable=limit_records
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -192,7 +216,7 @@ class StandardPackedIndexDataLayout(DataLayoutConfiguration):
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -224,8 +248,12 @@ class StandardAlignedIndexDataLayout(DataLayoutConfiguration):
 
     """
 
-    def __init__(self, hardware: HardwareConfiguration, database: DatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: HardwareConfiguration,
+            database: DatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -249,12 +277,16 @@ class StandardAlignedIndexDataLayout(DataLayoutConfiguration):
             data=(0, data_rows)
         )
 
+        limit_records = processable_indices
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = LayoutMetadata(
             total_rows_for_records=data_rows,
-            total_records_processable=processable_indices
+            total_records_processable=limit_records
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -263,7 +295,7 @@ class StandardAlignedIndexDataLayout(DataLayoutConfiguration):
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -296,8 +328,12 @@ class StandardBitweaveVerticalRecordDataLayout(DataLayoutConfiguration):
 
     """
 
-    def __init__(self, hardware: HardwareConfiguration, database: DatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: HardwareConfiguration,
+            database: DatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -309,12 +345,16 @@ class StandardBitweaveVerticalRecordDataLayout(DataLayoutConfiguration):
             data=(0, hardware.bank_rows)
         )
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = LayoutMetadata(
             total_rows_for_records=hardware.bank_rows,
-            total_records_processable=total_records_processable
+            total_records_processable=limit_records
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -323,7 +363,7 @@ class StandardBitweaveVerticalRecordDataLayout(DataLayoutConfiguration):
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -356,8 +396,12 @@ class StandardBitweaveVerticalIndexDataLayout(DataLayoutConfiguration):
 
     """
 
-    def __init__(self, hardware: HardwareConfiguration, database: DatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: HardwareConfiguration,
+            database: DatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -369,12 +413,16 @@ class StandardBitweaveVerticalIndexDataLayout(DataLayoutConfiguration):
             data=(0, hardware.bank_rows)
         )
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = LayoutMetadata(
             total_rows_for_records=hardware.bank_rows,
-            total_records_processable=total_records_processable
+            total_records_processable=limit_records
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -383,6 +431,6 @@ class StandardBitweaveVerticalIndexDataLayout(DataLayoutConfiguration):
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )

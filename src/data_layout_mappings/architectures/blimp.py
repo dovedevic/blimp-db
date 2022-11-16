@@ -95,8 +95,12 @@ class StandardBlimpBankLayoutConfiguration(
 
     """
 
-    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: BlimpHardwareConfiguration,
+            database: BlimpDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -151,9 +155,13 @@ class StandardBlimpBankLayoutConfiguration(
         total_rows_for_records = data_rows  # Total rows for BLIMP-format records (pi field + data / k + v)
         total_records_processable = processable_records  # Total number of records operable with this configuration
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = BlimpLayoutMetadata(
             total_rows_for_records=total_rows_for_records,
-            total_records_processable=total_records_processable,
+            total_records_processable=limit_records,
             total_rows_for_configurable_data=total_rows_for_configurable_data,
             total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
             total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
@@ -177,7 +185,7 @@ class StandardBlimpBankLayoutConfiguration(
             data=data_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -186,17 +194,9 @@ class StandardBlimpBankLayoutConfiguration(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = BlimpHardwareConfiguration,
-             database_config: callable = BlimpDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class BlimpHitmapBankLayoutConfiguration(
@@ -236,8 +236,12 @@ class BlimpHitmapBankLayoutConfiguration(
     +-----------------------------------------------+
 
     """
-    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpHitmapDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: BlimpHardwareConfiguration,
+            database: BlimpHitmapDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -259,10 +263,10 @@ class BlimpHitmapBankLayoutConfiguration(
         )
 
         # Total rows to play with when configuring the layout
-        total_rows_for_configurable_data = self._hardware_configuration.bank_rows \
+        total_rows_configurable = self._hardware_configuration.bank_rows \
             - (total_rows_for_blimp_code_region + total_rows_for_blimp_temp_region)
 
-        if total_rows_for_configurable_data < 0:
+        if total_rows_configurable < 0:
             raise ValueError("There are not enough bank rows to satisfy static BLIMP row constraints")
 
         if self._database_configuration.total_record_size_bytes > self._hardware_configuration.row_buffer_size_bytes:
@@ -274,73 +278,52 @@ class BlimpHitmapBankLayoutConfiguration(
                     self._database_configuration.total_record_size_bytes != 0:
                 raise ValueError("Record sizes must be row buffer aligned to at least a power of two")
 
-        data_rows = 0
-        hitmap_rows = 0
-        processable_records = 0
-        record_to_row_buffer_ratio = self._database_configuration.total_record_size_bytes \
-            / self._hardware_configuration.row_buffer_size_bytes
-        while data_rows + hitmap_rows < total_rows_for_configurable_data:
-            # Hitmap rows are calculated one bit per PI field, per each hitmap
-            new_hitmap_rows = self._database_configuration.hitmap_count
-            # Data rows are calculated by the row buffer width of records, multiplied by the size of the record
-            # rb * 8 * data / rb
-            new_data_rows = 8 * self._database_configuration.total_record_size_bytes
+        whole_records_to_row_buffer = self._hardware_configuration.row_buffer_size_bytes // \
+            self._database_configuration.total_record_size_bytes
+        whole_rows_to_record = int(math.ceil(self._database_configuration.total_record_size_bytes /
+                                             self._hardware_configuration.row_buffer_size_bytes))
 
-            # Can we fit a full set of records into the bank?
-            if new_hitmap_rows + hitmap_rows + new_data_rows + data_rows < total_rows_for_configurable_data:
-                # If we can, add this new block into our existing set
-                hitmap_rows += new_hitmap_rows
-                data_rows += new_data_rows
-                processable_records += self._hardware_configuration.row_buffer_size_bytes * 8
-                continue
+        # Multiple records to row buffer?
+        if whole_records_to_row_buffer >= 1:
+            # Simply count how many chunked records we can save
+            total_records_processable = whole_records_to_row_buffer * total_rows_configurable
+            total_rows_for_horizontal_data = int(math.ceil(total_records_processable / whole_records_to_row_buffer))
+        # Multiple rows per one record
+        else:
+            total_records_processable = total_rows_configurable // whole_rows_to_record
+            total_rows_for_horizontal_data = total_records_processable * whole_rows_to_record
 
-            # Can we fit a subset of records into the bank?
-            elif new_hitmap_rows + hitmap_rows + data_rows < total_rows_for_configurable_data:
-                # If we can, ensure we can add at least one data record
-                if record_to_row_buffer_ratio >= 1 and (new_hitmap_rows + hitmap_rows +
-                   data_rows + record_to_row_buffer_ratio) > total_rows_for_configurable_data:
-                    # If we can't fit at least one record, break out
-                    break
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
 
-                # At this point at least one record is placeable, so place the blocks
-                hitmap_rows += new_hitmap_rows
+        total_rows_for_hitmaps = int(math.ceil(
+            limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
+        ) * self._database_configuration.hitmap_count
 
-                rows_remaining = total_rows_for_configurable_data - hitmap_rows - data_rows
-                if record_to_row_buffer_ratio <= 1:
-                    records_per_row = self._hardware_configuration.row_buffer_size_bytes \
-                                      // self._database_configuration.total_record_size_bytes
-                    processable_records += rows_remaining * records_per_row
-                    data_rows += rows_remaining
-                else:
-                    records_in_remainder = rows_remaining // (
-                            self._database_configuration.total_record_size_bytes
-                            // self._hardware_configuration.row_buffer_size_bytes
-                    )
-                    processable_records += records_in_remainder
-                    data_rows += records_in_remainder * (
-                            self._database_configuration.total_record_size_bytes
-                            // self._hardware_configuration.row_buffer_size_bytes
-                    )
-                break
+        while total_rows_for_hitmaps + total_rows_for_horizontal_data > total_rows_configurable and limit_records > 0:
+            # Start cutting back
+            limit_records -= 1
 
-            # Can no more blocks of rows can be placed
+            # Recalc
+            if whole_records_to_row_buffer >= 1:
+                total_rows_for_horizontal_data = int(math.ceil(limit_records / whole_records_to_row_buffer))
             else:
-                break
+                total_rows_for_horizontal_data = limit_records * whole_rows_to_record
 
-        # Done heuristically placing rows in bank, finalize configuration
-        # Ensure we are inbounds
-        if data_rows + hitmap_rows > total_rows_for_configurable_data:
-            raise AssertionError("Heuristic placement failed, alter parameters or reserved rows")
+            total_rows_for_hitmaps = int(math.ceil(
+                limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
+            ) * self._database_configuration.hitmap_count
 
-        total_rows_for_records = data_rows  # Total rows for BLIMP-format records (pi field + data / k + v)
-        total_rows_for_hitmaps = hitmap_rows  # Total rows for BLIMP hitmap placement
-        total_records_processable = processable_records  # Total number of records operable with this configuration
+        # Ensure we have at least a non-zero number of records processable
+        if limit_records <= 0:
+            raise ValueError("There are not enough bank rows to satisfy dynamic row constraints")
 
         self._layout_metadata = BlimpHitmapLayoutMetadata(
-            total_rows_for_records=total_rows_for_records,
-            total_records_processable=total_records_processable,
+            total_rows_for_records=total_rows_for_horizontal_data,
+            total_records_processable=limit_records,
             total_rows_for_hitmaps=total_rows_for_hitmaps,
-            total_rows_for_configurable_data=total_rows_for_configurable_data,
+            total_rows_for_configurable_data=total_rows_configurable,
             total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
             total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
         )
@@ -354,8 +337,8 @@ class BlimpHitmapBankLayoutConfiguration(
         blimp_temp_region = (base, total_rows_for_blimp_temp_region)
         base += total_rows_for_blimp_temp_region
 
-        data_region = (base, total_rows_for_records)
-        base += total_rows_for_records
+        data_region = (base, total_rows_for_horizontal_data)
+        base += total_rows_for_horizontal_data
 
         hitmaps_region = (base, total_rows_for_hitmaps)
         base += total_rows_for_hitmaps
@@ -367,9 +350,9 @@ class BlimpHitmapBankLayoutConfiguration(
             hitmaps=hitmaps_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
-        super().perform_data_layout(bank, record_generator)
+        super().perform_data_layout(bank)
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
 
@@ -377,7 +360,7 @@ class BlimpHitmapBankLayoutConfiguration(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -390,14 +373,6 @@ class BlimpHitmapBankLayoutConfiguration(
                 True,
                 self.layout_metadata.total_records_processable
             )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable=BlimpHardwareConfiguration,
-             database_config: callable=BlimpHitmapDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class BlimpIndexBankLayoutConfiguration(
@@ -435,8 +410,12 @@ class BlimpIndexBankLayoutConfiguration(
 
     """
 
-    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: BlimpHardwareConfiguration,
+            database: BlimpDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -491,9 +470,13 @@ class BlimpIndexBankLayoutConfiguration(
         total_rows_for_indices = data_rows  # Total rows for BLIMP-format indices (pi field / key)
         total_indices_processable = processable_indices  # Total number of indices operable with this configuration
 
+        limit_records = total_indices_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = BlimpLayoutMetadata(
             total_rows_for_records=total_rows_for_indices,
-            total_records_processable=total_indices_processable,
+            total_records_processable=limit_records,
             total_rows_for_configurable_data=total_rows_for_configurable_data,
             total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
             total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
@@ -517,7 +500,7 @@ class BlimpIndexBankLayoutConfiguration(
             data=data_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many indices into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -526,17 +509,9 @@ class BlimpIndexBankLayoutConfiguration(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = BlimpHardwareConfiguration,
-             database_config: callable = BlimpDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class BlimpIndexHitmapBankLayoutConfiguration(
@@ -576,8 +551,12 @@ class BlimpIndexHitmapBankLayoutConfiguration(
     +-----------------------------------------------+
 
     """
-    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpHitmapDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: BlimpHardwareConfiguration,
+            database: BlimpHitmapDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -599,10 +578,10 @@ class BlimpIndexHitmapBankLayoutConfiguration(
         )
 
         # Total rows to play with when configuring the layout
-        total_rows_for_configurable_data = self._hardware_configuration.bank_rows \
+        total_rows_configurable = self._hardware_configuration.bank_rows \
             - (total_rows_for_blimp_code_region + total_rows_for_blimp_temp_region)
 
-        if total_rows_for_configurable_data < 0:
+        if total_rows_configurable < 0:
             raise ValueError("There are not enough bank rows to satisfy static BLIMP row constraints")
 
         if self._database_configuration.total_index_size_bytes > self._hardware_configuration.row_buffer_size_bytes:
@@ -614,73 +593,52 @@ class BlimpIndexHitmapBankLayoutConfiguration(
                     self._database_configuration.total_index_size_bytes != 0:
                 raise ValueError("Index sizes must be row buffer aligned to at least a power of two")
 
-        data_rows = 0
-        hitmap_rows = 0
-        processable_indices = 0
-        index_to_row_buffer_ratio = self._database_configuration.total_index_size_bytes \
-            / self._hardware_configuration.row_buffer_size_bytes
-        while data_rows + hitmap_rows < total_rows_for_configurable_data:
-            # Hitmap rows are calculated one bit per PI field, per each hitmap
-            new_hitmap_rows = self._database_configuration.hitmap_count
-            # Data rows are calculated by the row buffer width of indices, multiplied by the size of the index
-            # rb * 8 * data / rb
-            new_data_rows = 8 * self._database_configuration.total_index_size_bytes
+        whole_indices_to_row_buffer = self._hardware_configuration.row_buffer_size_bytes // \
+            self._database_configuration.total_index_size_bytes
+        whole_rows_to_index = int(math.ceil(self._database_configuration.total_index_size_bytes /
+                                            self._hardware_configuration.row_buffer_size_bytes))
 
-            # Can we fit a full set of indices into the bank?
-            if new_hitmap_rows + hitmap_rows + new_data_rows + data_rows < total_rows_for_configurable_data:
-                # If we can, add this new block into our existing set
-                hitmap_rows += new_hitmap_rows
-                data_rows += new_data_rows
-                processable_indices += self._hardware_configuration.row_buffer_size_bytes * 8
-                continue
+        # Multiple indices to row buffer?
+        if whole_indices_to_row_buffer >= 1:
+            # Simply count how many chunked indices we can save
+            total_indices_processable = whole_indices_to_row_buffer * total_rows_configurable
+            total_rows_for_horizontal_data = int(math.ceil(total_indices_processable / whole_indices_to_row_buffer))
+        # Multiple rows per one index
+        else:
+            total_indices_processable = total_rows_configurable // whole_rows_to_index
+            total_rows_for_horizontal_data = total_indices_processable * whole_rows_to_index
 
-            # Can we fit a subset of indices into the bank?
-            elif new_hitmap_rows + hitmap_rows + data_rows < total_rows_for_configurable_data:
-                # If we can, ensure we can add at least one data index
-                if index_to_row_buffer_ratio >= 1 and (new_hitmap_rows + hitmap_rows +
-                   data_rows + index_to_row_buffer_ratio) > total_rows_for_configurable_data:
-                    # If we can't fit at least one index, break out
-                    break
+        limit_records = total_indices_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
 
-                # At this point at least one index is placeable, so place the blocks
-                hitmap_rows += new_hitmap_rows
+        total_rows_for_hitmaps = int(math.ceil(
+            limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
+        ) * self._database_configuration.hitmap_count
 
-                rows_remaining = total_rows_for_configurable_data - hitmap_rows - data_rows
-                if index_to_row_buffer_ratio <= 1:
-                    indices_per_row = self._hardware_configuration.row_buffer_size_bytes \
-                                      // self._database_configuration.total_index_size_bytes
-                    processable_indices += rows_remaining * indices_per_row
-                    data_rows += rows_remaining
-                else:
-                    indices_in_remainder = rows_remaining // (
-                            self._database_configuration.total_index_size_bytes
-                            // self._hardware_configuration.row_buffer_size_bytes
-                    )
-                    processable_indices += indices_in_remainder
-                    data_rows += indices_in_remainder * (
-                            self._database_configuration.total_index_size_bytes
-                            // self._hardware_configuration.row_buffer_size_bytes
-                    )
-                break
+        while total_rows_for_hitmaps + total_rows_for_horizontal_data > total_rows_configurable and limit_records > 0:
+            # Start cutting back
+            limit_records -= 1
 
-            # Can no more blocks of rows can be placed
+            # Recalc
+            if whole_indices_to_row_buffer >= 1:
+                total_rows_for_horizontal_data = int(math.ceil(limit_records / whole_indices_to_row_buffer))
             else:
-                break
+                total_rows_for_horizontal_data = limit_records * whole_rows_to_index
 
-        # Done heuristically placing rows in bank, finalize configuration
-        # Ensure we are inbounds
-        if data_rows + hitmap_rows > total_rows_for_configurable_data:
-            raise AssertionError("Heuristic placement failed, alter parameters or reserved rows")
+            total_rows_for_hitmaps = int(math.ceil(
+                limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
+            ) * self._database_configuration.hitmap_count
 
-        total_rows_for_indices = data_rows  # Total rows for BLIMP-format indices (pi field / key)
-        total_rows_for_hitmaps = hitmap_rows  # Total rows for BLIMP hitmap placement
-        total_indices_processable = processable_indices  # Total number of indices operable with this configuration
+        # Ensure we have at least a non-zero number of records processable
+        if limit_records <= 0:
+            raise ValueError("There are not enough bank rows to satisfy dynamic row constraints")
 
         self._layout_metadata = BlimpHitmapLayoutMetadata(
-            total_rows_for_records=total_rows_for_indices,
-            total_records_processable=total_indices_processable,
+            total_rows_for_records=total_rows_for_horizontal_data,
+            total_records_processable=limit_records,
             total_rows_for_hitmaps=total_rows_for_hitmaps,
-            total_rows_for_configurable_data=total_rows_for_configurable_data,
+            total_rows_for_configurable_data=total_rows_configurable,
             total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
             total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
         )
@@ -694,8 +652,8 @@ class BlimpIndexHitmapBankLayoutConfiguration(
         blimp_temp_region = (base, total_rows_for_blimp_temp_region)
         base += total_rows_for_blimp_temp_region
 
-        data_region = (base, total_rows_for_indices)
-        base += total_rows_for_indices
+        data_region = (base, total_rows_for_horizontal_data)
+        base += total_rows_for_horizontal_data
 
         hitmaps_region = (base, total_rows_for_hitmaps)
         base += total_rows_for_hitmaps
@@ -707,9 +665,9 @@ class BlimpIndexHitmapBankLayoutConfiguration(
             hitmaps=hitmaps_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many indices into the bank as possible"""
-        super().perform_data_layout(bank, record_generator)
+        super().perform_data_layout(bank)
 
         rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
         for hitmap in range(self._database_configuration.hitmap_count):
@@ -720,14 +678,6 @@ class BlimpIndexHitmapBankLayoutConfiguration(
                 True,
                 self.layout_metadata.total_records_processable
             )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable=BlimpHardwareConfiguration,
-             database_config: callable=BlimpHitmapDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class BlimpRecordBitweaveBankLayoutConfiguration(
@@ -766,8 +716,12 @@ class BlimpRecordBitweaveBankLayoutConfiguration(
 
     """
 
-    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: BlimpHardwareConfiguration,
+            database: BlimpDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -798,9 +752,13 @@ class BlimpRecordBitweaveBankLayoutConfiguration(
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (total_rows_for_configurable_data // (self._database_configuration.total_record_size_bytes * 8))
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = BlimpLayoutMetadata(
             total_rows_for_records=total_rows_for_configurable_data,
-            total_records_processable=total_records_processable,
+            total_records_processable=limit_records,
             total_rows_for_configurable_data=total_rows_for_configurable_data,
             total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
             total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
@@ -824,7 +782,7 @@ class BlimpRecordBitweaveBankLayoutConfiguration(
             data=data_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -833,17 +791,9 @@ class BlimpRecordBitweaveBankLayoutConfiguration(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = BlimpHardwareConfiguration,
-             database_config: callable = BlimpDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class BlimpIndexBitweaveBankLayoutConfiguration(
@@ -882,8 +832,12 @@ class BlimpIndexBitweaveBankLayoutConfiguration(
 
     """
 
-    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: BlimpHardwareConfiguration,
+            database: BlimpDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -914,9 +868,13 @@ class BlimpIndexBitweaveBankLayoutConfiguration(
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (total_rows_for_configurable_data // (self._database_configuration.total_index_size_bytes * 8))
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         self._layout_metadata = BlimpLayoutMetadata(
             total_rows_for_records=total_rows_for_configurable_data,
-            total_records_processable=total_records_processable,
+            total_records_processable=limit_records,
             total_rows_for_configurable_data=total_rows_for_configurable_data,
             total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
             total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
@@ -940,7 +898,7 @@ class BlimpIndexBitweaveBankLayoutConfiguration(
             data=data_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -949,17 +907,9 @@ class BlimpIndexBitweaveBankLayoutConfiguration(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = BlimpHardwareConfiguration,
-             database_config: callable = BlimpDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
@@ -1001,8 +951,12 @@ class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
 
     """
 
-    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpHitmapDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: BlimpHardwareConfiguration,
+            database: BlimpHitmapDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -1033,39 +987,45 @@ class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (total_rows_for_configurable_data // (self._database_configuration.total_record_size_bytes * 8))
 
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
+
         total_rows_for_data = int(math.ceil(
-            total_records_processable * (self._database_configuration.total_record_size_bytes * 8) /
+            limit_records * (self._database_configuration.total_record_size_bytes * 8) /
             (self._hardware_configuration.row_buffer_size_bytes * 8)
         ))
         total_rows_for_hitmaps = int(math.ceil(
-            total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+            limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
         ) * self._database_configuration.hitmap_count
 
         while total_rows_for_hitmaps + total_rows_for_data > total_rows_for_configurable_data \
-                and total_records_processable > 0:
+                and limit_records > 0:
             # Start cutting back
-            if total_records_processable % (self.hardware_configuration.row_buffer_size_bytes * 8) == 0:
-                total_records_processable -= self.hardware_configuration.row_buffer_size_bytes * 8
+            if limit_records % (self.hardware_configuration.row_buffer_size_bytes * 8) == 0:
+                limit_records -= self.hardware_configuration.row_buffer_size_bytes * 8
             else:
-                total_records_processable -= total_records_processable % \
+                limit_records -= limit_records % \
                                              (self.hardware_configuration.row_buffer_size_bytes * 8)
             # Recalc
             total_rows_for_data = int(math.ceil(
-                total_records_processable * (self._database_configuration.total_record_size_bytes * 8) /
+                limit_records * (self._database_configuration.total_record_size_bytes * 8) /
                 (self._hardware_configuration.row_buffer_size_bytes * 8)
             ))
             total_rows_for_hitmaps = int(math.ceil(
-                total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+                limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
             ) * self._database_configuration.hitmap_count
 
         # Ensure we have at least a non-zero number of records processable
-        if total_records_processable <= 0:
+        if limit_records <= 0:
             raise ValueError("There are not enough bank rows to satisfy dynamic row constraints")
+
+        total_rows_for_configurable_data -= total_rows_for_hitmaps
 
         self._layout_metadata = BlimpHitmapLayoutMetadata(
             total_rows_for_hitmaps=total_rows_for_hitmaps,
             total_rows_for_records=total_rows_for_data,
-            total_records_processable=total_records_processable,
+            total_records_processable=limit_records,
             total_rows_for_configurable_data=total_rows_for_configurable_data,
             total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
             total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
@@ -1093,7 +1053,7 @@ class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
             data=data_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -1102,7 +1062,7 @@ class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
 
@@ -1115,14 +1075,6 @@ class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
                 False,
                 self.layout_metadata.total_records_processable
             )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = BlimpHardwareConfiguration,
-             database_config: callable = BlimpHitmapDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
 
 
 class BlimpHitmapIndexBitweaveBankLayoutConfiguration(
@@ -1165,8 +1117,12 @@ class BlimpHitmapIndexBitweaveBankLayoutConfiguration(
 
     """
 
-    def __init__(self, hardware: BlimpHardwareConfiguration, database: BlimpHitmapDatabaseConfiguration):
-        super().__init__(hardware, database)
+    def __init__(
+            self,
+            hardware: BlimpHardwareConfiguration,
+            database: BlimpHitmapDatabaseConfiguration,
+            generator: DatabaseRecordGenerator):
+        super().__init__(hardware, database, generator)
 
         self._hardware_configuration = hardware
         self._database_configuration = database
@@ -1194,42 +1150,47 @@ class BlimpHitmapIndexBitweaveBankLayoutConfiguration(
         if total_rows_for_configurable_data < 0:
             raise ValueError("There are not enough bank rows to satisfy static BLIMP row constraints")
 
-        total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
-            (total_rows_for_configurable_data // (self._database_configuration.total_index_size_bytes * 8))
+        total_records_processable = self._hardware_configuration.row_buffer_size_bytes * \
+            (total_rows_for_configurable_data // self._database_configuration.total_index_size_bytes)
+
+        limit_records = total_records_processable
+        if self._record_generator.get_max_records() is not None:
+            limit_records = min(limit_records, self._record_generator.get_max_records())
 
         total_rows_for_data = int(math.ceil(
-            total_records_processable * (self._database_configuration.total_index_size_bytes * 8) /
+            limit_records * (self._database_configuration.total_index_size_bytes * 8) /
             (self._hardware_configuration.row_buffer_size_bytes * 8)
         ))
         total_rows_for_hitmaps = int(math.ceil(
-            total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+            limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
         ) * self._database_configuration.hitmap_count
 
         while total_rows_for_hitmaps + total_rows_for_data > total_rows_for_configurable_data \
-                and total_records_processable > 0:
+                and limit_records > 0:
             # Start cutting back
-            if total_records_processable % (self.hardware_configuration.row_buffer_size_bytes * 8) == 0:
-                total_records_processable -= self.hardware_configuration.row_buffer_size_bytes * 8
+            if limit_records % (self.hardware_configuration.row_buffer_size_bytes * 8) == 0:
+                limit_records -= self.hardware_configuration.row_buffer_size_bytes * 8
             else:
-                total_records_processable -= total_records_processable % \
-                                             (self.hardware_configuration.row_buffer_size_bytes * 8)
+                limit_records -= limit_records % (self.hardware_configuration.row_buffer_size_bytes * 8)
             # Recalc
             total_rows_for_data = int(math.ceil(
-                total_records_processable * (self._database_configuration.total_index_size_bytes * 8) /
+                limit_records * (self._database_configuration.total_index_size_bytes * 8) /
                 (self._hardware_configuration.row_buffer_size_bytes * 8)
             ))
             total_rows_for_hitmaps = int(math.ceil(
-                total_records_processable / (self.hardware_configuration.row_buffer_size_bytes * 8))
+                limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
             ) * self._database_configuration.hitmap_count
 
         # Ensure we have at least a non-zero number of index/records processable
-        if total_records_processable <= 0:
+        if limit_records <= 0:
             raise ValueError("There are not enough bank rows to satisfy dynamic row constraints")
+
+        total_rows_for_configurable_data -= total_rows_for_hitmaps
 
         self._layout_metadata = BlimpHitmapLayoutMetadata(
             total_rows_for_hitmaps=total_rows_for_hitmaps,
             total_rows_for_records=total_rows_for_data,
-            total_records_processable=total_records_processable,
+            total_records_processable=limit_records,
             total_rows_for_configurable_data=total_rows_for_configurable_data,
             total_rows_for_blimp_code_region=total_rows_for_blimp_code_region,
             total_rows_for_blimp_temp_region=total_rows_for_blimp_temp_region,
@@ -1257,7 +1218,7 @@ class BlimpHitmapIndexBitweaveBankLayoutConfiguration(
             data=data_region,
         )
 
-    def perform_data_layout(self, bank: Bank, record_generator: DatabaseRecordGenerator):
+    def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
@@ -1266,14 +1227,6 @@ class BlimpHitmapIndexBitweaveBankLayoutConfiguration(
             base_row=self.row_mapping.data[0],
             row_count=self.row_mapping.data[1],
             bank=bank,
-            record_generator=record_generator,
+            record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
-
-    @classmethod
-    def load(cls, path: str,
-             hardware_config: callable = BlimpHardwareConfiguration,
-             database_config: callable = BlimpDatabaseConfiguration
-             ):
-        """Load a layout configuration object"""
-        return super().load(path, hardware_config, database_config)
