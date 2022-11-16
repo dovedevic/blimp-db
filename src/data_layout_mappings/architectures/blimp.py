@@ -963,7 +963,8 @@ class BlimpIndexBitweaveBankLayoutConfiguration(
 
 
 class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
-    GenericBlimpHitmapBankLayoutConfiguration[
+    GenericBlimpHitmapBankLayoutConfiguration,
+    DataLayoutConfiguration[
         BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
     ]
 ):
@@ -1125,7 +1126,8 @@ class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
 
 
 class BlimpHitmapIndexBitweaveBankLayoutConfiguration(
-    GenericBlimpHitmapBankLayoutConfiguration[
+    GenericBlimpHitmapBankLayoutConfiguration,
+    DataLayoutConfiguration[
         Union[BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration],
         BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
     ]
