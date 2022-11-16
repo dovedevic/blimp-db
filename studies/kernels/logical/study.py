@@ -170,6 +170,7 @@ def perform_study_sweep(studies: [LogicalStudy], hitmap_size_bytes: int, save_di
     print("")
     for study in studies:
         print(f"{study.name}\t{study.runtime.runtime}")
+    return studies
 
 
 def main():
