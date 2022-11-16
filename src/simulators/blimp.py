@@ -145,6 +145,26 @@ class SimulatedBlimpBank(
         # Return the result of the operation
         return result
 
+    def blimp_transfer_register(self, register_a, register_b, return_labels=True) -> RuntimeResult:
+        """Transfer data from a specified internal register, to another specified register (not v0)"""
+        # Sanity checking
+        if register_a not in self.registers:
+            raise RuntimeError(f"Register '{register_a}' does not exist")
+        if register_b not in self.registers:
+            raise RuntimeError(f"Register '{register_b}' does not exist")
+        if register_a == self.blimp_v0 or register_b == self.blimp_v0:
+            raise RuntimeError(f"Cannot transfer into register V0")
+        result = self.blimp_cycle(return_labels=return_labels)
+
+        # Add time to transfer the row buffer/v0 to the specified mux destination
+        result += RuntimeResult(
+            self.bank_hardware.hardware_configuration.time_to_v0_transfer_ns,
+            f"\t{register_a} -> {register_b}" if return_labels else ""
+        )
+
+        # Return the result of the operation
+        return result
+
     def blimp_get_register(self, register) -> [int]:
         """Fetch the data for a BLIMP or BLIMP-V register"""
         if register not in self.registers:
