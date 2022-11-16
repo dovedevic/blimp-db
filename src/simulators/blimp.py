@@ -432,7 +432,7 @@ class SimulatedBlimpBank(
         )
 
     def blimp_alu_int_xnor(self, register_a, register_b, start_byte_index, end_byte_index, return_labels=True
-                          ) -> RuntimeResult:
+                           ) -> RuntimeResult:
         """
         Perform a BLIMP XNOR operation on register a and b starting at a specified byte index and ending on a specified
         byte index then store the result in register b
@@ -786,6 +786,86 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             lambda a: int(a == 0),
             False,
             "ZERO",
+            return_labels
+        )
+
+    def blimpv_alu_int_one(self, register_a, sew, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V ISONE operation on register 'a' on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            lambda a: int(a == 2**sew - 1),
+            False,
+            "ONE",
+            return_labels
+        )
+
+    def blimpv_alu_int_xnor_val(self, register_a, sew, value, return_labels=True) -> RuntimeResult:
+        """
+        Perform a BLIMP-V scalar XNOR operation on register 'a' on SEW bytes against constant 'value' and store the
+        result in register a
+        """
+        # Perform the operation
+        assert 0 <= value <= 2**sew - 1, "Constant-Sew bit-width mismatch"
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            lambda a: a ^ value,
+            True,
+            "XNOR",
+            return_labels
+        )
+
+    def blimpv_alu_int_and_val(self, register_a, sew, value, return_labels=True) -> RuntimeResult:
+        """
+        Perform a BLIMP-V scalar AND operation on register 'a' on SEW bytes against constant 'value' and store the
+        result in register a
+        """
+        # Perform the operation
+        assert 0 <= value <= 2**sew - 1, "Constant-Sew bit-width mismatch"
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            lambda a: a & value,
+            False,
+            "AND",
+            return_labels
+        )
+
+    def blimpv_alu_int_srl_val(self, register_a, sew, value, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V SRL operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            lambda a: a >> value,
+            False,
+            "SRL",
+            return_labels
+        )
+
+    def blimpv_alu_int_sll_val(self, register_a, sew, value, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V SLL operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            lambda a: a << value,
+            False,
+            "SLL",
+            return_labels
+        )
+
+    def blimpv_alu_int_mul_val(self, register_a, sew, value, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V MULTIPLY operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            lambda a: a * value,
+            False,
+            "MUL",
             return_labels
         )
 
