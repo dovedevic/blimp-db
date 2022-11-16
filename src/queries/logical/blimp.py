@@ -96,6 +96,7 @@ class _BlimpHitmapLogical(
             runtime += self.simulator.blimp_save_register(self.simulator.blimp_v2, hitmap_row_r, return_labels)
 
             runtime += self.simulator.blimp_cycle(2, "; loop return", return_labels)
+        runtime += self.simulator.blimp_end(return_labels)
 
         # We have finished the query, fetch the hitmap to one single hitmap row
         hitmap_byte_array = []
