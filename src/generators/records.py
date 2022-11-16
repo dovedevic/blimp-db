@@ -71,6 +71,10 @@ class DatabaseRecordGenerator:
         _, data = self.get_record(index)
         return data
 
+    def get_max_records(self) -> int:
+        """Return the maximum number of records generatable, if specified"""
+        return self._total_records
+
     def get_records(self) -> iter:
         """Generate a stream of records, if no record limit is set, continuously generate records"""
         for record in self.records:
