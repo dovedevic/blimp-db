@@ -48,8 +48,8 @@ int main(int argc, char* argv[]) {
 		for (uint64_t i = 0; i < region_size / word_size; i++) {                // for each word...
 			uint64_t data = src_memory_region[i];                                   // fetch the word
 			for (uint64_t j = 0; j < banks_per_chip * word_size; j+=word_size) {    // for each byte in the word...
-			    dst_memory_region[i * banks_per_chip + bank_size * target_bank_index] =                                                // send each byte to a bank-
-			        (data & (0xFF00000000000000 >> j)) <<  j;          // aligned address
+			    dst_memory_region[i * banks_per_chip + bank_size * target_bank_index] =  // send each byte to a bank-
+			        (data & (0xFF00000000000000 >> j)) <<  j;                            // aligned address
 			}
 		}
 		/// End Horizontal Data Layout
