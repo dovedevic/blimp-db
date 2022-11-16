@@ -1,8 +1,9 @@
 import math
 
 from pydantic import Field
+from typing import Union
 
-from src.configurations.hardware.blimp import BlimpHardwareConfiguration
+from src.configurations.hardware.blimp import BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration
 from src.configurations.database.blimp import BlimpHitmapDatabaseConfiguration, BlimpDatabaseConfiguration
 from hardware import Bank
 from generators import DatabaseRecordGenerator
@@ -39,6 +40,24 @@ class BlimpHitmapLayoutMetadata(BlimpLayoutMetadata):
     """Metadata for a standard BLIMP layout but with hitmaps"""
     total_rows_for_hitmaps: int = Field(
         description="The total number of rows reserved for hitmaps")
+
+
+class GenericBlimpHitmapBankLayoutConfiguration(
+    DataLayoutConfiguration
+):
+    def reset_hitmaps_to_value(self, bank: Bank, value: bool):
+        for hitmap in range(self._database_configuration.hitmap_count):
+            self.reset_hitmap_index_to_value(bank, value, hitmap)
+
+    def reset_hitmap_index_to_value(self, bank: Bank, value: bool, index: int):
+        rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
+        place_hitmap(
+            self._row_mapping_set.hitmaps[0] + index * rows_per_hitmap,
+            rows_per_hitmap,
+            bank,
+            value,
+            self._layout_metadata.total_records_processable
+        )
 
 
 class StandardBlimpBankLayoutConfiguration(
@@ -181,7 +200,7 @@ class StandardBlimpBankLayoutConfiguration(
 
 
 class BlimpHitmapBankLayoutConfiguration(
-    StandardBlimpBankLayoutConfiguration,
+    GenericBlimpHitmapBankLayoutConfiguration,
     DataLayoutConfiguration[
         BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
     ]
@@ -521,7 +540,7 @@ class BlimpIndexBankLayoutConfiguration(
 
 
 class BlimpIndexHitmapBankLayoutConfiguration(
-    BlimpIndexBankLayoutConfiguration,
+    GenericBlimpHitmapBankLayoutConfiguration,
     DataLayoutConfiguration[
         BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
     ]
@@ -944,7 +963,7 @@ class BlimpIndexBitweaveBankLayoutConfiguration(
 
 
 class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
-    DataLayoutConfiguration[
+    GenericBlimpHitmapBankLayoutConfiguration[
         BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
     ]
 ):
@@ -1106,8 +1125,9 @@ class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
 
 
 class BlimpHitmapIndexBitweaveBankLayoutConfiguration(
-    DataLayoutConfiguration[
-        BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
+    GenericBlimpHitmapBankLayoutConfiguration[
+        Union[BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration],
+        BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
     ]
 ):
     """
