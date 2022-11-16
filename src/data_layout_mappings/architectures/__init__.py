@@ -21,4 +21,4 @@ from .cpu import \
     StandardBitweaveVerticalRecordDataLayout, \
     StandardBitweaveVerticalIndexDataLayout
 from .blimp_ambit import BlimpAmbitHitmapBankLayoutConfiguration, \
-    BlimpAmbitHitmapLayoutMetadata, BlimpAmbitHitmapRowMapping
+    BlimpAmbitHitmapLayoutMetadata, BlimpAmbitHitmapRowMapping, BlimpAmbitIndexHitmapBankLayoutConfiguration
