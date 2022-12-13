@@ -75,8 +75,8 @@ class _AmbitHitmapEquality(
             # Optimization
             runtime += self.simulator.cpu_cycle(8, "; pre-row calculation", return_labels)
             base_row_to_check = self.layout_configuration.row_mapping.data[0] + \
-                    h * self.layout_configuration.database_configuration.total_index_size_bytes * 8 + \
-                    pi_subindex_offset_bytes * 8
+                h * self.layout_configuration.database_configuration.total_index_size_bytes * 8 + \
+                pi_subindex_offset_bytes * 8
 
             runtime += self.simulator.cpu_cycle(3, "; inner loop start", return_labels)
             for b in range(pi_element_size_bytes * 8):
@@ -217,7 +217,8 @@ class _AmbitHitmapEquality(
                     hitmap_row,
                     return_labels
                 )
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels)  # Have to add two here since invert does 2 copies
+                # Add another faux dispatch since invert does 2 copies
+                runtime += self.simulator.cpu_ambit_dispatch(return_labels)
             runtime += self.simulator.cpu_cycle(2, "; inner loop return", return_labels)
         runtime += self.simulator.cpu_cycle(2, "; outer loop return", return_labels)
 
