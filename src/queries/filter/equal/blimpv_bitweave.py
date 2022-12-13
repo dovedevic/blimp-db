@@ -98,12 +98,14 @@ class _BlimpVBitweaveHitmapEquality(
                     runtime += self.simulator.blimpv_alu_int_xnor_val(
                         self.simulator.blimp_v1,
                         self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                        self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
                         2**(self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes*8) - 1,
                         return_labels
                     )
                 else:
                     runtime += self.simulator.blimpv_alu_int_xnor_val(
                         self.simulator.blimp_v1,
+                        self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
                         self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
                         0,
                         return_labels
@@ -113,6 +115,7 @@ class _BlimpVBitweaveHitmapEquality(
                 runtime += self.simulator.blimpv_alu_int_and(
                     self.simulator.blimp_v1,
                     self.simulator.blimp_v2,
+                    self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
                     self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
                     return_labels
                 )
@@ -126,7 +129,8 @@ class _BlimpVBitweaveHitmapEquality(
                 # If we are negating, invert v2 (since it was just saved)
                 runtime += self.simulator.blimpv_alu_int_not(
                     self.simulator.blimp_v2,
-                    pi_element_size_bytes,
+                    self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                    self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
                     return_labels
                 )
 
