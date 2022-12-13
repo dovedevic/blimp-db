@@ -553,6 +553,25 @@ class SimulatedBlimpBank(
             return_labels
         )
 
+    def blimp_alu_int_xnor_val(self, register_a, start_byte_index, end_byte_index, value, return_labels=True) \
+            -> RuntimeResult:
+        """
+        Perform a BLIMP scalar XNOR operation on register a starting at a specified byte index and ending on a specified
+        byte index then store the result in register a
+        """
+        # Perform the operation
+        assert 0 <= value <= 2 ** self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture - 1, \
+            "Scalar Operation Value bit-width mismatch"
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_byte_index,
+            end_byte_index,
+            lambda a: a ^ value,
+            True,
+            "XNOR",
+            return_labels
+        )
+
 
 class SimulatedBlimpVBank(SimulatedBlimpBank):
     """Defines simulation parameters for a BLIMP-V-capable DRAM Bank"""
