@@ -827,7 +827,7 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         result in register a
         """
         # Perform the operation
-        assert 0 <= value <= 2**sew - 1, "Constant-Sew bit-width mismatch"
+        assert 0 <= value <= 2**(sew*8) - 1, "Constant-Sew bit-width mismatch"
         return self._blimpv_alu_int_un_op(
             register_a,
             sew,
@@ -843,7 +843,7 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         result in register a
         """
         # Perform the operation
-        assert 0 <= value <= 2**sew - 1, "Constant-Sew bit-width mismatch"
+        assert 0 <= value <= 2**(sew*8) - 1, "Constant-Sew bit-width mismatch"
         return self._blimpv_alu_int_un_op(
             register_a,
             sew,

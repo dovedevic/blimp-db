@@ -98,7 +98,7 @@ class _BlimpVBitweaveHitmapEquality(
                     runtime += self.simulator.blimpv_alu_int_xnor_val(
                         self.simulator.blimp_v1,
                         self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
-                        2**self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes - 1,
+                        2**(self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes*8) - 1,
                         return_labels
                     )
                 else:
