@@ -13,6 +13,7 @@ class HardwareConfiguration(BaseModel):
     time_to_precharge_ns: float
     time_to_bank_communicate_ns: float
     cpu_frequency: int
+    cpu_cache_block_size_bytes: int
 
     # Calculated Fields
     bank_rows: int = None
