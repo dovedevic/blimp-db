@@ -81,6 +81,8 @@ class _BlimpHitmapLogical(
                     self.simulator.blimp_v2,
                     0,
                     self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
                     return_labels
                 )
             elif operation == HitmapLogicalOperation.OR:
@@ -89,6 +91,8 @@ class _BlimpHitmapLogical(
                     self.simulator.blimp_v2,
                     0,
                     self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
                     return_labels
                 )
 
