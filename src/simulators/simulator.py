@@ -30,3 +30,12 @@ class SimulatedBank(Generic[BankHardware]):
         for c in range(cycles - 1):
             runtime.step(self.bank_hardware.hardware_configuration.time_per_cpu_cycle_ns)
         return runtime
+
+    def cpu_fetch_cache_block(self, label="", return_labels=True) -> RuntimeResult:
+        """Fetch a cache block from memory"""
+        return RuntimeResult(
+            self.bank_hardware.hardware_configuration.time_to_row_activate_ns +
+            self.bank_hardware.hardware_configuration.time_to_column_activate_ns +
+            self.bank_hardware.hardware_configuration.time_to_precharge_ns,
+            label if return_labels else ""
+        )
