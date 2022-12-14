@@ -80,12 +80,14 @@ class _BlimpVHitmapLogical(
                     self.simulator.blimp_v1,
                     self.simulator.blimp_v2,
                     self.hardware.hardware_configuration.blimpv_sew_max_bytes,
+                    self.hardware.hardware_configuration.blimpv_sew_max_bytes,
                     return_labels
                 )
             elif operation == HitmapLogicalOperation.OR:
                 runtime += self.simulator.blimpv_alu_int_or(
                     self.simulator.blimp_v1,
                     self.simulator.blimp_v2,
+                    self.hardware.hardware_configuration.blimpv_sew_max_bytes,
                     self.hardware.hardware_configuration.blimpv_sew_max_bytes,
                     return_labels
                 )
