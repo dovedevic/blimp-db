@@ -99,6 +99,8 @@ class _BlimpBitweaveHitmapEquality(
                         self.simulator.blimp_v1,
                         0,
                         self.layout_configuration.hardware_configuration.row_buffer_size_bytes,
+                        self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                        self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
                         2**self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture - 1,
                         return_labels
                     )
@@ -107,6 +109,8 @@ class _BlimpBitweaveHitmapEquality(
                         self.simulator.blimp_v1,
                         0,
                         self.layout_configuration.hardware_configuration.row_buffer_size_bytes,
+                        self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                        self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
                         0,
                         return_labels
                     )
@@ -117,6 +121,8 @@ class _BlimpBitweaveHitmapEquality(
                     self.simulator.blimp_v2,
                     0,
                     self.layout_configuration.hardware_configuration.row_buffer_size_bytes,
+                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
                     return_labels
                 )
 
@@ -131,6 +137,8 @@ class _BlimpBitweaveHitmapEquality(
                     self.simulator.blimp_v2,
                     0,
                     self.layout_configuration.hardware_configuration.row_buffer_size_bytes,
+                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
                     return_labels
                 )
 
