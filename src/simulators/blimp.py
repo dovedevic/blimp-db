@@ -227,6 +227,13 @@ class SimulatedBlimpBank(
         """Set the data scratchpad to all ones"""
         return self._blimp_set_scratchpad_to_(True, return_labels)
 
+    def blimp_is_register_zero(self, register) -> bool:
+        if register not in self.registers:
+            raise RuntimeError(f"Register '{register}' does not exist")
+
+        # This can be done for free if our registers have a ZF
+        return byte_array_to_int(self.registers[register]) == 0
+
     def _blimp_alu_unary_operation(self, register_a, start_index, end_index, element_width, stride, operation, invert):
         """Perform a BLIMP unary operation and store the result in Register A"""
         # Sanity checking
