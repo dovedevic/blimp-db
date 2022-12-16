@@ -211,7 +211,7 @@ class _AmbitEarlyTerminationHitmapEquality(
                     runtime += self.simulator.cpu_cycle(2, "; fetch row for early termination", return_labels)
                     cache_blocks = self.hardware.hardware_configuration.row_buffer_size_bytes // \
                         self.hardware.hardware_configuration.cpu_cache_block_size_bytes
-                    for _ in cache_blocks:
+                    for _ in range(cache_blocks):
                         runtime += self.simulator.cpu_fetch_cache_block(return_labels=return_labels)
                     if self.simulator.bank_hardware.get_raw_row(hitmap_row) == 0:
                         runtime += self.simulator.cpu_cycle(1, "; early termination return", return_labels)
