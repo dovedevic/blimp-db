@@ -791,6 +791,38 @@ class SimulatedBlimpBank(
             return_labels=return_labels
         )
 
+    def blimp_bit_count(self, register, start_index, end_index, element_width, return_labels=True) -> RuntimeResult:
+        """
+        Count the number of set bits in a register and save it in the primary slot
+        """
+        count = 0
+        blimp_cycles = 1  # vector dispatch
+        pseudo_sew = min(element_width, self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
+        elements = math.ceil((end_index - start_index) // element_width)
+
+        blimp_cycles += 2  # loop start
+        for element in range(elements):
+            blimp_cycles += 2  # register read, loop setup
+            value = byte_array_to_int(
+                self.registers[register][element * pseudo_sew:element * pseudo_sew + pseudo_sew]
+            )
+            while value:
+                value &= value - 1
+                count += 1
+                blimp_cycles += 4  # subtraction, and, addition, jump
+
+        count <<= self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8 - pseudo_sew * 8
+        self.registers[register] = int_to_byte_array(
+            count,
+            self.bank_hardware.hardware_configuration.row_buffer_size_bytes
+        )
+
+        return self.blimp_cycle(
+            cycles=blimp_cycles,
+            label=f"\t{register} <- COUNT[{register}]",
+            return_labels=return_labels
+        )
+
 
 class SimulatedBlimpVBank(SimulatedBlimpBank):
     """Defines simulation parameters for a BLIMP-V-capable DRAM Bank"""
