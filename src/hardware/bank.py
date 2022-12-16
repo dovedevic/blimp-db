@@ -118,7 +118,7 @@ class Bank(Generic[HardwareConfig]):
         self._logger.info(f"memory state saved in {performance.end_performance_tracking()}s")
 
     @classmethod
-    def load(cls, path: str):
+    def load(cls, path: str, hardware_config: callable=HardwareConfiguration):
         """Load a saved bank memory dump"""
         _logger = logging.getLogger(cls.__name__)
         _logger.info(f"loading memory state from {path}")
@@ -127,7 +127,7 @@ class Bank(Generic[HardwareConfig]):
             # Load the system configuration
             preamble = fp.readline()
             _logger.info(f"interpreting memory system configuration")
-            configuration = HardwareConfiguration(**json.loads(preamble))
+            configuration = hardware_config(**json.loads(preamble))
 
             _logger.info(f"interpreting memory dump")
             # Parse the hexdump
@@ -135,7 +135,7 @@ class Bank(Generic[HardwareConfig]):
             try:
                 for line in fp.readlines():
                     # Extract out the areas
-                    address, str_byte_array, ascii_array = line.strip().split("  ", 2)
+                    address, str_byte_array, *ascii_array = line.strip().split("  ", 2)
                     # Convert the byte array hext string to integers
                     hex_byte_array = str_byte_array.split(" ")
                     byte_array = [int(byte, 16) for byte in hex_byte_array]
