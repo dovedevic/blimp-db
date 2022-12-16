@@ -199,7 +199,7 @@ class SimulatedBlimpBank(
         # Return the result of the operation
         return result
 
-    def _blimp_set_scratchpad_to_(self, ones: bool, return_labels=True) -> RuntimeResult:
+    def _blimp_set_register_to_(self, ones: bool, register, return_labels=True) -> RuntimeResult:
         """Set the data scratchpad to all zeros or ones"""
         total_bits = self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8
         processor_bits = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture
@@ -211,7 +211,7 @@ class SimulatedBlimpBank(
             cycles=operations * cycles_per_operation
         )
 
-        self.registers[self.blimp_data_scratchpad] = \
+        self.registers[register] = \
             int_to_byte_array(
                 (2**(self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1 if ones else 0,
                 self.bank_hardware.hardware_configuration.row_buffer_size_bytes
@@ -221,11 +221,27 @@ class SimulatedBlimpBank(
 
     def blimp_set_scratchpad_to_zero(self, return_labels=True) -> RuntimeResult:
         """Set the data scratchpad to all zeros"""
-        return self._blimp_set_scratchpad_to_(False, return_labels)
+        return self._blimp_set_register_to_(False, self.blimp_data_scratchpad, return_labels)
 
     def blimp_set_scratchpad_to_one(self, return_labels=True) -> RuntimeResult:
         """Set the data scratchpad to all ones"""
-        return self._blimp_set_scratchpad_to_(True, return_labels)
+        return self._blimp_set_register_to_(True, self.blimp_data_scratchpad, return_labels)
+
+    def blimp_set_v1_to_zero(self, return_labels=True) -> RuntimeResult:
+        """Set v1 to all zeros"""
+        return self._blimp_set_register_to_(False, self.blimp_v1, return_labels)
+
+    def blimp_set_v1_to_one(self, return_labels=True) -> RuntimeResult:
+        """Set v1 to all ones"""
+        return self._blimp_set_register_to_(True, self.blimp_v1, return_labels)
+
+    def blimp_set_v2_to_zero(self, return_labels=True) -> RuntimeResult:
+        """Set v2 to all zeros"""
+        return self._blimp_set_register_to_(False, self.blimp_v2, return_labels)
+
+    def blimp_set_v2_to_one(self, return_labels=True) -> RuntimeResult:
+        """Set v2 to all ones"""
+        return self._blimp_set_register_to_(True, self.blimp_v2, return_labels)
 
     def blimp_is_register_zero(self, register) -> bool:
         if register not in self.registers:
@@ -646,6 +662,59 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
 
         self._logger.info(f"blimpv simulator loaded")
 
+    def _blimpv_set_register_to_(self, ones: bool, register, return_labels=True) -> RuntimeResult:
+        """Set the specified register to all zeros or ones"""
+
+        # Calculate the number of cycles this operation takes
+        cycles = 1  # Start with one cycle to dispatch to the vector engine
+        # Calculate how many sew_chunks there are
+        sew_chunks = self.bank_hardware.hardware_configuration.row_buffer_size_bytes // \
+                     self.bank_hardware.hardware_configuration.blimpv_sew_max_bytes
+        # Calculate how many source operands there are
+        operands = sew_chunks
+        # Calculate how many stride-SEW ALU rounds are needed
+        alu_rounds = int(math.ceil(operands / self.bank_hardware.hardware_configuration.number_of_vALUs))
+        # Assumption; each ALU takes less than a CPU cycle to execute
+        cycles += alu_rounds
+
+        result = self.blimp_cycle(
+            label=f"\t{register} <- {int(ones)}",
+            cycles=cycles,
+            return_labels=return_labels
+        )
+
+        self.registers[register] = \
+            int_to_byte_array(
+                (2 ** (self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1 if ones else 0,
+                self.bank_hardware.hardware_configuration.row_buffer_size_bytes
+            )
+
+        return result
+
+    def blimpv_set_scratchpad_to_zero(self, return_labels=True) -> RuntimeResult:
+        """Set the data scratchpad to all zeros"""
+        return self._blimpv_set_register_to_(False, self.blimp_data_scratchpad, return_labels)
+
+    def blimpv_set_scratchpad_to_one(self, return_labels=True) -> RuntimeResult:
+        """Set the data scratchpad to all ones"""
+        return self._blimpv_set_register_to_(True, self.blimp_data_scratchpad, return_labels)
+
+    def blimpv_set_v1_to_zero(self, return_labels=True) -> RuntimeResult:
+        """Set v1 to all zeros"""
+        return self._blimpv_set_register_to_(False, self.blimp_v1, return_labels)
+
+    def blimpv_set_v1_to_one(self, return_labels=True) -> RuntimeResult:
+        """Set v1 to all ones"""
+        return self._blimpv_set_register_to_(True, self.blimp_v1, return_labels)
+
+    def blimpv_set_v2_to_zero(self, return_labels=True) -> RuntimeResult:
+        """Set v2 to all zeros"""
+        return self._blimpv_set_register_to_(False, self.blimp_v2, return_labels)
+
+    def blimpv_set_v2_to_one(self, return_labels=True) -> RuntimeResult:
+        """Set v2 to all ones"""
+        return self._blimpv_set_register_to_(True, self.blimp_v2, return_labels)
+
     def _blimpv_alu_unary_operation(self, register_a, sew, stride, operation, invert):
         """Perform a BLIMP-V unary operation and store the result in Register A"""
         # Sanity checking
@@ -1003,4 +1072,123 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             False,
             "MUL",
             return_labels
+        )
+
+    def blimpv_alu_int_eq_val(self, register_a, sew, stride, value, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V EQUAL operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            stride,
+            lambda a: int(a == value),
+            False,
+            "EQ",
+            return_labels
+        )
+
+    def blimpv_alu_int_neq_val(self, register_a, sew, stride, value, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V NOT EQUAL operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            stride,
+            lambda a: int(a != value),
+            False,
+            "NEQ",
+            return_labels
+        )
+
+    def blimpv_alu_int_lt_val(self, register_a, sew, stride, value, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V LESS THAN operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            stride,
+            lambda a: int(a < value),
+            False,
+            "LT",
+            return_labels
+        )
+
+    def blimpv_alu_int_gt_val(self, register_a, sew, stride, value, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V GREATER THAN operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            stride,
+            lambda a: int(a > value),
+            False,
+            "GT",
+            return_labels
+        )
+
+    def blimpv_alu_int_lte_val(self, register_a, sew, stride, value, return_labels=True) -> RuntimeResult:
+        """
+        Perform a BLIMP-V LESS THAN OR EQUAL operation on a register on SEW bytes and store the result in register a
+        """
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            stride,
+            lambda a: int(a <= value),
+            False,
+            "LTE",
+            return_labels
+        )
+
+    def blimpv_alu_int_gte_val(self, register_a, sew, stride, value, return_labels=True) -> RuntimeResult:
+        """
+        Perform a BLIMP-V GREATER THAN OR EQUAL operation on a register on SEW bytes and store the result in register a
+        """
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            stride,
+            lambda a: int(a >= value),
+            False,
+            "GTE",
+            return_labels
+        )
+
+    def blimpv_coalesce_register_hitmap(self, register_a, sew, stride, bit_offset, return_labels=True) -> RuntimeResult:
+        """
+        Coalesce a bitmap in register a starting offset bits away from the MSB of register element 1
+        """
+        result = 0
+        result_bits = 0
+        for sew_chunk in range(self.bank_hardware.hardware_configuration.row_buffer_size_bytes // sew):
+            if sew_chunk % (stride // sew) == 0:  # is this sew chunk to be operated on due to the stride?
+                result <<= 1
+                result += byte_array_to_int(self.registers[register_a][sew_chunk * sew:sew_chunk * sew + sew])
+                result_bits += 1
+
+        result <<= self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8 - result_bits - bit_offset
+        self.registers[register_a] = int_to_byte_array(
+            result,
+            self.bank_hardware.hardware_configuration.row_buffer_size_bytes
+        )
+
+        # Calculate the number of cycles this operation takes
+        cycles = 1  # Start with one cycle to dispatch to the vector engine
+        # Calculate how many sew_chunks there are
+        sew_chunks = self.bank_hardware.hardware_configuration.row_buffer_size_bytes // sew
+        # Calculate how many source operands there are
+        operands = sew_chunks // (stride // sew)
+        # Calculate how many stride-SEW ALU rounds are needed
+        alu_rounds = int(math.ceil(operands / self.bank_hardware.hardware_configuration.number_of_vALUs))
+        # each ALU requires at least an SLL and an addition
+        cycles += alu_rounds * 2
+        # it takes result_bits / 8 memory stores
+        cycles += result_bits // 8
+
+        return self.blimp_cycle(
+            cycles=cycles,
+            label=f"\t{register_a} <- BITMAP[{register_a}]",
+            return_labels=return_labels
         )
