@@ -517,7 +517,8 @@ class BlimpIndexBankLayoutConfiguration(
 class BlimpIndexHitmapBankLayoutConfiguration(
     GenericBlimpHitmapBankLayoutConfiguration,
     DataLayoutConfiguration[
-        BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
+        Union[BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration],
+        BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
     ]
 ):
     """
@@ -611,6 +612,11 @@ class BlimpIndexHitmapBankLayoutConfiguration(
         limit_records = total_indices_processable
         if self._record_generator.get_max_records() is not None:
             limit_records = min(limit_records, self._record_generator.get_max_records())
+
+            if whole_indices_to_row_buffer >= 1:
+                total_rows_for_horizontal_data = int(math.ceil(limit_records / whole_indices_to_row_buffer))
+            else:
+                total_rows_for_horizontal_data = limit_records * whole_rows_to_index
 
         total_rows_for_hitmaps = int(math.ceil(
             limit_records / (self.hardware_configuration.row_buffer_size_bytes * 8))
