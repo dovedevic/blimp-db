@@ -649,6 +649,148 @@ class SimulatedBlimpBank(
             return_labels
         )
 
+    def blimp_alu_int_eq_val(self, register_a, start_index, end_index, element_width, stride, value, return_labels=True
+                             ) -> RuntimeResult:
+        """Perform a BLIMP EQUAL operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_index,
+            end_index,
+            element_width,
+            stride,
+            lambda a: int(a == value),
+            False,
+            "EQ",
+            return_labels
+        )
+
+    def blimp_alu_int_neq_val(self, register_a, start_index, end_index, element_width, stride, value, return_labels=True
+                              ) -> RuntimeResult:
+        """Perform a BLIMP NOT EQUAL operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_index,
+            end_index,
+            element_width,
+            stride,
+            lambda a: int(a != value),
+            False,
+            "NEQ",
+            return_labels
+        )
+
+    def blimp_alu_int_lt_val(self, register_a, start_index, end_index, element_width, stride, value, return_labels=True
+                             ) -> RuntimeResult:
+        """Perform a BLIMP LESS THAN operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_index,
+            end_index,
+            element_width,
+            stride,
+            lambda a: int(a < value),
+            False,
+            "LT",
+            return_labels
+        )
+
+    def blimp_alu_int_gt_val(self, register_a, start_index, end_index, element_width, stride, value, return_labels=True
+                             ) -> RuntimeResult:
+        """Perform a BLIMP GREATER THAN operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_index,
+            end_index,
+            element_width,
+            stride,
+            lambda a: int(a > value),
+            False,
+            "GT",
+            return_labels
+        )
+
+    def blimp_alu_int_lte_val(self, register_a, start_index, end_index, element_width, stride, value, return_labels=True
+                              ) -> RuntimeResult:
+        """
+        Perform a BLIMP LESS THAN OR EQUAL operation on a register on SEW bytes and store the result in register a
+        """
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_index,
+            end_index,
+            element_width,
+            stride,
+            lambda a: int(a <= value),
+            False,
+            "LTE",
+            return_labels
+        )
+
+    def blimp_alu_int_gte_val(self, register_a, start_index, end_index, element_width, stride, value, return_labels=True
+                              ) -> RuntimeResult:
+        """
+        Perform a BLIMP GREATER THAN OR EQUAL operation on a register on SEW bytes and store the result in register a
+        """
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_index,
+            end_index,
+            element_width,
+            stride,
+            lambda a: int(a >= value),
+            False,
+            "GTE",
+            return_labels
+        )
+
+    def blimp_coalesce_register_hitmap(self, register_a, start_index, end_index, element_width, stride, bit_offset,
+                                       return_labels=True) -> RuntimeResult:
+        """
+        Coalesce a bitmap in register a starting offset bits away from the MSB of register element 1
+        """
+        result = 0
+        result_bits = 0
+        pseudo_sew = min(element_width, self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
+        elements = math.ceil((end_index - start_index) // element_width)
+        for element in range(elements):
+            if element % (stride // element_width) == 0:  # is this sew chunk to be operated on due to the stride?
+                result <<= 1
+                result += byte_array_to_int(
+                    self.registers[register_a][element * pseudo_sew:element * pseudo_sew + pseudo_sew]
+                )
+                result_bits += 1
+
+        result <<= self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8 - result_bits - bit_offset
+        self.registers[register_a] = int_to_byte_array(
+            result,
+            self.bank_hardware.hardware_configuration.row_buffer_size_bytes
+        )
+
+        # Calculate the number of cycles this operation takes
+        cycles = 1  # Start with one cycle to begin the algo
+        # Calculate how many sew_chunks there are
+        elements = math.ceil((end_index - start_index) / element_width)
+        # Calculate how many source operands there are
+        operands = elements // (stride // pseudo_sew)
+        # Calculate how many stride-SEW ALU rounds are needed
+        alu_rounds = operands
+        # each ALU requires at least an SLL and an addition
+        cycles += alu_rounds * 2
+        # it takes result_bits / 8 memory stores
+        cycles += result_bits // 8
+
+        return self.blimp_cycle(
+            cycles=cycles,
+            label=f"\t{register_a} <- BITMAP[{register_a}]",
+            return_labels=return_labels
+        )
+
 
 class SimulatedBlimpVBank(SimulatedBlimpBank):
     """Defines simulation parameters for a BLIMP-V-capable DRAM Bank"""
@@ -669,7 +811,7 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         cycles = 1  # Start with one cycle to dispatch to the vector engine
         # Calculate how many sew_chunks there are
         sew_chunks = self.bank_hardware.hardware_configuration.row_buffer_size_bytes // \
-                     self.bank_hardware.hardware_configuration.blimpv_sew_max_bytes
+            self.bank_hardware.hardware_configuration.blimpv_sew_max_bytes
         # Calculate how many source operands there are
         operands = sew_chunks
         # Calculate how many stride-SEW ALU rounds are needed
