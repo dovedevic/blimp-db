@@ -11,6 +11,7 @@ class DatabaseConfiguration(BaseModel):
 
     # Calculated Fields
     total_data_size_bytes: int = None
+    early_termination_frequency: int = 1
 
     def __init__(self, **data):
         super().__init__(**data)

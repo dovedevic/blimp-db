@@ -127,10 +127,12 @@ class _BlimpEarlyTerminationBitweaveHitmapEquality(
                 )
 
                 # Early Termination (ET)
-                runtime += self.simulator.blimp_cycle(2, "; cmp ZF early termination", return_labels)
-                if self.simulator.blimp_is_register_zero(self.simulator.blimp_v2):
-                    runtime += self.simulator.blimp_cycle(1, "; early termination return", return_labels)
-                    break
+                runtime += self.simulator.blimp_cycle(2, "; cmp early termination frequency", return_labels)
+                if b % self.layout_configuration.database_configuration.early_termination_frequency == 0:
+                    runtime += self.simulator.blimp_cycle(2, "; cmp ZF early termination", return_labels)
+                    if self.simulator.blimp_is_register_zero(self.simulator.blimp_v2):
+                        runtime += self.simulator.blimp_cycle(1, "; early termination return", return_labels)
+                        break
 
                 runtime += self.simulator.blimp_cycle(2, "; inner loop return", return_labels)
 
