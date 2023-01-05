@@ -202,7 +202,8 @@ class StandardBlimpBankLayoutConfiguration(
 class BlimpHitmapBankLayoutConfiguration(
     GenericBlimpHitmapBankLayoutConfiguration,
     DataLayoutConfiguration[
-        BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
+        Union[BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration],
+        BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
     ]
 ):
     """
