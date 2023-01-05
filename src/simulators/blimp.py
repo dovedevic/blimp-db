@@ -116,11 +116,32 @@ class SimulatedBlimpBank(
             "BLIMP DISABLE" if return_labels else ""
         )
 
+    def _ensure_register_exists(self, *registers):
+        for register in registers:
+            assert register in self.registers, f"Register '{register}' does not exist"
+
+    def _ensure_writable_register(self, *registers):
+        self._ensure_register_exists(*registers)
+        for register in registers:
+            assert register != self.blimp_v0, f"Cannot transfer into register V0"
+
+    def _ensure_valid_nary_operation(self, start_index, end_index, element_width, stride, *registers):
+        self._ensure_writable_register(*registers)
+        word_size = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8
+        assert element_width > 0, "Element widths must be positive"
+        assert end_index >= 0 and start_index >= 0, "Byte indices must be positive"
+        assert end_index <= self.bank_hardware.hardware_configuration.row_buffer_size_bytes, "End byte indices must be smaller than the row buffer size"
+        assert end_index >= start_index, "end_index must come after start_index"
+        assert end_index - start_index <= self.bank_hardware.hardware_configuration.row_buffer_size_bytes, "Byte index range exceeds hardware capability"
+        assert element_width <= word_size, "Element width must be smaller than this processors word size"
+        assert word_size % element_width == 0, "Element width must be a multiple of the word size"
+        assert stride % element_width == 0, f"Stride of {stride} must be a direct multiple of the element size {element_width}"
+
     def blimp_load_register(self, register, row: int, return_labels=True) -> RuntimeResult:
         """Fetch data into a specified internal register, via v0"""
         # Sanity checking
-        if register not in self.registers:
-            raise RuntimeError(f"Register '{register}' does not exist")
+        self._ensure_register_exists(register)
+
         result = self.blimp_cycle(return_labels=return_labels)
 
         # Fetch the row via the row buffer
@@ -148,12 +169,8 @@ class SimulatedBlimpBank(
     def blimp_transfer_register(self, register_a, register_b, return_labels=True) -> RuntimeResult:
         """Transfer data from a specified internal register, to another specified register (not v0)"""
         # Sanity checking
-        if register_a not in self.registers:
-            raise RuntimeError(f"Register '{register_a}' does not exist")
-        if register_b not in self.registers:
-            raise RuntimeError(f"Register '{register_b}' does not exist")
-        if register_a == self.blimp_v0 or register_b == self.blimp_v0:
-            raise RuntimeError(f"Cannot transfer into register V0")
+        self._ensure_writable_register(register_a, register_b)
+
         result = self.blimp_cycle(return_labels=return_labels)
 
         # Add time to transfer the row buffer/v0 to the specified mux destination
@@ -167,15 +184,14 @@ class SimulatedBlimpBank(
 
     def blimp_get_register(self, register) -> [int]:
         """Fetch the data for a BLIMP or BLIMP-V register"""
-        if register not in self.registers:
-            raise RuntimeError(f"Register '{register}' does not exist")
+        self._ensure_register_exists(register)
         return self.registers[register]
 
     def blimp_save_register(self, register, row: int, return_labels=True) -> RuntimeResult:
         """Save a specified internal register into a row, via v0"""
         # Sanity checking
-        if register not in self.registers:
-            raise RuntimeError(f"Register '{register}' does not exist")
+        self._ensure_register_exists(register)
+
         result = self.blimp_cycle(return_labels=return_labels)
 
         # Transfer data to v0 only when we aren't already operating on it
@@ -244,36 +260,17 @@ class SimulatedBlimpBank(
         return self._blimp_set_register_to_(True, self.blimp_v2, return_labels)
 
     def blimp_is_register_zero(self, register) -> bool:
-        if register not in self.registers:
-            raise RuntimeError(f"Register '{register}' does not exist")
-
+        self._ensure_register_exists(register)
         # This can be done for free if our registers have a ZF
         return byte_array_to_int(self.registers[register]) == 0
 
     def _blimp_alu_unary_operation(self, register_a, start_index, end_index, element_width, stride, operation, invert):
         """Perform a BLIMP unary operation and store the result in Register A"""
         # Sanity checking
-        word_size = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8
-        if register_a not in self.registers:
-            raise RuntimeError(f"Register '{register_a}' does not exist")
-        elif element_width <= 0:
-            raise RuntimeError("Element widths must be positive")
-        elif end_index < 0 or start_index < 0:
-            raise RuntimeError("Byte indices must be positive")
-        elif end_index > self.bank_hardware.hardware_configuration.row_buffer_size_bytes:
-            raise RuntimeError("End byte indices must be smaller than the row buffer size")
-        elif end_index < start_index:
-            raise RuntimeError("end_index must come after start_index")
-        elif end_index - start_index > self.bank_hardware.hardware_configuration.row_buffer_size_bytes:
-            raise RuntimeError("Byte index range exceeds hardware capability")
-        elif element_width > word_size:
-            raise RuntimeError("Element width must be smaller than this processors word size")
-        elif word_size % element_width != 0:
-            raise RuntimeError("Element width must be a multiple of the word size")
-        elif stride % element_width != 0:
-            raise RuntimeError(f"Stride of {stride} must be a direct multiple of the element size {element_width}")
+        self._ensure_valid_nary_operation(start_index, end_index, element_width, stride, register_a)
 
         elements = math.ceil((end_index - start_index) // element_width)
+        word_size = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8
 
         for element in range(elements):
             a = byte_array_to_int(
@@ -295,28 +292,9 @@ class SimulatedBlimpBank(
                                     operation, invert):
         """Perform a BLIMP-V binary operation and store the result in Register B"""
         # Sanity checking
-        word_size = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8
-        if register_a not in self.registers:
-            raise RuntimeError(f"Register '{register_a}' does not exist")
-        elif register_b not in self.registers:
-            raise RuntimeError(f"Register '{register_b}' does not exist")
-        elif element_width <= 0:
-            raise RuntimeError("Element widths must be positive")
-        elif end_index < 0 or start_index < 0:
-            raise RuntimeError("Byte indices must be positive")
-        elif end_index > self.bank_hardware.hardware_configuration.row_buffer_size_bytes:
-            raise RuntimeError("End byte indices must be smaller than the row buffer size")
-        elif end_index < start_index:
-            raise RuntimeError("end_index must come after start_index")
-        elif end_index - start_index > self.bank_hardware.hardware_configuration.row_buffer_size_bytes:
-            raise RuntimeError(f"Byte index range exceeds hardware capability")
-        elif element_width > word_size:
-            raise RuntimeError("Element width must be smaller than this processors word size")
-        elif word_size % element_width != 0:
-            raise RuntimeError("Element width must be a multiple of the word size")
-        elif stride % element_width != 0:
-            raise RuntimeError(f"Stride of {stride} must be a direct multiple of the element size {element_width}")
+        self._ensure_valid_nary_operation(start_index, end_index, element_width, stride, register_a, register_b)
 
+        word_size = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8
         elements = math.ceil((end_index - start_index) // element_width)
 
         for element in range(elements):
@@ -754,6 +732,8 @@ class SimulatedBlimpBank(
         """
         Coalesce a bitmap in register a starting offset bits away from the MSB of register element 1
         """
+        self._ensure_valid_nary_operation(start_index, end_index, element_width, stride, register_a)
+
         result = 0
         result_bits = 0
         pseudo_sew = min(element_width, self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
@@ -795,6 +775,8 @@ class SimulatedBlimpBank(
         """
         Count the number of set bits in a register and save it in the primary slot
         """
+        self._ensure_valid_nary_operation(start_index, end_index, element_width, element_width, register)
+
         count = 0
         blimp_cycles = 1  # vector dispatch
         pseudo_sew = min(element_width, self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
@@ -827,6 +809,8 @@ class SimulatedBlimpBank(
         """
         Pop-count the number of set bits in a register and save it in the primary slot
         """
+        self._ensure_valid_nary_operation(start_index, end_index, element_width, element_width, register)
+
         count = 0
         blimp_cycles = 1  # dispatch
         pseudo_sew = min(element_width, self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
@@ -919,19 +903,17 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         """Set v2 to all ones"""
         return self._blimpv_set_register_to_(True, self.blimp_v2, return_labels)
 
+    def _ensure_valid_v_nary_operation(self, sew, stride, *registers):
+        self._ensure_writable_register(*registers)
+        assert self.bank_hardware.hardware_configuration.blimpv_sew_min_bytes <= sew, "SEW too small for this configuration"
+        assert self.bank_hardware.hardware_configuration.blimpv_sew_max_bytes >= sew, "SEW too large for this configuration"
+        assert self.bank_hardware.hardware_configuration.row_buffer_size_bytes % sew == 0, f"SEW of {sew} does not divide evenly into the configured row buffer width"
+        assert stride % sew == 0, f"Stride of {stride} must be a direct multiple of the SEW {sew}"
+
     def _blimpv_alu_unary_operation(self, register_a, sew, stride, operation, invert):
         """Perform a BLIMP-V unary operation and store the result in Register A"""
         # Sanity checking
-        if register_a not in self.registers:
-            raise RuntimeError(f"Register '{register_a}' does not exist")
-        elif self.bank_hardware.hardware_configuration.blimpv_sew_min_bytes > sew:
-            raise RuntimeError("SEW too small for this configuration")
-        elif self.bank_hardware.hardware_configuration.blimpv_sew_max_bytes < sew:
-            raise RuntimeError("SEW too large for this configuration")
-        elif self.bank_hardware.hardware_configuration.row_buffer_size_bytes % sew != 0:
-            raise RuntimeError(f"SEW of {sew} does not divide evenly into the configured row buffer width")
-        elif stride % sew != 0:
-            raise RuntimeError(f"Stride of {stride} must be a direct multiple of the SEW {sew}")
+        self._ensure_valid_v_nary_operation(sew, stride, register_a)
 
         result = 0
         for sew_chunk in range(self.bank_hardware.hardware_configuration.row_buffer_size_bytes // sew):
@@ -951,18 +933,7 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
     def _blimpv_alu_binary_operation(self, register_a, register_b, sew, stride, operation, invert):
         """Perform a BLIMP-V binary operation and store the result in Register B"""
         # Sanity checking
-        if register_a not in self.registers:
-            raise RuntimeError(f"Register '{register_a}' does not exist")
-        elif register_b not in self.registers:
-            raise RuntimeError(f"Register '{register_b}' does not exist")
-        elif self.bank_hardware.hardware_configuration.blimpv_sew_min_bytes > sew:
-            raise RuntimeError("SEW too small for this configuration")
-        elif self.bank_hardware.hardware_configuration.blimpv_sew_max_bytes < sew:
-            raise RuntimeError("SEW too large for this configuration")
-        elif self.bank_hardware.hardware_configuration.row_buffer_size_bytes % sew != 0:
-            raise RuntimeError(f"SEW of {sew} does not divide evenly into the configured row buffer width")
-        elif stride % sew != 0:
-            raise RuntimeError(f"Stride of {stride} must be a direct multiple of the SEW {sew}")
+        self._ensure_valid_v_nary_operation(sew, stride, register_a, register_b)
 
         result = 0
         for sew_chunk in range(self.bank_hardware.hardware_configuration.row_buffer_size_bytes // sew):
@@ -1362,8 +1333,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
 
     def blimpv_coalesce_register_hitmap(self, register_a, sew, stride, bit_offset, return_labels=True) -> RuntimeResult:
         """
-        Coalesce a bitmap in register a starting offset bits away from the MSB of register element 1
+        Coalesce a bitmap in a register starting offset bits away from the MSB of register element 1
         """
+        self._ensure_valid_v_nary_operation(sew, stride, register_a)
+
         result = 0
         result_bits = 0
         for sew_chunk in range(self.bank_hardware.hardware_configuration.row_buffer_size_bytes // sew):
@@ -1401,6 +1374,8 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         """
         Pop-count the number of set bits in a register and save it in the primary slot
         """
+        self._ensure_valid_v_nary_operation(sew, stride, register_a)
+
         # Calculate the number of cycles this operation takes
         cycles = 1  # Start with one cycle to dispatch to the vector engine
         # Calculate how many sew_chunks there are
