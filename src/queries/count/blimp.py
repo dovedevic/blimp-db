@@ -55,8 +55,12 @@ class _BlimpHitmapCount(
             # move hitmap[index] into v1
             runtime += self.simulator.blimp_load_register(self.simulator.blimp_v1, hitmap_row, return_labels)
 
-            # count the number of bits set
-            runtime += self.simulator.blimp_bit_count(
+            # count the number of bits set, use pop count if the hardware is present, otherwise use software
+            if self.layout_configuration.hardware_configuration.blimp_extension_popcount:
+                result_method = self.simulator.blimp_bit_popcount
+            else:
+                result_method = self.simulator.blimp_bit_count
+            runtime += result_method(
                 self.simulator.blimp_v1,
                 0,
                 self.hardware.hardware_configuration.row_buffer_size_bytes,
