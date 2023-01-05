@@ -250,6 +250,13 @@ class BlimpAmbitHitmapBankLayoutConfiguration(
         if self._record_generator.get_max_records() is not None:
             limit_records = min(limit_records, self._record_generator.get_max_records())
 
+            if whole_records_to_row_buffer >= 1:
+                # Simply count how many chunked records we can save
+                total_rows_for_horizontal_data = int(math.ceil(limit_records / whole_records_to_row_buffer))
+            # Multiple rows per one record
+            else:
+                total_rows_for_horizontal_data = limit_records * whole_rows_to_record
+
         total_rows_for_vertical_data = ceil_to_multiple(
             limit_records * (self._database_configuration.total_index_size_bytes * 8) /
             (self._hardware_configuration.row_buffer_size_bytes * 8),
