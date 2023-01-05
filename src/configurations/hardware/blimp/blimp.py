@@ -7,6 +7,7 @@ class BlimpHardwareConfiguration(HardwareConfiguration):
     blimp_frequency: int
     time_to_v0_transfer_ns: float
     blimp_processor_bit_architecture: int
+    blimp_extension_popcount: bool
 
     # Calculated Fields
     time_per_blimp_cycle_ns: float = None
@@ -24,3 +25,4 @@ class BlimpVectorHardwareConfiguration(BlimpHardwareConfiguration):
     number_of_vFPUs: int
     blimpv_sew_max_bytes: int
     blimpv_sew_min_bytes: int
+    blimpv_extension_vpopcount: bool
