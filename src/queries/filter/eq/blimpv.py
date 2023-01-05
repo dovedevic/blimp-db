@@ -9,7 +9,8 @@ class BlimpVHitmapEqual(_BlimpVHitmapGenericScalarALO):
             pi_element_size_bytes: int,
             value: int,
             return_labels: bool=False,
-            hitmap_index: int=0
+            hitmap_index: int=0,
+            **kwargs
     ) -> (RuntimeResult, SimulationResult):
         """
         Perform a BLIMP-V EQUAL query operation. If the PI/Key field is segmented, specify the segment offset and its
@@ -37,7 +38,8 @@ class BlimpVHitmapNotEqual(_BlimpVHitmapGenericScalarALO):
             pi_element_size_bytes: int,
             value: int,
             return_labels: bool=False,
-            hitmap_index: int=0
+            hitmap_index: int=0,
+            **kwargs
     ) -> (RuntimeResult, SimulationResult):
         """
         Perform a BLIMP-V NOTEQUAL query operation. If the PI/Key field is segmented, specify the segment offset and its
