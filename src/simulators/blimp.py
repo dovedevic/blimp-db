@@ -823,6 +823,36 @@ class SimulatedBlimpBank(
             return_labels=return_labels
         )
 
+    def blimp_bit_popcount(self, register, start_index, end_index, element_width, return_labels=True) -> RuntimeResult:
+        """
+        Pop-count the number of set bits in a register and save it in the primary slot
+        """
+        count = 0
+        blimp_cycles = 1  # dispatch
+        pseudo_sew = min(element_width, self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
+        elements = math.ceil((end_index - start_index) // element_width)
+        blimp_cycles += elements * 2
+
+        for element in range(elements):
+            value = byte_array_to_int(
+                self.registers[register][element * pseudo_sew:element * pseudo_sew + pseudo_sew]
+            )
+            while value:
+                value &= value - 1
+                count += 1
+
+        count <<= self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8 - pseudo_sew * 8
+        self.registers[register] = int_to_byte_array(
+            count,
+            self.bank_hardware.hardware_configuration.row_buffer_size_bytes
+        )
+
+        return self.blimp_cycle(
+            cycles=blimp_cycles,
+            label=f"\t{register} <- COUNT[{register}]",
+            return_labels=return_labels
+        )
+
 
 class SimulatedBlimpVBank(SimulatedBlimpBank):
     """Defines simulation parameters for a BLIMP-V-capable DRAM Bank"""
@@ -1364,5 +1394,39 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         return self.blimp_cycle(
             cycles=cycles,
             label=f"\t{register_a} <- BITMAP[{register_a}]",
+            return_labels=return_labels
+        )
+
+    def blimpv_bit_popcount(self, register_a, sew, stride, return_labels=True) -> RuntimeResult:
+        """
+        Pop-count the number of set bits in a register and save it in the primary slot
+        """
+        # Calculate the number of cycles this operation takes
+        cycles = 1  # Start with one cycle to dispatch to the vector engine
+        # Calculate how many sew_chunks there are
+        sew_chunks = self.bank_hardware.hardware_configuration.row_buffer_size_bytes // sew
+        # Calculate how many source operands there are
+        operands = sew_chunks // (stride // sew)
+        # Calculate how many stride-SEW ALU rounds are needed
+        alu_rounds = int(math.ceil(operands / self.bank_hardware.hardware_configuration.number_of_vALUs))
+        # Assumption; each ALU takes less than a CPU cycle to execute
+        cycles += alu_rounds
+
+        count = 0
+        for sew_chunk in range(self.bank_hardware.hardware_configuration.row_buffer_size_bytes // sew):
+            value = byte_array_to_int(self.registers[register_a][sew_chunk * sew:sew_chunk * sew + sew])
+            while value:
+                value &= value - 1
+                count += 1
+
+        count <<= self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8 - sew * 8
+        self.registers[register_a] = int_to_byte_array(
+            count,
+            self.bank_hardware.hardware_configuration.row_buffer_size_bytes
+        )
+
+        return self.blimp_cycle(
+            cycles=cycles,
+            label=f"\t{register_a} <- COUNT[{register_a}]",
             return_labels=return_labels
         )
