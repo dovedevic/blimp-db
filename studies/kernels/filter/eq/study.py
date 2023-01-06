@@ -182,7 +182,9 @@ blimp_ambit_studies = [
 
 
 def perform_studies(study_path: str, studies: [QueryStudy]):
-    if not os.path.exists(study_path):
+    study_path = study_path or ""
+    save_files = study_path != ""
+    if save_files and not os.path.exists(study_path):
         print('creating studies directory...')
         os.mkdir(study_path)
 
@@ -201,13 +203,14 @@ def perform_studies(study_path: str, studies: [QueryStudy]):
             max_bound=1999,
             total_records=2343750
         )
-        record_generator.save(os.path.join(study_path, "records.save"))
+        if save_files:
+            record_generator.save(os.path.join(study_path, "records.save"))
         time = end_performance_tracking()
         print(f' generated and saved in {time}s')
 
     for study in studies:
         print(f'beginning study {study.name}')
-        if not os.path.exists(os.path.join(study_path, study.name)):
+        if save_files and not os.path.exists(os.path.join(study_path, study.name)):
             print('\tcreating study directory...')
             os.mkdir(os.path.join(study_path, study.name))
 
@@ -232,7 +235,8 @@ def perform_studies(study_path: str, studies: [QueryStudy]):
                 database=database_configuration,
                 generator=record_generator
             )
-            layout_configuration.save(os.path.join(study_path, study.name, 'configuration.json'))
+            if save_files:
+                layout_configuration.save(os.path.join(study_path, study.name, 'configuration.json'))
             time = end_performance_tracking()
             print(f' generated and saved in {time}s')
 
@@ -261,7 +265,8 @@ def perform_studies(study_path: str, studies: [QueryStudy]):
 
             print("\tdumping memory state...", end='')
             start_performance_tracking()
-            bank_hardware.save(os.path.join(study_path, study.name, 'bank.memdump'), dump_with_ascii=False)
+            if save_files:
+                bank_hardware.save(os.path.join(study_path, study.name, 'bank.memdump'), dump_with_ascii=False)
             time = end_performance_tracking()
             print(f' dumped in {time}s')
 
@@ -290,8 +295,9 @@ def perform_studies(study_path: str, studies: [QueryStudy]):
         print("\tsaving query results...", end='')
         start_performance_tracking()
         study.runtime = runtime
-        runtime.save(os.path.join(study_path, study.name, 'query_runtime.txt'))
-        result.save(os.path.join(study_path, study.name, 'query_result.txt'))
+        if save_files:
+            runtime.save(os.path.join(study_path, study.name, 'query_runtime.txt'))
+            result.save(os.path.join(study_path, study.name, 'query_result.txt'))
         time = end_performance_tracking()
         print(f' saved in {time}s')
 
@@ -303,4 +309,4 @@ def perform_studies(study_path: str, studies: [QueryStudy]):
     print(f'finished study suite {study_path}')
 
 
-perform_studies("_all_studies", ambit_studies + blimp_studies + blimpv_studies + blimp_ambit_studies)
+perform_studies("", ambit_studies + blimp_studies + blimpv_studies + blimp_ambit_studies)
