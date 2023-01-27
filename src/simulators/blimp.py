@@ -205,6 +205,7 @@ class SimulatedBlimpBank(
         self._ensure_writable_register(register_a, register_b)
 
         result = self.blimp_cycle(return_labels=return_labels)
+        self.registers[register_b] = [b for b in self.registers[register_a]]
 
         # Add time to transfer the row buffer/v0 to the specified mux destination
         result += RuntimeResult(
