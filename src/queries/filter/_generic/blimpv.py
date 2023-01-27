@@ -64,7 +64,7 @@ class _BlimpVHitmapGenericScalarALO(
         runtime = self.simulator.blimp_begin(return_labels)
 
         # Clear a register for temporary hitmaps
-        runtime += self.simulator.blimpv_set_v2_to_zero(return_labels)
+        runtime += self.simulator.blimpv_set_register_to_zero(self.simulator.blimp_v2, return_labels)
 
         # Iterate over all data rows
         runtime += self.simulator.blimp_cycle(3, "; loop start", return_labels)
@@ -150,7 +150,7 @@ class _BlimpVHitmapGenericScalarALO(
                 )
 
                 # Reset to save a new one
-                runtime += self.simulator.blimpv_set_v2_to_zero(return_labels)
+                runtime += self.simulator.blimpv_set_register_to_zero(self.simulator.blimp_v2, return_labels)
 
             runtime += self.simulator.blimp_cycle(2, "; loop return", return_labels)
 
