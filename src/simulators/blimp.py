@@ -24,6 +24,9 @@ class SimulatedBlimpBank(
             self._data_pad(): [],
             self._v1(): [],
             self._v2(): [],
+            self._v3(): [],
+            self._v4(): [],
+            self._v5(): [],
         }
 
         self._logger.info(f"blimp simulator loaded")
@@ -42,6 +45,21 @@ class SimulatedBlimpBank(
     def _v2():
         """Register name for the second BLIMP-V vector register"""
         return "v2"
+
+    @staticmethod
+    def _v3():
+        """Register name for the third BLIMP-V vector register"""
+        return "v3"
+
+    @staticmethod
+    def _v4():
+        """Register name for the fourth BLIMP-V vector register"""
+        return "v4"
+
+    @staticmethod
+    def _v5():
+        """Register name for the fifth BLIMP-V vector register"""
+        return "v5"
 
     @staticmethod
     def _instr_buffer():
@@ -67,6 +85,21 @@ class SimulatedBlimpBank(
     def blimp_v2(self):
         """BLIMP-V V2 vector register"""
         return self._v2()
+
+    @property
+    def blimp_v3(self):
+        """BLIMP-V V3 vector register"""
+        return self._v3()
+
+    @property
+    def blimp_v4(self):
+        """BLIMP-V V4 vector register"""
+        return self._v4()
+
+    @property
+    def blimp_v5(self):
+        """BLIMP-V V5 vector register"""
+        return self._v5()
 
     @property
     def blimp_instruction_buffer(self):
@@ -235,29 +268,15 @@ class SimulatedBlimpBank(
 
         return result
 
-    def blimp_set_scratchpad_to_zero(self, return_labels=True) -> RuntimeResult:
-        """Set the data scratchpad to all zeros"""
-        return self._blimp_set_register_to_(False, self.blimp_data_scratchpad, return_labels)
+    def blimp_set_register_to_zero(self, register, return_labels=True) -> RuntimeResult:
+        """Set an arbitrary register to all zeros"""
+        self._ensure_writable_register(register)
+        return self._blimp_set_register_to_(False, register, return_labels)
 
-    def blimp_set_scratchpad_to_one(self, return_labels=True) -> RuntimeResult:
-        """Set the data scratchpad to all ones"""
-        return self._blimp_set_register_to_(True, self.blimp_data_scratchpad, return_labels)
-
-    def blimp_set_v1_to_zero(self, return_labels=True) -> RuntimeResult:
-        """Set v1 to all zeros"""
-        return self._blimp_set_register_to_(False, self.blimp_v1, return_labels)
-
-    def blimp_set_v1_to_one(self, return_labels=True) -> RuntimeResult:
-        """Set v1 to all ones"""
-        return self._blimp_set_register_to_(True, self.blimp_v1, return_labels)
-
-    def blimp_set_v2_to_zero(self, return_labels=True) -> RuntimeResult:
-        """Set v2 to all zeros"""
-        return self._blimp_set_register_to_(False, self.blimp_v2, return_labels)
-
-    def blimp_set_v2_to_one(self, return_labels=True) -> RuntimeResult:
-        """Set v2 to all ones"""
-        return self._blimp_set_register_to_(True, self.blimp_v2, return_labels)
+    def blimp_set_register_to_one(self, register, return_labels=True) -> RuntimeResult:
+        """Set an arbitrary register to all ones"""
+        self._ensure_writable_register(register)
+        return self._blimp_set_register_to_(True, register, return_labels)
 
     def blimp_is_register_zero(self, register) -> bool:
         self._ensure_register_exists(register)
@@ -900,29 +919,15 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
 
         return result
 
-    def blimpv_set_scratchpad_to_zero(self, return_labels=True) -> RuntimeResult:
-        """Set the data scratchpad to all zeros"""
-        return self._blimpv_set_register_to_(False, self.blimp_data_scratchpad, return_labels)
+    def blimpv_set_register_to_zero(self, register, return_labels=True) -> RuntimeResult:
+        """Set an arbitrary register to all zeros"""
+        self._ensure_writable_register(register)
+        return self._blimpv_set_register_to_(False, register, return_labels)
 
-    def blimpv_set_scratchpad_to_one(self, return_labels=True) -> RuntimeResult:
-        """Set the data scratchpad to all ones"""
-        return self._blimpv_set_register_to_(True, self.blimp_data_scratchpad, return_labels)
-
-    def blimpv_set_v1_to_zero(self, return_labels=True) -> RuntimeResult:
-        """Set v1 to all zeros"""
-        return self._blimpv_set_register_to_(False, self.blimp_v1, return_labels)
-
-    def blimpv_set_v1_to_one(self, return_labels=True) -> RuntimeResult:
-        """Set v1 to all ones"""
-        return self._blimpv_set_register_to_(True, self.blimp_v1, return_labels)
-
-    def blimpv_set_v2_to_zero(self, return_labels=True) -> RuntimeResult:
-        """Set v2 to all zeros"""
-        return self._blimpv_set_register_to_(False, self.blimp_v2, return_labels)
-
-    def blimpv_set_v2_to_one(self, return_labels=True) -> RuntimeResult:
-        """Set v2 to all ones"""
-        return self._blimpv_set_register_to_(True, self.blimp_v2, return_labels)
+    def blimpv_set_register_to_one(self, register, return_labels=True) -> RuntimeResult:
+        """Set an arbitrary register to all ones"""
+        self._ensure_writable_register(register)
+        return self._blimpv_set_register_to_(True, register, return_labels)
 
     def _ensure_valid_v_nary_operation(self, sew, stride, *registers):
         self._ensure_writable_register(*registers)
