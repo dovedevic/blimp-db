@@ -1,4 +1,5 @@
 import os
+import math
 
 from studies.study import QueryStudy
 from utils.performance import start_performance_tracking, end_performance_tracking
@@ -6,8 +7,17 @@ from utils.performance import start_performance_tracking, end_performance_tracki
 from src.generators.record_generators import BoundedRandomKeyNullDataRecordGenerator
 
 
+PARALLELISM_FACTOR = 512
 KEY_SIZE_BYTES = 2
 BANK_SIZE_BYTES = 33554432
+RECORD_LIMITER = math.ceil(600000000 * KEY_SIZE_BYTES / PARALLELISM_FACTOR)
+
+record_generator_configuration = {
+    "pi_record_size": KEY_SIZE_BYTES,
+    "min_bound": 1990,
+    "max_bound": 1999,
+    "total_records": RECORD_LIMITER
+}
 
 generic_hardware_configuration = {
     "bank_size_bytes": BANK_SIZE_BYTES,
@@ -44,7 +54,7 @@ generic_database_configuration = {
 generic_query_params = {
     "pi_subindex_offset_bytes": 0,
     "pi_element_size_bytes": KEY_SIZE_BYTES,
-    "value": 1990,
+    "value": 1,
     "return_labels": True,
     "hitmap_index": 0
 }
@@ -184,6 +194,7 @@ blimp_ambit_studies = [
 def perform_studies(study_path: str, studies: [QueryStudy]):
     study_path = study_path or ""
     save_files = study_path != ""
+    result_tuples = []
     if save_files and not os.path.exists(study_path):
         print('creating studies directory...')
         os.mkdir(study_path)
@@ -197,12 +208,7 @@ def perform_studies(study_path: str, studies: [QueryStudy]):
     else:
         print("generating records...", end='')
         start_performance_tracking()
-        record_generator = BoundedRandomKeyNullDataRecordGenerator(
-            pi_record_size=KEY_SIZE_BYTES,
-            min_bound=1990,
-            max_bound=1999,
-            total_records=2343750
-        )
+        record_generator = BoundedRandomKeyNullDataRecordGenerator(**record_generator_configuration)
         if save_files:
             record_generator.save(os.path.join(study_path, "records.save"))
         time = end_performance_tracking()
@@ -305,8 +311,17 @@ def perform_studies(study_path: str, studies: [QueryStudy]):
         print(f"\t{study.name} return {result.result_count:,} hits")
         print(f"\t{study.name} simulated runtime was {runtime.runtime:,}ns")
 
+        result_tuples.append((
+            study.name,
+            runtime.runtime,
+            result.result_count
+        ))
+
         print(f'finished study {study.name}')
     print(f'finished study suite {study_path}')
+
+    for name, runtime, hitcount in result_tuples:
+        print(f"{name}\t{runtime}\t{hitcount}")
 
 
 perform_studies("", ambit_studies + blimp_studies + blimpv_studies + blimp_ambit_studies)
