@@ -32,7 +32,7 @@ class BlimpVHitmapLessThan(_BlimpVHitmapGenericScalarALO):
         )
 
 
-class BlimpVHitmapGreaterThanOrEqual(_BlimpVHitmapGenericScalarALO):
+class BlimpVHitmapInverseLessThan(_BlimpVHitmapGenericScalarALO):
     def perform_operation(
             self,
             pi_element_size_bytes: int,
@@ -42,7 +42,7 @@ class BlimpVHitmapGreaterThanOrEqual(_BlimpVHitmapGenericScalarALO):
             **kwargs
     ) -> (RuntimeResult, SimulationResult):
         """
-        Perform a BLIMP-V GREATER THAN OR EQUAL (>=) query operation. If the PI/Key field is segmented, specify the
+        Perform a BLIMP-V INVERSE LESS THAN (!<) query operation. If the PI/Key field is segmented, specify the
         segment offset and its size, as well as the value to check against. The value must be less than the maximum
         size expressed by the provided size. Return debug labels if specified.
 

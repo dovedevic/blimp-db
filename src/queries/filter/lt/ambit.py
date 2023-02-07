@@ -344,7 +344,7 @@ class AmbitHitmapLessThan(_AmbitHitmapLessThan):
         )
 
 
-class AmbitHitmapGreaterThanOrEqual(_AmbitHitmapLessThan):
+class AmbitHitmapInverseLessThan(_AmbitHitmapLessThan):
     def perform_operation(
             self,
             pi_subindex_offset_bytes: int,
@@ -354,7 +354,7 @@ class AmbitHitmapGreaterThanOrEqual(_AmbitHitmapLessThan):
             hitmap_index: int=0
     ) -> (RuntimeResult, SimulationResult):
         """
-        Perform an AMBIT GREATER THAN OR EQUAL (>=) query operation. If the PI/Key field is segmented, specify the
+        Perform an AMBIT INVERSE LESS THAN (!<) query operation. If the PI/Key field is segmented, specify the
         segment offset and its size, as well as the value to check against. The value must be less than the maximum
         size expressed by the provided size. Return debug labels if specified.
 
