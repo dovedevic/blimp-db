@@ -4,7 +4,7 @@ import math
 from studies.study import QueryStudy
 from utils.performance import start_performance_tracking, end_performance_tracking
 
-from src.generators.record_generators import BoundedRandomKeyNullDataRecordGenerator, IncrementalKeyNullDataRecordGenerator
+from src.generators.record_generators import BoundedRandomKeyNullDataRecordGenerator
 
 
 PARALLELISM_FACTOR = 2048
@@ -54,7 +54,7 @@ generic_database_configuration = {
 generic_query_params = {
     "pi_subindex_offset_bytes": 0,
     "pi_element_size_bytes": KEY_SIZE_BYTES,
-    "value": 65535,
+    "value": 1995,
     "return_labels": True,
     "hitmap_index": 0
 }
@@ -168,8 +168,7 @@ def perform_studies(study_path: str, studies: [QueryStudy]):
     else:
         print("generating records...", end='')
         start_performance_tracking()
-        #record_generator = BoundedRandomKeyNullDataRecordGenerator(**record_generator_configuration)
-        record_generator = IncrementalKeyNullDataRecordGenerator(KEY_SIZE_BYTES, RECORD_LIMITER)
+        record_generator = BoundedRandomKeyNullDataRecordGenerator(**record_generator_configuration)
         if save_files:
             record_generator.save(os.path.join(study_path, "records.save"))
         time = end_performance_tracking()
