@@ -5,3 +5,5 @@ class GenericArithmeticLogicalOperation(str, Enum):
     LT = "<"
     GT = ">"
     EQ = "="
+    LTE = "<="
+    GTE = ">="

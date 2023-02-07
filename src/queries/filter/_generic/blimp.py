@@ -107,6 +107,26 @@ class _BlimpHitmapGenericScalarALO(
                     value,
                     return_labels
                 )
+            elif operation == GenericArithmeticLogicalOperation.GTE:
+                runtime += self.simulator.blimp_alu_int_gte_val(
+                    self.simulator.blimp_v1,
+                    0,
+                    self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    pi_element_size_bytes,
+                    pi_element_size_bytes,
+                    value,
+                    return_labels
+                )
+            elif operation == GenericArithmeticLogicalOperation.LTE:
+                runtime += self.simulator.blimp_alu_int_lte_val(
+                    self.simulator.blimp_v1,
+                    0,
+                    self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    pi_element_size_bytes,
+                    pi_element_size_bytes,
+                    value,
+                    return_labels
+                )
 
             # Coalesce the bitmap
             runtime += self.simulator.blimp_coalesce_register_hitmap(

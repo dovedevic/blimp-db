@@ -101,6 +101,22 @@ class _BlimpVHitmapGenericScalarALO(
                     value,
                     return_labels
                 )
+            elif operation == GenericArithmeticLogicalOperation.GTE:
+                runtime += self.simulator.blimpv_alu_int_gte_val(
+                    self.simulator.blimp_v1,
+                    pi_element_size_bytes,
+                    pi_element_size_bytes,
+                    value,
+                    return_labels
+                )
+            elif operation == GenericArithmeticLogicalOperation.LTE:
+                runtime += self.simulator.blimpv_alu_int_lte_val(
+                    self.simulator.blimp_v1,
+                    pi_element_size_bytes,
+                    pi_element_size_bytes,
+                    value,
+                    return_labels
+                )
 
             # Coalesce the bitmap
             runtime += self.simulator.blimpv_coalesce_register_hitmap(
