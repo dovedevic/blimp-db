@@ -344,7 +344,7 @@ class BlimpAmbitHitmapGreaterThan(_BlimpAmbitHitmapGreaterThan):
         )
 
 
-class BlimpAmbitHitmapLessThanOrEqual(_BlimpAmbitHitmapGreaterThan):
+class BlimpAmbitHitmapInverseGreaterThan(_BlimpAmbitHitmapGreaterThan):
     def perform_operation(
             self,
             pi_subindex_offset_bytes: int,
@@ -354,7 +354,7 @@ class BlimpAmbitHitmapLessThanOrEqual(_BlimpAmbitHitmapGreaterThan):
             hitmap_index: int=0
     ) -> (RuntimeResult, SimulationResult):
         """
-        Perform a BLIMP+AMBIT LESS THAN OR EQUAL (<=) query operation. If the PI/Key field is segmented, specify the
+        Perform a BLIMP+AMBIT INVERSE GREATER THAN (!>) query operation. If the PI/Key field is segmented, specify the
         segment offset and its size, as well as the value to check against. The value must be less than the maximum
         size expressed by the provided size. Return debug labels if specified.
 

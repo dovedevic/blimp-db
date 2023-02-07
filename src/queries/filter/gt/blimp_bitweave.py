@@ -255,7 +255,7 @@ class BlimpBitweaveHitmapGreaterThan(_BlimpBitweaveHitmapGreaterThan):
         )
 
 
-class BlimpBitweaveHitmapLessThanOrEqual(_BlimpBitweaveHitmapGreaterThan):
+class BlimpBitweaveHitmapInverseGreaterThan(_BlimpBitweaveHitmapGreaterThan):
     def perform_operation(
             self,
             pi_subindex_offset_bytes: int,
@@ -265,7 +265,7 @@ class BlimpBitweaveHitmapLessThanOrEqual(_BlimpBitweaveHitmapGreaterThan):
             hitmap_index: int=0
     ) -> (RuntimeResult, SimulationResult):
         """
-        Perform a BLIMP LESS THAN OR EQUAL (<=) query operation. If the PI/Key field is segmented, specify the
+        Perform a BLIMP INVERSE GREATER THAN (!>) query operation. If the PI/Key field is segmented, specify the
         segment offset and its size, as well as the value to check against. The value must be less than the maximum
         size expressed by the provided size. Return debug labels if specified.
 
