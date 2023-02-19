@@ -1,0 +1,3 @@
+add_executable(test_blimp_hash_map test_blimp_hash_map.cpp)
+target_include_directories(test_blimp_hash_map PRIVATE ..)
+add_test(test_blimp_hash_map test_blimp_hash_map)
