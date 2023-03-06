@@ -2,7 +2,7 @@ from typing import Union
 
 from src.queries.query import Query
 from src.queries.filter._generic.operations import GenericArithmeticLogicalOperation
-from src.simulators.result import RuntimeResult, SimulationResult
+from src.simulators.result import RuntimeResult, HitmapResult
 from src.data_layout_mappings.architectures import \
     BlimpIndexHitmapBankLayoutConfiguration
 
@@ -25,7 +25,7 @@ class _BlimpHitmapGenericScalarALO(
             negate: bool,
             return_labels: bool=False,
             hitmap_index: int=0
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a generic BLIMP Scalar Arithmetic Logical Operation query.
 
@@ -234,7 +234,7 @@ class _BlimpHitmapGenericScalarALO(
             # Append the byte array for the next hitmap sub row
             hitmap_byte_array += self.simulator.bank_hardware.get_row_bytes(hitmap_row)
 
-        result = SimulationResult.from_hitmap_byte_array(
+        result = HitmapResult.from_hitmap_byte_array(
             hitmap_byte_array,
             self.layout_configuration.layout_metadata.total_records_processable
         )

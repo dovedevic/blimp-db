@@ -1,6 +1,6 @@
 from src.queries.filter._generic.blimp import _BlimpHitmapGenericScalarALO
 from src.queries.filter._generic.operations import GenericArithmeticLogicalOperation
-from src.simulators.result import RuntimeResult, SimulationResult
+from src.simulators.result import RuntimeResult, HitmapResult
 
 
 class BlimpHitmapEqual(_BlimpHitmapGenericScalarALO):
@@ -11,7 +11,7 @@ class BlimpHitmapEqual(_BlimpHitmapGenericScalarALO):
             return_labels: bool=False,
             hitmap_index: int=0,
             **kwargs
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP EQUAL query operation. If the PI/Key field is segmented, specify the segment offset and its
         size, as well as the value to check against. The value must be less than the maximum size expressed by the
@@ -40,7 +40,7 @@ class BlimpHitmapNotEqual(_BlimpHitmapGenericScalarALO):
             return_labels: bool=False,
             hitmap_index: int=0,
             **kwargs
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP NOTEQUAL query operation. If the PI/Key field is segmented, specify the segment offset and its
         size, as well as the value to check against. The value must be less than the maximum size expressed by the

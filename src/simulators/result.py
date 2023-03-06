@@ -30,8 +30,8 @@ class RuntimeResult:
                 fp.write(f"\t{runtime}\t{label or ''}\n")
 
 
-class SimulationResult:
-    """Defines the return of the query. Returns the indexes of query-hit records"""
+class HitmapResult:
+    """Defines the result of a hitmap-returning query. Returns the indexes of query-hit records"""
     def __init__(self, result_record_indexes: typing.List[int]=list):
         self.result_record_indexes = result_record_indexes
         self.result_count = len(self.result_record_indexes)
@@ -66,4 +66,4 @@ class SimulationResult:
                     if (1 << (7 - b)) & byte > 0:
                         bit_indexes.append(bitmaps_processed)
                     bitmaps_processed += 1
-        return SimulationResult(bit_indexes)
+        return HitmapResult(bit_indexes)

@@ -1,7 +1,7 @@
 from typing import Union
 
 from src.queries.query import Query
-from src.simulators.result import RuntimeResult, SimulationResult
+from src.simulators.result import RuntimeResult, HitmapResult
 from src.utils import bitmanip
 from src.data_layout_mappings.architectures import \
     BlimpHitmapIndexBitweaveBankLayoutConfiguration
@@ -25,7 +25,7 @@ class _BlimpBitweaveHitmapEquality(
             negate: bool,
             return_labels: bool=False,
             hitmap_index: int=0
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a generic BLIMP EQUAL query operation.
 
@@ -157,7 +157,7 @@ class _BlimpBitweaveHitmapEquality(
             # Append the byte array for the next hitmap sub row
             hitmap_byte_array += self.simulator.bank_hardware.get_row_bytes(hitmap_row)
 
-        result = SimulationResult.from_hitmap_byte_array(
+        result = HitmapResult.from_hitmap_byte_array(
             hitmap_byte_array,
             self.layout_configuration.layout_metadata.total_records_processable
         )
@@ -172,7 +172,7 @@ class BlimpBitweaveHitmapEqual(_BlimpBitweaveHitmapEquality):
             value: int,
             return_labels: bool=False,
             hitmap_index: int=0
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP EQUAL query operation. If the PI/Key field is segmented, specify the segment offset and its
         size, as well as the value to check against. The value must be less than the maximum size expressed by the
@@ -204,7 +204,7 @@ class BlimpBitweaveHitmapNotEqual(_BlimpBitweaveHitmapEquality):
             value: int,
             return_labels: bool=False,
             hitmap_index: int=0
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP NOTEQUAL query operation. If the PI/Key field is segmented, specify the segment offset and its
         size, as well as the value to check against. The value must be less than the maximum size expressed by the

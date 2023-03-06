@@ -1,1 +1,1 @@
-from .query import Query, RuntimeResult, SimulationResult
+from .query import Query, RuntimeResult, HitmapResult

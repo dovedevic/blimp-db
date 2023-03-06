@@ -1,5 +1,5 @@
 from src.queries.query import Query
-from src.simulators.result import RuntimeResult, SimulationResult
+from src.simulators.result import RuntimeResult, HitmapResult
 from src.data_layout_mappings import DataLayoutConfiguration
 from src.configurations.hardware.blimp import BlimpVectorHardwareConfiguration
 from src.configurations.database.blimp import BlimpVectorHitmapDatabaseConfiguration
@@ -22,7 +22,7 @@ class _BlimpVHitmapCount(
             self,
             hitmap_index: int,
             return_labels: bool=False,
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP-V hitmap count operation on a provided hitmap index.
 
@@ -88,7 +88,7 @@ class _BlimpVHitmapCount(
 
         # We have finished the query, return a dummy result
 
-        result = SimulationResult([])
+        result = HitmapResult([])
         result.result_count = count
         return runtime, result
 
@@ -98,7 +98,7 @@ class BlimpVHitmapCount(_BlimpVHitmapCount):
             self,
             hitmap_index: int,
             return_labels: bool=False
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP-V hitmap count operation on a provided hitmap index.
 

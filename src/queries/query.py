@@ -1,6 +1,6 @@
 from typing import Generic, TypeVar
 
-from simulators.result import RuntimeResult, SimulationResult
+from simulators.result import RuntimeResult, HitmapResult
 from simulators.simulator import SimulatedBank
 from data_layout_mappings import DataLayoutConfiguration
 
@@ -16,9 +16,9 @@ class Query(Generic[Simulator, LayoutConfiguration]):
         self.hardware = simulator.bank_hardware
         self.layout_configuration = layout_configuration
 
-    def perform_operation(self, **kwargs) -> (RuntimeResult, SimulationResult):
+    def perform_operation(self, **kwargs) -> (RuntimeResult, HitmapResult):
         """
         @implementable
         Overridable method for performing query operations on a simulated bank returning the resulting simulation result
         """
-        return RuntimeResult(), SimulationResult()
+        return RuntimeResult(), HitmapResult()

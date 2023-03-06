@@ -1,5 +1,5 @@
 from src.queries.query import Query
-from src.simulators.result import RuntimeResult, SimulationResult
+from src.simulators.result import RuntimeResult, HitmapResult
 from src.data_layout_mappings import DataLayoutConfiguration
 from src.configurations.hardware.ambit import BlimpPlusAmbitHardwareConfiguration
 from src.configurations.database.ambit import BlimpPlusAmbitHitmapDatabaseConfiguration
@@ -25,7 +25,7 @@ class _BlimpAmbitHitmapLogical(
             hitmap_index_b: int,
             hitmap_index_result: int=None,
             return_labels: bool=False,
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP+AMBIT logical operation on the specified hitmaps.
 
@@ -124,7 +124,7 @@ class _BlimpAmbitHitmapLogical(
             # Append the byte array for the next hitmap sub row
             hitmap_byte_array += self.simulator.bank_hardware.get_row_bytes(hitmap_row)
 
-        result = SimulationResult.from_hitmap_byte_array(
+        result = HitmapResult.from_hitmap_byte_array(
             hitmap_byte_array,
             self.layout_configuration.layout_metadata.total_records_processable
         )
@@ -137,7 +137,7 @@ class BlimpAmbitHitmapLogicalAnd(_BlimpAmbitHitmapLogical):
             hitmap_index_a: int,
             hitmap_index_b: int,
             return_labels: bool=False
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP+AMBIT AND logical operation between hitmap index A and B.
 
@@ -161,7 +161,7 @@ class BlimpAmbitHitmapLogicalOr(_BlimpAmbitHitmapLogical):
             hitmap_index_a: int,
             hitmap_index_b: int,
             return_labels: bool = False
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP+AMBIT OR logical operation between hitmap index A and B.
 

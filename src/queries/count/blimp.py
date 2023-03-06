@@ -1,5 +1,5 @@
 from src.queries.query import Query
-from src.simulators.result import RuntimeResult, SimulationResult
+from src.simulators.result import RuntimeResult, HitmapResult
 from src.data_layout_mappings import DataLayoutConfiguration
 from src.configurations.hardware.blimp import BlimpHardwareConfiguration
 from src.configurations.database.blimp import BlimpHitmapDatabaseConfiguration
@@ -22,7 +22,7 @@ class _BlimpHitmapCount(
             self,
             hitmap_index: int,
             return_labels: bool=False,
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP hitmap count operation on a provided hitmap index.
 
@@ -80,7 +80,7 @@ class _BlimpHitmapCount(
 
         # We have finished the query, return a dummy result
 
-        result = SimulationResult([])
+        result = HitmapResult([])
         result.result_count = count
         return runtime, result
 
@@ -90,7 +90,7 @@ class BlimpHitmapCount(_BlimpHitmapCount):
             self,
             hitmap_index: int,
             return_labels: bool=False
-    ) -> (RuntimeResult, SimulationResult):
+    ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP hitmap count operation on a provided hitmap index.
 
