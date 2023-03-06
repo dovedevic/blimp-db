@@ -339,7 +339,7 @@ class SimulatedBlimpBank(
                 self.registers[register_b][element * element_width + start_index + byte] = c[byte]
 
     def _blimp_alu_int_un_op(self, register_a, start_index, end_index, element_width, stride, operation, invert,
-                             op_name, return_labels=True) -> RuntimeResult:
+                             op_name, cpi=1, return_labels=True) -> RuntimeResult:
         """
         Perform a BLIMP unary operation on register a starting at a specified byte index and ending on a specified
         byte index then store the result in register a
@@ -364,7 +364,7 @@ class SimulatedBlimpBank(
         # Calculate how many ALU rounds are needed
         alu_rounds = operands
         # Assumption; ALU takes a CPU cycle to execute, at least once extra cycle for looping per alu round
-        cycles += alu_rounds * 2
+        cycles += alu_rounds * cpi * 2
 
         # Return the runtime result
         return self.blimp_cycle(
@@ -374,7 +374,7 @@ class SimulatedBlimpBank(
         )
 
     def _blimp_alu_int_bin_op(self, register_a, register_b, start_index, end_index, element_width, stride, operation,
-                              invert, op_name, return_labels=True) -> RuntimeResult:
+                              invert, op_name, cpi=1, return_labels=True) -> RuntimeResult:
         """
         Perform a BLIMP binary operation on register a and b starting at a specified byte index and ending on a
         specified byte index then store the result in register b
@@ -400,7 +400,7 @@ class SimulatedBlimpBank(
         # Calculate how many ALU rounds are needed
         alu_rounds = operands
         # Assumption; ALU takes a CPU cycle to execute, at least once extra cycle for looping per alu round
-        cycles += alu_rounds * 2
+        cycles += alu_rounds * cpi * 2
 
         # Return the runtime result
         return self.blimp_cycle(
@@ -978,7 +978,7 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         self.registers[register_b] = int_to_byte_array(
             result, self.bank_hardware.hardware_configuration.row_buffer_size_bytes)
 
-    def _blimpv_alu_int_un_op(self, register_a, sew, stride, operation, invert, op_name, return_labels=True) \
+    def _blimpv_alu_int_un_op(self, register_a, sew, stride, operation, invert, op_name, cpi=1, return_labels=True) \
             -> RuntimeResult:
         """Perform a BLIMP-V unary operation on register 'a' on SEW bytes and store the result in register a"""
         # Perform the operation
@@ -998,8 +998,8 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         operands = sew_chunks // (stride // sew)
         # Calculate how many stride-SEW ALU rounds are needed
         alu_rounds = int(math.ceil(operands / self.bank_hardware.hardware_configuration.number_of_vALUs))
-        # Assumption; each ALU takes less than a CPU cycle to execute
-        cycles += alu_rounds
+        # each ALU takes CPI cycles to execute
+        cycles += alu_rounds * cpi
 
         # Return the runtime result
         return self.blimp_cycle(
@@ -1008,8 +1008,8 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             return_labels=return_labels
         )
 
-    def _blimpv_alu_int_bin_op(self, register_a, register_b, sew, stride, operation, invert, op_name, return_labels=True
-                               ) -> RuntimeResult:
+    def _blimpv_alu_int_bin_op(self, register_a, register_b, sew, stride, operation, invert, op_name, cpi=1,
+                               return_labels=True) -> RuntimeResult:
         """Perform a BLIMP-V binary operation on register a and b on SEW bytes and store the result in register b"""
         # Perform the operation
         self._blimpv_alu_binary_operation(
@@ -1029,8 +1029,8 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         operands = sew_chunks // (stride // sew)
         # Calculate how many stride-SEW ALU rounds are needed
         alu_rounds = int(math.ceil(operands / self.bank_hardware.hardware_configuration.number_of_vALUs))
-        # Assumption; each ALU takes less than a CPU cycle to execute
-        cycles += alu_rounds
+        # each ALU takes CPI cycles to execute
+        cycles += alu_rounds * cpi
 
         # Return the runtime result
         return self.blimp_cycle(
@@ -1263,6 +1263,19 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             return_labels
         )
 
+    def blimpv_alu_int_add_val(self, register_a, sew, stride, value, return_labels=True) -> RuntimeResult:
+        """Perform a BLIMP-V ADD operation on a register on SEW bytes and store the result in register a"""
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a,
+            sew,
+            stride,
+            lambda a: a + value,
+            False,
+            "ADD",
+            return_labels
+        )
+
     def blimpv_alu_int_mul_val(self, register_a, sew, stride, value, return_labels=True) -> RuntimeResult:
         """Perform a BLIMP-V MULTIPLY operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
@@ -1273,6 +1286,7 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             lambda a: a * value,
             False,
             "MUL",
+            2,
             return_labels
         )
 
@@ -1432,3 +1446,21 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             label=f"\t{register_a} <- COUNT[{register_a}]",
             return_labels=return_labels
         )
+
+    def blimpv_expand_register_sew(self, register_a, register_b, sew_old, sew_new, start_byte, return_labels=True
+                                   ) -> RuntimeResult:
+        """Expand register_a's sew to register_b's sew starting from start byte"""
+        # Sanity checking
+        self._ensure_writable_register(register_a, register_b)
+
+        result = self.blimp_cycle(return_labels=return_labels)
+        self.registers[register_b] = [b for b in self.registers[register_a]]
+
+        # Add time to transfer the row buffer/v0 to the specified mux destination
+        result += RuntimeResult(
+            self.bank_hardware.hardware_configuration.time_to_v0_transfer_ns,
+            f"\t{register_a} -> {register_b}" if return_labels else ""
+        )
+
+        # Return the result of the operation
+        return result
