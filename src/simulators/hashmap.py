@@ -189,7 +189,7 @@ class GenericHashTableBucket(Generic[KV_TYPE]):
         Attempt to locate the provided key in this bucket. If found, will return a hit of true and the index of the hit
         within this bucket. If not found, will return a hit of false and the index of -1.
         """
-        for index, kv in enumerate(self.kvs):
+        for index, kv in zip(range(self.count), self.kvs):
             if key == kv.key:
                 return True, index
         return False, -1
@@ -232,6 +232,8 @@ class GenericHashMapObject(Generic[KV_TYPE, BUCKET_TYPE]):
         self._bucket_capacity = bucket_capacity
         self._kv_generator = kv_generator
         self._bucket_generator = bucket_generator
+
+        assert initial_buckets <= maximum_buckets, "Initial number of buckets is greater than the maximum capacity"
 
         if buckets:
             assert len(buckets) <= maximum_buckets, "Provided buckets are larger than the maximum capacity"
