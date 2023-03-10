@@ -1,5 +1,5 @@
 # Ignore hashtable dumps
-simple_query_benchmark/*.json
+studies/simple_query_benchmark/*.json
 
 # Ignore memdump and db files
 *.memdump
