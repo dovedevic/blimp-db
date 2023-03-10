@@ -221,6 +221,34 @@ class SimulatedBlimpBank(
         self._ensure_register_exists(register)
         return self.registers[register]
 
+    def blimp_get_register_data(self, register, element_width) -> [int]:
+        """Fetch the data for a BLIMP or BLIMP-V register in python/segmented form"""
+        self._ensure_register_exists(register)
+
+        data = []
+        raw_data_bytes = self.registers[register]
+        for sew_chunk in range(self.bank_hardware.hardware_configuration.row_buffer_size_bytes // element_width):
+            data.append(
+                byte_array_to_int(raw_data_bytes[sew_chunk*element_width:sew_chunk*element_width+element_width])
+            )
+        return data
+
+    def blimp_set_register_data_at_index(self, register, element_width, index, value, return_labels=True):
+        """Set an element in a BLIMP or BLIMP-V register in python/segmented form"""
+        self._ensure_register_exists(register)
+        assert 0 <= index < (self.bank_hardware.hardware_configuration.row_buffer_size_bytes // element_width), \
+            "set index is out of range"
+        assert 0 <= value < 2 ** (element_width * 8), f"given value is not representable by {element_width} bytes"
+
+        value_bytes = int_to_byte_array(value, element_width)
+        for byte_index, vb in enumerate(value_bytes):
+            self.registers[register][index * element_width + byte_index] = vb
+
+        result = self.blimp_cycle(return_labels=return_labels)
+
+        # Return the result of the operation
+        return result
+
     def blimp_save_register(self, register, row: int, return_labels=True) -> RuntimeResult:
         """Save a specified internal register into a row, via v0"""
         # Sanity checking
