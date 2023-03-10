@@ -106,6 +106,7 @@ class GenericHashTableBucket(Generic[KV_TYPE]):
         @param next_bucket: An integer pointing to the next bucket, you'll probably use a list index here
         """
         self._bucket_kv_capacity = bucket_kv_capacity
+        self._kv_generator = kv_generator
 
         if kvs:
             assert len(kvs) == bucket_kv_capacity, "Provided KVs does not equal the bucket capacity"
@@ -165,9 +166,9 @@ class GenericHashTableBucket(Generic[KV_TYPE]):
             self._active_count_size() + self._next_bucket_size()
 
     @classmethod
-    def calculate_bucket_size(cls, bucket_kv_capacity) -> int:
+    def calculate_bucket_size(cls, bucket_kv_capacity, kv_generator) -> int:
         """The total size of the bucket when packed, in bytes. This includes KVs and bucket metadata"""
-        return KV_TYPE.kv_size() * bucket_kv_capacity + \
+        return kv_generator.kv_size() * bucket_kv_capacity + \
             cls._active_count_size() + cls._next_bucket_size()
 
     def set_kv(self, index, key: int=None, value: int=None, kv: KV_TYPE=None, increment_count=True):
@@ -241,6 +242,13 @@ class GenericHashMapObject(Generic[KV_TYPE, BUCKET_TYPE]):
             self.buckets = buckets
         else:
             self.buckets = [bucket_generator(bucket_capacity, kv_generator) for _ in range(initial_buckets)]
+
+    @property
+    def maximum_size_bytes(self):
+        """The total maximum size of the hash map object, in bytes"""
+        return self._maximum_buckets * self._bucket_generator.calculate_bucket_size(
+            self._bucket_capacity, self._kv_generator
+        )
 
     def _hash(self, key: int) -> int:
         """Hash the key and return an index into buckets"""
