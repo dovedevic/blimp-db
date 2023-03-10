@@ -3,39 +3,65 @@ import math
 from blimp_hash_table import *
 from database import *
 
-n_a = 10 ** 3  # Number of rows in table A.
-n_b = 10 ** 3  # Number of rows in table B.
-sel = 10  # Selectivity (percentage of rows selected).
-lf = 0.5  # Load factor of the hash table (number of rows / number of slots).
 
-# Compute the number of initial buckets from the number of rows, selectivity, and load factor. Round up to the next
-# power of two.
-initial_buckets = math.ceil(n_b * sel / 100 / lf / BlimpSimpleHashTable.bucket_capacity)
-initial_buckets = 1 if initial_buckets == 0 else 2 ** math.ceil(math.log2(initial_buckets))
+def run_sq3(
+        n_a: int,
+        n_b: int,
+        selectivity: int,
+        load_factor: float,
+        hash_table_size_bytes: int=2**22,
+        save_hash_table: str=None
+):
+    """
 
-# Define our hash table.
-ht = BlimpSimpleHashTable(
-    initial_buckets=initial_buckets,
-    maximum_buckets=2 ** 24 // 128,  # Limit ourselves to 16MB worth of 128B buckets
-)
+    @param n_a: Number of rows in table A
+    @param n_b: Number of rows in table B
+    @param selectivity: Selectivity (percentage of rows selected)
+    @param load_factor: Load factor of the hash table (number of rows / number of slots)
+    @param hash_table_size_bytes: The maximum size allowed for the hash table. Defaults to 4MB
+    @param save_hash_table: The file-path to save the built hash table to. Leave empty to not save anything.
+    """
 
-# Generate the data.
-db = SQBDatabase(n_a, n_b)
+    # Compute the number of initial buckets from the number of rows, selectivity, and load factor. Round up to the next
+    # power of two.
+    initial_buckets = math.ceil(n_b * selectivity / 100 / load_factor / BlimpSimpleHashTable.bucket_capacity)
+    initial_buckets = 1 if initial_buckets == 0 else 2 ** math.ceil(math.log2(initial_buckets))
 
-# Build the hash table. SQ3 is a semijoin, so we need only the keys from B in the hash table, none of the values.
-# Eventually, we can optimize this by building a hash set, rather than a hash table. For now, we insert an arbitrary
-# integer (0) into the hash table as the value.
-for (b_k, _, b_100) in db.b:
-    if b_100 < sel:
-        ht.insert(b_k, 0)
+    # Define our hash table.
+    ht = BlimpSimpleHashTable(
+        initial_buckets=initial_buckets,
+        maximum_buckets=hash_table_size_bytes // 128
+    )
 
-# Save the hash table.
-ht.save('./sq3.json')
+    # Generate the data.
+    db = SQBDatabase(n_a, n_b)
 
-# Probe the hash table and compute the result.
-result = sum(a_10 for (_, a_b_k, a_10, _) in db.a if ht.fetch(a_b_k) is not None)
+    # Build the hash table. SQ3 is a semijoin, so we need only the keys from B in the hash table, none of the values.
+    # Eventually, we can optimize this by building a hash set, rather than a hash table. For now, we insert an arbitrary
+    # integer (0) into the hash table as the value.
+    for (b_k, _, b_100) in db.b:
+        if b_100 < selectivity:
+            ht.insert(b_k, 0)
 
-# Compare the result to a reference result.
-reference_set = {b_k for (b_k, _, b_100) in db.b if b_100 < sel}
-reference_result = sum(a_10 for (_, a_b_k, a_10, _) in db.a if a_b_k in reference_set)
-assert result == reference_result, "result does not equal the reference result"
+    # Save the hash table.
+    if save_hash_table:
+        ht.save(save_hash_table)
+
+    # Probe the hash table and compute the result.
+    result = sum(a_10 for (_, a_b_k, a_10, _) in db.a if ht.fetch(a_b_k) is not None)
+
+    # Compare the result to a reference result.
+    reference_set = {b_k for (b_k, _, b_100) in db.b if b_100 < selectivity}
+    reference_result = sum(a_10 for (_, a_b_k, a_10, _) in db.a if a_b_k in reference_set)
+    assert result == reference_result, "result does not equal the reference result"
+
+
+if __name__ == '__main__':
+    run_sq3(
+        n_a=10**5,
+        n_b=10**5,
+        selectivity=100,
+        load_factor=0.7,
+        hash_table_size_bytes=2**22,
+        save_hash_table=f'./sq3.10_5.10_5.100.07.4MB.json'
+    )
