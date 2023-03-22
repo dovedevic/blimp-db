@@ -796,6 +796,44 @@ class SimulatedBlimpBank(
             return_labels
         )
 
+    def blimp_alu_int_add_val(self, register_a, start_index, end_index, element_width, stride, value, return_labels=True
+                              ) -> RuntimeResult:
+        """
+        Perform a BLIMP scalar ADD operation on register a starting at a specified byte index and ending on a specified
+        byte index then store the result in register a
+        """
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_index,
+            end_index,
+            element_width,
+            stride,
+            lambda a: a + value,
+            False,
+            "ADD",
+            return_labels
+        )
+
+    def blimp_alu_int_mul_val(self, register_a, start_index, end_index, element_width, stride, value, return_labels=True
+                              ) -> RuntimeResult:
+        """
+        Perform a BLIMP scalar MULTIPLY operation on register a starting at a specified byte index and ending on a
+        specified byte index then store the result in register a
+        """
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a,
+            start_index,
+            end_index,
+            element_width,
+            stride,
+            lambda a: a * value,
+            False,
+            "MUL",
+            return_labels
+        )
+
     def blimp_coalesce_register_hitmap(self, register_a, start_index, end_index, element_width, stride, bit_offset,
                                        return_labels=True) -> RuntimeResult:
         """
