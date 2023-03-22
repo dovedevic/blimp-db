@@ -1,6 +1,6 @@
 import json
 
-from typing import Iterator, Union, Optional, List, TypeVar, Generic, Tuple
+from typing import Iterator, Union, Optional, List, TypeVar, Generic, Tuple, Type
 
 
 class GenericHashTableValue:
@@ -129,6 +129,16 @@ class GenericHashTableObject(Generic[KEY_TYPE, PAYLOAD_TYPE]):
             raise RuntimeError(
                 f"The provided payload could not be interpreted as a {self._PAYLOAD_OBJECT.__name__} type")
 
+    @classmethod
+    def key_type(cls) -> Type[KEY_TYPE]:
+        """Return the internal key object"""
+        return cls._KEY_OBJECT
+
+    @classmethod
+    def payload_type(cls) -> Type[PAYLOAD_TYPE]:
+        """Return the internal payload object"""
+        return cls._PAYLOAD_OBJECT
+
     @property
     def key(self) -> KEY_TYPE:
         """Return this objects key object"""
@@ -192,6 +202,11 @@ class GenericHashTableBucket(Generic[KEY_PAYLOAD_TYPE, META_ACTIVE_COUNT_TYPE, M
         self._active_count = self._META_ACTIVE_COUNT_OBJECT(active_count)
         self._next_bucket = self._META_NEXT_BUCKET_OBJECT.null_object() if next_bucket is None else \
             self._META_NEXT_BUCKET_OBJECT(next_bucket)
+
+    @classmethod
+    def bucket_object_type(cls) -> Type[KEY_PAYLOAD_TYPE]:
+        """Return the internal key-payload object"""
+        return cls._KEY_PAYLOAD_OBJECT
 
     @classmethod
     def size(cls) -> int:
@@ -264,7 +279,7 @@ BUCKET_TYPE = TypeVar('BUCKET_TYPE', bound=GenericHashTableBucket)
 
 
 class GenericHashMap(Generic[BUCKET_TYPE]):
-    """"""
+    """Defines a generic collection of buckets for a defined hash-set/map/table"""
     _BUCKET_OBJECT = GenericHashTableBucket
 
     def __init__(self, initial_buckets: int, maximum_buckets: int, buckets: List[BUCKET_TYPE] = None):
@@ -286,6 +301,11 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
             self.buckets = buckets
         else:
             self.buckets = [self._BUCKET_OBJECT() for _ in range(initial_buckets)]
+
+    @classmethod
+    def bucket_type(cls) -> Type[BUCKET_TYPE]:
+        """Return the internal bucket object"""
+        return cls._BUCKET_OBJECT
 
     def _hash(self, key: int) -> int:
         """Hash the key and return an index into buckets. The result of this must safely index into the buckets list"""
@@ -384,7 +404,7 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
             maximum_buckets=hashobj['maximum_buckets'],
             buckets=[cls._BUCKET_OBJECT(
                 objects=[
-                    cls._BUCKET_OBJECT._KEY_PAYLOAD_OBJECT(
+                    cls.bucket_type().bucket_object_type()(
                         obj['k'],
                         obj['payload']
                     ) for obj in bucket['objects']
