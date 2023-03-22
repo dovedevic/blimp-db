@@ -24,13 +24,13 @@ def run_sq3(
 
     # Compute the number of initial buckets from the number of rows, selectivity, and load factor. Round up to the next
     # power of two.
-    initial_buckets = math.ceil(n_b * selectivity / 100 / load_factor / BlimpSimpleHashTable.bucket_capacity)
+    initial_buckets = math.ceil(n_b * selectivity / 100 / load_factor / BlimpBucket._BUCKET_OBJECT_CAPACITY)
     initial_buckets = 1 if initial_buckets == 0 else 2 ** math.ceil(math.log2(initial_buckets))
 
-    # Define our hash table.
-    ht = BlimpSimpleHashTable(
+    # Define our hash set.
+    ht = BlimpHashSet(
         initial_buckets=initial_buckets,
-        maximum_buckets=hash_table_size_bytes // 128
+        maximum_buckets=hash_table_size_bytes // BlimpBucket.size()
     )
 
     # Generate the data.
@@ -41,7 +41,7 @@ def run_sq3(
     # integer (0) into the hash table as the value.
     for (b_k, _, b_100) in db.b:
         if b_100 < selectivity:
-            ht.insert(b_k, 0)
+            ht.insert(Hash32bitObjectNullPayload(b_k))
 
     # Save the hash table.
     if save_hash_table:
@@ -58,10 +58,10 @@ def run_sq3(
 
 if __name__ == '__main__':
     run_sq3(
-        n_a=10**5,
-        n_b=10**5,
+        n_a=2**21,
+        n_b=2**18,
         selectivity=100,
         load_factor=0.7,
-        hash_table_size_bytes=2**22,
-        save_hash_table=f'./sq3.10_5.10_5.100.07.4MB.json'
+        hash_table_size_bytes=2**23,
+        save_hash_table=f'./sq3.{2**20}.{2**18}.{100}.07.8MB.json'
     )
