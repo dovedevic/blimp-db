@@ -318,7 +318,6 @@ class SimulatedBlimpBank(
         self._ensure_valid_nary_operation(start_index, end_index, element_width, stride, register_a)
 
         elements = math.ceil((end_index - start_index) // element_width)
-        word_size = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8
 
         for element in range(elements):
             a = byte_array_to_int(
@@ -329,7 +328,7 @@ class SimulatedBlimpBank(
 
             if element % (stride // element_width) == 0:  # is this sew chunk to be operated on due to the stride?
                 c = operation(a)
-                c = ((~c if invert else c) & (2 ** (word_size * 8)) - 1)  # eliminate any carry's and invert if needed
+                c = ((~c if invert else c) & (2 ** (element_width * 8)) - 1)  # eliminate any carry's, invert if needed
             else:
                 c = a  # just keep what was there
             c = int_to_byte_array(c, element_width)
@@ -342,7 +341,6 @@ class SimulatedBlimpBank(
         # Sanity checking
         self._ensure_valid_nary_operation(start_index, end_index, element_width, stride, register_a, register_b)
 
-        word_size = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8
         elements = math.ceil((end_index - start_index) // element_width)
 
         for element in range(elements):
@@ -359,11 +357,11 @@ class SimulatedBlimpBank(
 
             if element % (stride // element_width) == 0:  # is this sew chunk to be operated on due to the stride?
                 c = operation(a, b)
-                c = ((~c if invert else c) & (2 ** (word_size * 8)) - 1)  # eliminate any carry's and invert if needed
+                c = ((~c if invert else c) & (2 ** (element_width * 8)) - 1)  # eliminate any carry's, invert if needed
             else:
                 c = a  # just keep what was in the source register
-            c = int_to_byte_array(c, word_size)
-            for byte in range(word_size):
+            c = int_to_byte_array(c, element_width)
+            for byte in range(element_width):
                 self.registers[register_b][element * element_width + start_index + byte] = c[byte]
 
     def _blimp_alu_int_un_op(self, register_a, start_index, end_index, element_width, stride, operation, invert,
