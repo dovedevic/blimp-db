@@ -6,14 +6,15 @@ class Object32bit(GenericHashTableValue):
     _SIZE_BYTES = 4
 
 
-# Define 16bit numbers
-class Object16bit(GenericHashTableValue):
-    _SIZE_BYTES = 2
+# Define 8bit numbers
+class Object8bit(GenericHashTableValue):
+    _SIZE_BYTES = 1
 
 
-# Define 16bit numbers that have a null value as the max int
-class MaxIntNull16bObject(Object16bit):
-    _NULL_VALUE = 2 ** (Object16bit._SIZE_BYTES * 8) - 1
+# Define 24bit numbers
+class Object24bit(GenericHashTableValue):
+    _SIZE_BYTES = 3
+    _NULL_VALUE = 2 ** (_SIZE_BYTES * 8) - 1
 
 
 # Define a null payload
@@ -30,9 +31,9 @@ class Hash32bitObjectNullPayload(GenericHashTableObject):
 # Define a bucket as a collection of 31 Hash32bitObjectNullPayload, with 16bit metadata
 class BlimpBucket(GenericHashTableBucket):
     _KEY_PAYLOAD_OBJECT = Hash32bitObjectNullPayload
-    _BUCKET_OBJECT_CAPACITY = 31
-    _META_NEXT_BUCKET_OBJECT = MaxIntNull16bObject
-    _META_ACTIVE_COUNT_OBJECT = Object16bit
+    _BUCKET_OBJECT_CAPACITY = 31  # 1, 3, 7, 15, 31, 63
+    _META_NEXT_BUCKET_OBJECT = Object24bit
+    _META_ACTIVE_COUNT_OBJECT = Object8bit
 
 
 # Define a hash set that uses BlimpBuckets
