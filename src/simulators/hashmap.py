@@ -362,7 +362,7 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
             else:
                 bucket = self.buckets[bucket.next_bucket]
 
-    def save(self, path: str, compact=False):
+    def save(self, path: str, compact=True):
         """
         Save the hashmap as a JSON object
 
