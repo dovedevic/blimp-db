@@ -1,34 +1,53 @@
 from typing import Optional
 
-from src.simulators.hashmap import GenericHashTableKV, GenericHashTableBucket, GenericHashMapObject
+from src.simulators.hashmap import GenericHashTableValue, GenericHashTableValuePayload, GenericHashTableObject, \
+    GenericHashTableBucket, GenericHashMap
 
 
-# Define 32bit KV pairs
-class HashTable32KV(GenericHashTableKV):
-    """Defines the pythonic structure of a 32-bit key 32-bit value object"""
-    _KEY_SIZE_BYTES = 4
-    _VALUE_SIZE_BYTES = 4
+# Define 32bit numbers
+class Object32bit(GenericHashTableValue):
+    _SIZE_BYTES = 4
 
 
-# Define a bucket using 4 byte count/next bucket values, with UINT32_MAX as the null value
-class BlimpHashTableBucket(GenericHashTableBucket[HashTable32KV]):
-    _NULL_VALUE = 2 ** 32 - 1
-    _ACTIVE_COUNT_SIZE_BYTES = 4
-    _NEXT_BUCKET_SIZE_BYTES = 4
+# Define 8bit numbers
+class Object8bit(GenericHashTableValue):
+    _SIZE_BYTES = 1
 
 
-# Generate a templated hash table that utilizes 32bit KVs and a simple hash; this is our custom table for BLIMP
-class BlimpSimpleHashTable(GenericHashMapObject[HashTable32KV, BlimpHashTableBucket]):
-    bucket_capacity = 15
+# Define 24bit numbers
+class Object24bit(GenericHashTableValue):
+    _SIZE_BYTES = 3
+    _NULL_VALUE = 2 ** (_SIZE_BYTES * 8) - 1
+
+
+# Define a null payload
+class NullPayload(GenericHashTableValuePayload):
+    _PAYLOAD_OBJECTS = []
+
+
+# Define 32bit key, null payload objects
+class Hash32bitObjectNullPayload(GenericHashTableObject[Object32bit, NullPayload]):
+    _KEY_OBJECT = Object32bit
+    _PAYLOAD_OBJECT = NullPayload
+
+
+# Define a bucket as a collection of 31 Hash32bitObjectNullPayload, with 16bit metadata
+class BlimpBucket(GenericHashTableBucket[Hash32bitObjectNullPayload, Object24bit, Object8bit]):
+    _KEY_PAYLOAD_OBJECT = Hash32bitObjectNullPayload
+    _BUCKET_OBJECT_CAPACITY = 31
+    _META_NEXT_BUCKET_OBJECT = Object24bit
+    _META_ACTIVE_COUNT_OBJECT = Object8bit
+
+
+# Define a hash set that uses BlimpBuckets
+class BlimpSimpleHashSet(GenericHashMap[BlimpBucket]):
+    _BUCKET_OBJECT = BlimpBucket
 
     def __init__(self, initial_buckets: int, maximum_buckets: int, **kwargs):
         super().__init__(
             initial_buckets,
             maximum_buckets,
-            bucket_capacity=self.bucket_capacity,
-            kv_generator=HashTable32KV,
-            bucket_generator=BlimpHashTableBucket,
-            buckets=kwargs.get('buckets', None)
+            **kwargs
         )
 
         assert (initial_buckets & (initial_buckets - 1) == 0) and initial_buckets != 0, \
@@ -43,29 +62,21 @@ class BlimpSimpleHashTable(GenericHashMapObject[HashTable32KV, BlimpHashTableBuc
     def mask(self):  # used to get the mask info for vectorized hashing
         return self._mask
 
-    @property
-    def kv_size(self):
-        return HashTable32KV.kv_size()
-
-    @property
-    def bucket_size(self):
-        return BlimpHashTableBucket.calculate_bucket_size(self.bucket_capacity, self._kv_generator)
-
-    def traced_fetch(self, key) -> ([int], [int], Optional[BlimpHashTableBucket]):
+    def traced_fetch(self, key) -> ([int], [int], Optional[BlimpBucket]):
         bucket_indices, bucket_iterations, fetched = [], [], None
         bucket_index = self._hash(key)
 
         while True:  # poor man's python do-while
-            bucket = self.buckets[bucket_index]  # type: BlimpHashTableBucket
+            bucket = self.buckets[bucket_index]  # type: BlimpBucket
             bucket_indices.append(bucket_index)
-            is_in, index_in = bucket.get_index(key)
-            if is_in:
-                bucket_iterations.append(index_in + 1)
-                fetched = bucket.kvs[index_in]
+            index, hit_object = bucket.get_hit_index(key)
+            if hit_object is not None:
+                bucket_iterations.append(index + 1)
+                fetched = hit_object
                 break
 
             bucket_iterations.append(bucket.count)
-            if bucket.next_bucket == bucket.null_value():
+            if not bucket.is_next_bucket_valid():
                 break
             else:
                 bucket_index = bucket.next_bucket
