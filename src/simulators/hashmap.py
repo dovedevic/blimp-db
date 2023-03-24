@@ -214,10 +214,10 @@ class GenericHashTableBucket(Generic[KEY_PAYLOAD_TYPE, META_ACTIVE_COUNT_TYPE, M
         return cls._BUCKET_OBJECT_CAPACITY * cls._KEY_PAYLOAD_OBJECT.size() + \
             cls._META_ACTIVE_COUNT_OBJECT.size() + cls._META_NEXT_BUCKET_OBJECT.size()
 
-    @property
-    def bucket_capacity(self) -> int:
+    @classmethod
+    def bucket_capacity(cls) -> int:
         """The total number of objects this bucket can hold"""
-        return self._BUCKET_OBJECT_CAPACITY
+        return cls._BUCKET_OBJECT_CAPACITY
 
     @property
     def count(self) -> int:
@@ -338,7 +338,7 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
         while bucket.is_next_bucket_valid():
             bucket = self.buckets[bucket.next_bucket]
 
-        if bucket.count == bucket.bucket_capacity:  # have we filled the bucket?
+        if bucket.count == bucket.bucket_capacity():  # have we filled the bucket?
             if len(self.buckets) == self._maximum_buckets:  # have we filled our allotment of buckets?
                 raise RuntimeError("hashmap capacity exceeded")
             new_bucket = self._BUCKET_OBJECT()
