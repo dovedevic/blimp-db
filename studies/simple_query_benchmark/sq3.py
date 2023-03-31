@@ -44,9 +44,9 @@ def run_sq3(
             ht.insert(Hash32bitObjectNullPayload(b_k))
 
     # Display some metrics
-    print("hash table initial size", ht.initial_buckets * 128)  # initial size
+    print("hash table initial size", ht.initial_buckets * ht.bucket_type().size())  # initial size
     print("hash table current size", ht.size)
-    print("hash table added buckets", (ht.size - ht.initial_buckets * 128) // 128)
+    print("hash table added buckets", (ht.size - ht.initial_buckets * ht.bucket_type().size()) // ht.bucket_type().size())
     print("hash table maximum size", ht.maximum_size)
 
     # Save the hash table.
@@ -66,8 +66,8 @@ if __name__ == '__main__':
     run_sq3(
         n_a=2**21,
         n_b=2**24,
-        selectivity=18,
-        load_factor=0.8,
+        selectivity=15,
+        load_factor=0.85,
         hash_table_size_bytes=2**25,
-        save_hash_table=f'./sq3.{2**21}.{2**24}.{18}.08.16MB.json'
+        save_hash_table=f'./sq3.{2**21}.{2**24}.{15}.085.16MB_31.json'
     )
