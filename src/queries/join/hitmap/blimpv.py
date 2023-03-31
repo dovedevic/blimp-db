@@ -10,7 +10,7 @@ from src.configurations.hashables import BlimpSimpleHashSet
 from src.simulators import SimulatedBlimpVBank
 
 
-class BlimpVHashProbe(
+class BlimpVHashmapJoin(
     Query[
         SimulatedBlimpVBank,
         Union[
@@ -20,7 +20,7 @@ class BlimpVHashProbe(
 ):
     def perform_operation(
             self,
-            hash_table: BlimpSimpleHashSet,
+            hash_set: BlimpSimpleHashSet,
             return_labels: bool=False,
             hitmap_index: int = 0,
             **kwargs
@@ -30,14 +30,14 @@ class BlimpVHashProbe(
         parameter `total_index_size_bytes` is only referencing the entire key, not a multikey, and that the key is 32
         bits, or 4 bytes.
 
-        @param hash_table: The hash table to be used / placed in memory
+        @param hash_set: The hash set to be used for probing
         @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
         key_size = self.layout_configuration.database_configuration.total_index_size_bytes
         assert key_size == 4, "This implementation of Hash Probe expects keys to be 4 bytes / 32 bits"
 
-        assert hash_table.size <= self.layout_configuration.database_configuration.blimp_temporary_region_size_bytes, \
+        assert hash_set.size <= self.layout_configuration.database_configuration.blimp_temporary_region_size_bytes, \
                "There is not enough temporary space allocated for the maximum size of this hash table"
 
         # Ensure we have enough hitmaps to index into
@@ -100,7 +100,7 @@ class BlimpVHashProbe(
                 self.simulator.blimp_v1,
                 key_size,
                 key_size,
-                hash_table.mask,
+                hash_set.mask,
                 return_labels=return_labels
             )
 
@@ -114,13 +114,13 @@ class BlimpVHashProbe(
                 if elements_processed + index >= self.layout_configuration.layout_metadata.total_records_processable:
                     break
 
-                traced_buckets, traced_iterations, hit = hash_table.traced_fetch(key)
+                traced_buckets, traced_iterations, hit = hash_set.traced_fetch(key)
 
                 # Add the timings to check the hit
                 for traced_bucket, traced_iteration in zip(traced_buckets, traced_iterations):
                     # Check if the blimp memory control needs to fetch a row
                     traced_row_index = traced_bucket // \
-                        (self.hardware.hardware_configuration.row_buffer_size_bytes // hash_table.bucket_type().size())
+                        (self.hardware.hardware_configuration.row_buffer_size_bytes // hash_set.bucket_type().size())
                     if current_row_index != traced_row_index:
                         current_row_index = traced_row_index
                         runtime += self.simulator.blimp_load_register(
@@ -131,7 +131,7 @@ class BlimpVHashProbe(
 
                     # Use the vector register to perform several equality checks at once in the bucket
                     cycles = 1  # Start with one cycle to dispatch to the vector engine
-                    elements_to_check = hash_table.bucket_type().bucket_capacity()
+                    elements_to_check = hash_set.bucket_type().bucket_capacity()
                     operable_alus = self.hardware.hardware_configuration.number_of_vALUs
                     alu_rounds = int(math.ceil(elements_to_check / operable_alus))
                     cycles += alu_rounds  # perform == on all elements wrt hash(key)
@@ -233,7 +233,7 @@ class BlimpVHashProbe(
         return runtime, result
 
 
-class _BlimpVHashProbeBreakdown(
+class _BlimpVHashmapJoinBreakdown(
     Query[
         SimulatedBlimpVBank,
         Union[
@@ -252,7 +252,7 @@ class _BlimpVHashProbeBreakdown(
 
     def perform_operation(
             self,
-            hash_table: BlimpSimpleHashSet,
+            hash_set: BlimpSimpleHashSet,
             return_labels: bool=False,
             hitmap_index: int = 0,
             **kwargs
@@ -260,16 +260,16 @@ class _BlimpVHashProbeBreakdown(
         """
         Perform an BLIMP-V 32-bit Hash Probe operation on 32-bit keys. This assumes the database configuration
         parameter `total_index_size_bytes` is only referencing the entire key, not a multikey, and that the key is 32
-        bits, or 4 bytes.
+        bits, or 4 bytes. Displays the kernel's breakdowns of various access types/patterns for study
 
-        @param hash_table: The hash table to be used / placed in memory
+        @param hash_set: The hash set to be used for probing
         @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
         key_size = self.layout_configuration.database_configuration.total_index_size_bytes
         assert key_size == 4, "This implementation of Hash Probe expects keys to be 4 bytes / 32 bits"
 
-        assert hash_table.size <= self.layout_configuration.database_configuration.blimp_temporary_region_size_bytes, \
+        assert hash_set.size <= self.layout_configuration.database_configuration.blimp_temporary_region_size_bytes, \
                "There is not enough temporary space allocated for the maximum size of this hash table"
 
         # Ensure we have enough hitmaps to index into
@@ -351,7 +351,7 @@ class _BlimpVHashProbeBreakdown(
                 self.simulator.blimp_v1,
                 key_size,
                 key_size,
-                hash_table.mask,
+                hash_set.mask,
                 return_labels=return_labels
             )
             runtime += rt
@@ -368,13 +368,13 @@ class _BlimpVHashProbeBreakdown(
                 if elements_processed + index >= self.layout_configuration.layout_metadata.total_records_processable:
                     break
 
-                traced_buckets, traced_iterations, hit = hash_table.traced_fetch(key)
+                traced_buckets, traced_iterations, hit = hash_set.traced_fetch(key)
 
                 # Add the timings to check the hit
                 for traced_bucket, traced_iteration in zip(traced_buckets, traced_iterations):
                     # Check if the blimp memory control needs to fetch a row
                     traced_row_index = traced_bucket // \
-                        (self.hardware.hardware_configuration.row_buffer_size_bytes // hash_table.bucket_type().size())
+                        (self.hardware.hardware_configuration.row_buffer_size_bytes // hash_set.bucket_type().size())
                     if current_row_index != traced_row_index:
                         current_row_index = traced_row_index
                         rt = self.simulator.blimp_load_register(
@@ -388,7 +388,7 @@ class _BlimpVHashProbeBreakdown(
 
                     # Use the vector register to perform several equality checks at once in the bucket
                     cycles = 1  # Start with one cycle to dispatch to the vector engine
-                    elements_to_check = hash_table.bucket_type().bucket_capacity()
+                    elements_to_check = hash_set.bucket_type().bucket_capacity()
                     operable_alus = self.hardware.hardware_configuration.number_of_vALUs
                     alu_rounds = int(math.ceil(elements_to_check / operable_alus))
                     cycles += alu_rounds  # perform == on all elements wrt hash(key)
