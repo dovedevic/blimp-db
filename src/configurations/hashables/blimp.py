@@ -62,7 +62,7 @@ class BlimpSimpleHashSet(GenericHashMap[BlimpBucket]):
     def mask(self):  # used to get the mask info for vectorized hashing
         return self._mask
 
-    def traced_fetch(self, key) -> ([int], [int], Optional[BlimpBucket]):
+    def traced_fetch(self, key) -> ([int], [int], Optional[BlimpBucket._KEY_PAYLOAD_OBJECT]):
         bucket_indices, bucket_iterations, fetched = [], [], None
         bucket_index = self._hash(key)
 
