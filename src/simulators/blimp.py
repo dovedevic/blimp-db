@@ -244,7 +244,12 @@ class SimulatedBlimpBank(
         for byte_index, vb in enumerate(value_bytes):
             self.registers[register][index * element_width + byte_index] = vb
 
-        result = self.blimp_cycle(return_labels=return_labels)
+        result = self.blimp_cycle(
+            cycles=math.ceil(
+                element_width / (self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
+            ),
+            return_labels=return_labels
+        )
 
         # Return the result of the operation
         return result
