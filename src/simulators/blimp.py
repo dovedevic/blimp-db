@@ -241,7 +241,8 @@ class SimulatedBlimpBank(
             )
         return data
 
-    def blimp_set_register_data_at_index(self, register, element_width, index, value, return_labels=True):
+    def blimp_set_register_data_at_index(self, register, element_width, index, value, return_labels=True,
+                                         assume_one_cycle=False):
         """Set an element in a BLIMP or BLIMP-V register in python/segmented form"""
         self._ensure_register_exists(register)
         assert 0 <= index < (self.bank_hardware.hardware_configuration.row_buffer_size_bytes // element_width), \
@@ -252,12 +253,15 @@ class SimulatedBlimpBank(
         for byte_index, vb in enumerate(value_bytes):
             self.registers[register][index * element_width + byte_index] = vb
 
-        result = self.blimp_cycle(
-            cycles=math.ceil(
-                element_width / (self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
-            ),
-            return_labels=return_labels
-        )
+        if not assume_one_cycle:
+            result = self.blimp_cycle(
+                cycles=math.ceil(
+                    element_width / (self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
+                ),
+                return_labels=return_labels
+            )
+        else:
+            result = self.blimp_cycle(return_labels=return_labels)
 
         # Return the result of the operation
         return result
