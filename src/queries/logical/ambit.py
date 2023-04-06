@@ -58,13 +58,25 @@ class _AmbitHitmapLogical(
         hitmap_b_base = self.layout_configuration.row_mapping.hitmaps[0] + rows_per_hitmap * hitmap_index_b
         hitmap_r_base = self.layout_configuration.row_mapping.hitmaps[0] + rows_per_hitmap * hitmap_index_result
 
-        # Begin
-        runtime = self.simulator.cpu_cycle(1, "; prog start", return_labels)  # Just send a dummy command
+        # Begin, just send a dummy command
+        runtime = self.simulator.cpu_cycle(
+            cycles=1,
+            label="; prog start",
+            return_labels=return_labels
+        )
 
         # Iterate over all hitmap rows
-        runtime += self.simulator.cpu_cycle(3, "; loop start", return_labels)
+        runtime += self.simulator.cpu_cycle(
+            cycles=3,
+            label="; loop start",
+            return_labels=return_labels
+        )
         for h in range(rows_per_hitmap):
-            runtime += self.simulator.cpu_cycle(2, "; hitmap row calculation", return_labels)
+            runtime += self.simulator.cpu_cycle(
+                cycles=3,
+                label="; hitmap row calculation",
+                return_labels=return_labels
+            )
             # Calculate the hitmap we are targeting: Base Hitmap address + hitmap index + sub-hitmap index
             hitmap_row_a = hitmap_a_base + h
             hitmap_row_b = hitmap_b_base + h
@@ -72,47 +84,51 @@ class _AmbitHitmapLogical(
 
             # Performing the Operation
             # move hitmap[a] into ambit compute region
-            runtime += self.simulator.cpu_ambit_dispatch(return_labels)
+            runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
             runtime += self.simulator.ambit_copy(
-                hitmap_row_a,
-                self.simulator.ambit_t1,
-                return_labels
+                src_row=hitmap_row_a,
+                dst_row=self.simulator.ambit_t1,
+                return_labels=return_labels
             )
 
             # move hitmap[b] into ambit compute region
-            runtime += self.simulator.cpu_ambit_dispatch(return_labels)
+            runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
             runtime += self.simulator.ambit_copy(
-                hitmap_row_b,
-                self.simulator.ambit_t2,
-                return_labels
+                src_row=hitmap_row_b,
+                dst_row=self.simulator.ambit_t2,
+                return_labels=return_labels
             )
 
             # perform hitmap[a] OPERATION hitmap[b]
-            runtime += self.simulator.cpu_ambit_dispatch(return_labels)
+            runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
             if operation == HitmapLogicalOperation.AND:
                 runtime += self.simulator.ambit_and(
-                    self.simulator.ambit_t1,
-                    self.simulator.ambit_t2,
-                    self.simulator.ambit_t0,
-                    return_labels
+                    a_row=self.simulator.ambit_t1,
+                    b_row=self.simulator.ambit_t2,
+                    control_dst=self.simulator.ambit_t0,
+                    return_labels=return_labels
                 )
             elif operation == HitmapLogicalOperation.OR:
                 runtime += self.simulator.ambit_or(
-                    self.simulator.ambit_t1,
-                    self.simulator.ambit_t2,
-                    self.simulator.ambit_t0,
-                    return_labels
+                    a_row=self.simulator.ambit_t1,
+                    b_row=self.simulator.ambit_t2,
+                    control_dst=self.simulator.ambit_t0,
+                    return_labels=return_labels
                 )
 
             # move result into hitmap[r] compute region
-            runtime += self.simulator.cpu_ambit_dispatch(return_labels)
+            runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
             runtime += self.simulator.ambit_copy(
-                self.simulator.ambit_t0,
-                hitmap_row_r,
-                return_labels
+                src_row=self.simulator.ambit_t0,
+                dst_row=hitmap_row_r,
+                return_labels=return_labels
             )
 
-            runtime += self.simulator.cpu_cycle(2, "; loop return", return_labels)
+            runtime += self.simulator.cpu_cycle(
+                cycles=2,
+                label="; loop return",
+                return_labels=return_labels
+            )
 
         # We have finished the query, fetch the hitmap to one single hitmap row
         hitmap_byte_array = []

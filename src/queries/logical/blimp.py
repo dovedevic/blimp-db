@@ -56,12 +56,20 @@ class _BlimpHitmapLogical(
         hitmap_r_base = self.layout_configuration.row_mapping.hitmaps[0] + rows_per_hitmap * hitmap_index_result
 
         # Begin by enabling BLIMP
-        runtime = self.simulator.blimp_begin(return_labels)
+        runtime = self.simulator.blimp_begin(return_labels=return_labels)
 
         # Iterate over all hitmap rows
-        runtime += self.simulator.blimp_cycle(3, "; loop start", return_labels)
+        runtime += self.simulator.blimp_cycle(
+            cycles=3,
+            label="; loop start",
+            return_labels=return_labels
+        )
         for h in range(rows_per_hitmap):
-            runtime += self.simulator.blimp_cycle(2, "; hitmap row calculation", return_labels)
+            runtime += self.simulator.blimp_cycle(
+                cycles=3,
+                label="; hitmap row calculation",
+                return_labels=return_labels
+            )
             # Calculate the hitmap we are targeting: Base Hitmap address + hitmap index + sub-hitmap index
             hitmap_row_a = hitmap_a_base + h
             hitmap_row_b = hitmap_b_base + h
@@ -69,38 +77,55 @@ class _BlimpHitmapLogical(
 
             # Performing the Operation
             # move hitmap[a] into v1
-            runtime += self.simulator.blimp_load_register(self.simulator.blimp_v1, hitmap_row_a, return_labels)
+            runtime += self.simulator.blimp_load_register(
+                register=self.simulator.blimp_v1,
+                row=hitmap_row_a,
+                return_labels=return_labels
+            )
 
             # move hitmap[b] into v2
-            runtime += self.simulator.blimp_load_register(self.simulator.blimp_v2, hitmap_row_b, return_labels)
+            runtime += self.simulator.blimp_load_register(
+                register=self.simulator.blimp_v2,
+                row=hitmap_row_b,
+                return_labels=return_labels
+            )
 
             # perform hitmap[a] OPERATION hitmap[b]
             if operation == HitmapLogicalOperation.AND:
                 runtime += self.simulator.blimp_alu_int_and(
-                    self.simulator.blimp_v1,
-                    self.simulator.blimp_v2,
-                    0,
-                    self.hardware.hardware_configuration.row_buffer_size_bytes,
-                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                    return_labels
+                    register_a=self.simulator.blimp_v1,
+                    register_b=self.simulator.blimp_v2,
+                    start_index=0,
+                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    return_labels=return_labels
                 )
             elif operation == HitmapLogicalOperation.OR:
                 runtime += self.simulator.blimp_alu_int_or(
-                    self.simulator.blimp_v1,
-                    self.simulator.blimp_v2,
-                    0,
-                    self.hardware.hardware_configuration.row_buffer_size_bytes,
-                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                    self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                    return_labels
+                    register_a=self.simulator.blimp_v1,
+                    register_b=self.simulator.blimp_v2,
+                    start_index=0,
+                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    return_labels=return_labels
                 )
 
             # move result into hitmap[r] compute region
-            runtime += self.simulator.blimp_save_register(self.simulator.blimp_v2, hitmap_row_r, return_labels)
+            runtime += self.simulator.blimp_save_register(
+                register=self.simulator.blimp_v2,
+                row=hitmap_row_r,
+                return_labels=return_labels
+            )
 
-            runtime += self.simulator.blimp_cycle(2, "; loop return", return_labels)
-        runtime += self.simulator.blimp_end(return_labels)
+            runtime += self.simulator.blimp_cycle(
+                cycles=2,
+                label="; loop return",
+                return_labels=return_labels
+            )
+
+        runtime += self.simulator.blimp_end(return_labels=return_labels)
 
         # We have finished the query, fetch the hitmap to one single hitmap row
         hitmap_byte_array = []
