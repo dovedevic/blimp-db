@@ -106,7 +106,6 @@ class BlimpHashmapIndexPayloadJoin(
                     self.simulator.blimp_data_scratchpad,
                     self.layout_configuration.database_configuration.total_index_size_bytes)):
 
-                runtime += self.simulator.blimp_cycle(2, "; record stop check", return_labels)
                 if elements_processed + index >= self.layout_configuration.layout_metadata.total_records_processable:
                     break
 
@@ -117,7 +116,7 @@ class BlimpHashmapIndexPayloadJoin(
                     # Check if the blimp memory control needs to fetch a row
                     traced_row_index = traced_bucket // \
                         (self.hardware.hardware_configuration.row_buffer_size_bytes // hash_map.bucket_type().size())
-                    runtime += self.simulator.blimp_cycle(2, "; register address check", return_labels)
+                    runtime += self.simulator.blimp_cycle(1, "; register address check", return_labels)
                     if current_row_index != traced_row_index:
                         current_row_index = traced_row_index
                         runtime += self.simulator.blimp_load_register(
