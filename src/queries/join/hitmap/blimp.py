@@ -266,7 +266,7 @@ class BlimpHashmapJoin(
             hitmap_byte_array += self.simulator.bank_hardware.get_row_bytes(hitmap_row)
 
         result = HitmapResult.from_hitmap_byte_array(
-            hitmap_byte_array,
-            self.layout_configuration.layout_metadata.total_records_processable
+            hitmap_byte_array=hitmap_byte_array,
+            num_bits=self.layout_configuration.layout_metadata.total_records_processable
         )
         return runtime, result
