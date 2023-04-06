@@ -1,8 +1,8 @@
 from typing import Generic, TypeVar
 
-from simulators.result import RuntimeResult, HitmapResult
-from simulators.simulator import SimulatedBank
-from data_layout_mappings import DataLayoutConfiguration
+from src.simulators.result import RuntimeResult, HitmapResult
+from src.simulators.hardware import SimulatedBank
+from src.data_layout_mappings import DataLayoutConfiguration
 
 
 Simulator = TypeVar('Simulator', bound=SimulatedBank)
