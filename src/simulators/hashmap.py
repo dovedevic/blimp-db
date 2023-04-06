@@ -44,6 +44,11 @@ class GenericHashTableValue:
         """Return this object as a _SIZE_BYTES integer"""
         return self._value
 
+    @classmethod
+    def from_int(cls, integer) -> 'GenericHashTableValue':
+        """Create this object from a _SIZE_BYTES integer"""
+        return cls(integer)  # silly method but for compliance
+
 
 class GenericHashTableValuePayload:
     """Defines a generic pythonic structure of a collection of objects, or a payload"""
@@ -102,6 +107,18 @@ class GenericHashTableValuePayload:
             value <<= p.size() * 8
             value += p.value
         return value
+
+    @classmethod
+    def from_int(cls, integer) -> 'GenericHashTableValuePayload':
+        """Create this object from a packed integer of _PAYLOAD_OBJECTS"""
+        payloads = []
+        shift_amount = cls.size() * 8
+        for payload in cls._PAYLOAD_OBJECTS:
+            shift_amount -= payload.size() * 8
+            payload_mask = (2 ** (payload.size() * 8) - 1) << shift_amount
+            payload = (integer & payload_mask) >> shift_amount
+            payloads.append(payload)
+        return cls(*payloads)
 
 
 KEY_TYPE = TypeVar('KEY_TYPE', bound=GenericHashTableValue)
@@ -188,6 +205,7 @@ class GenericHashTableObject(Generic[KEY_TYPE, PAYLOAD_TYPE]):
 
     @classmethod
     def from_int(cls, integer) -> 'GenericHashTableObject':
+        """Create this object from a packed integer of key,payload,..."""
         key_mask = (2 ** (cls._KEY_OBJECT.size() * 8) - 1) << (cls._PAYLOAD_OBJECT.size() * 8)
         key = (integer & key_mask) >> (cls._PAYLOAD_OBJECT.size() * 8)
         payloads = []
