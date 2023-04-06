@@ -66,6 +66,9 @@ class BlimpHashmapIndexPayloadJoin(
         # Begin by enabling BLIMP
         runtime = self.simulator.blimp_begin(return_labels)
 
+        # Calculate the above metadata
+        runtime += self.simulator.blimp_cycle(10, "; meta start", return_labels)
+
         # Clear a register for temporary output in V2
         runtime += self.simulator.blimp_set_register_to_zero(self.simulator.blimp_v2, return_labels)
 
@@ -78,9 +81,11 @@ class BlimpHashmapIndexPayloadJoin(
 
             # Load in elements_per_row elements into the vector registers. DS is for keys, V1 is for hash(keys)
             runtime += self.simulator.blimp_load_register(
-                self.simulator.blimp_data_scratchpad, data_row, return_labels)
+                self.simulator.blimp_data_scratchpad, data_row, return_labels
+            )
             runtime += self.simulator.blimp_transfer_register(
-                self.simulator.blimp_data_scratchpad, self.simulator.blimp_v1, return_labels)
+                self.simulator.blimp_data_scratchpad, self.simulator.blimp_v1, return_labels
+            )
 
             # Hash and mask the keys
             runtime += self.simulator.blimp_alu_int_hash(
@@ -96,10 +101,12 @@ class BlimpHashmapIndexPayloadJoin(
             # Loop through them searching for hits
             # TODO: Possible optimization, perform a search for all matching hash-indices in this row
             current_row_index = -1
+            runtime += self.simulator.blimp_cycle(3, "; row loop start", return_labels)
             for index, key in enumerate(self.simulator.blimp_get_register_data(
                     self.simulator.blimp_data_scratchpad,
                     self.layout_configuration.database_configuration.total_index_size_bytes)):
 
+                runtime += self.simulator.blimp_cycle(2, "; record stop check", return_labels)
                 if elements_processed + index >= self.layout_configuration.layout_metadata.total_records_processable:
                     break
 
@@ -110,6 +117,7 @@ class BlimpHashmapIndexPayloadJoin(
                     # Check if the blimp memory control needs to fetch a row
                     traced_row_index = traced_bucket // \
                         (self.hardware.hardware_configuration.row_buffer_size_bytes // hash_map.bucket_type().size())
+                    runtime += self.simulator.blimp_cycle(2, "; register address check", return_labels)
                     if current_row_index != traced_row_index:
                         current_row_index = traced_row_index
                         runtime += self.simulator.blimp_load_register(
@@ -121,7 +129,9 @@ class BlimpHashmapIndexPayloadJoin(
                     runtime += self.simulator.blimp_cycle(max(1, traced_iteration * 2), return_labels=return_labels)
 
                 # set the hit
+                runtime += self.simulator.blimp_cycle(1, "; hit check", return_labels)
                 if hit:
+                    runtime += self.simulator.blimp_cycle(10, "; hit meta calculation", return_labels)
                     rounded_index = (index + elements_per_row * d) & (2 ** (output_index_size_bytes * 8) - 1)
                     hit_value = (rounded_index << (hit.payload_type().size() * 8)) + hit.payload.as_int()
                     hit_size = output_index_size_bytes + hit.payload_type().size()
@@ -154,6 +164,7 @@ class BlimpHashmapIndexPayloadJoin(
                         hit_value &= (2 ** ((hit_size - placeable_bytes) * 8)) - 1
                         hit_size -= placeable_bytes
 
+                        runtime += self.simulator.blimp_cycle(2, "; hit state check", return_labels)
                         if output_byte_index >= self.hardware.hardware_configuration.row_buffer_size_bytes:
                             if current_output_row <= max_output_row:
                                 raise RuntimeError("maximum output memory exceeded")
@@ -164,7 +175,9 @@ class BlimpHashmapIndexPayloadJoin(
                                 row=current_output_row,
                                 return_labels=return_labels
                             )
-                            runtime += self.simulator.blimp_set_register_to_zero(self.simulator.blimp_v2, return_labels)
+                            runtime += self.simulator.blimp_set_register_to_zero(
+                                self.simulator.blimp_v2, return_labels
+                            )
                             current_output_row += 1
                             output_byte_index = 0
 
