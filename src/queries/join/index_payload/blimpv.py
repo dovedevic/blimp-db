@@ -83,21 +83,7 @@ class BlimpVHashmapIndexPayloadJoin(
                 self.simulator.blimp_data_scratchpad, self.simulator.blimp_v1, return_labels)
 
             # Hash and mask the keys
-            runtime += self.simulator.blimpv_alu_int_mul_val(
-                self.simulator.blimp_v1,
-                key_size,
-                key_size,
-                3634946921,
-                return_labels=return_labels
-            )
-            runtime += self.simulator.blimpv_alu_int_add_val(
-                self.simulator.blimp_v1,
-                key_size,
-                key_size,
-                2096170329,
-                return_labels=return_labels
-            )
-            runtime += self.simulator.blimpv_alu_int_and_val(
+            runtime += self.simulator.blimpv_alu_int_hash(
                 self.simulator.blimp_v1,
                 key_size,
                 key_size,
