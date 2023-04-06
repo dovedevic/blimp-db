@@ -1,7 +1,7 @@
 import math
 
 from src.hardware.architectures import BlimpBank, BlimpVectorBank
-from src.simulators.simulator import SimulatedBank
+from src.simulators.hardware import SimulatedBank
 from src.simulators.result import RuntimeResult
 from src.utils.bitmanip import byte_array_to_int, int_to_byte_array, msb_bit
 

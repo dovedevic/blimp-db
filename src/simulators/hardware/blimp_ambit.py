@@ -1,6 +1,5 @@
 from src.hardware.architectures import BlimpAmbitBank
-from src.simulators.blimp import SimulatedBlimpBank
-from src.simulators.ambit import SimulatedAmbitBank
+from src.simulators.hardware import SimulatedBlimpBank, SimulatedAmbitBank
 from src.simulators.result import RuntimeResult
 
 

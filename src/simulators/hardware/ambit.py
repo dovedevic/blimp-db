@@ -1,5 +1,5 @@
 from src.hardware.architectures import AmbitBank
-from src.simulators.simulator import SimulatedBank
+from src.simulators.hardware import SimulatedBank
 from src.simulators.result import RuntimeResult
 
 
