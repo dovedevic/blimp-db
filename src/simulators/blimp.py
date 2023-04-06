@@ -899,6 +899,27 @@ class SimulatedBlimpBank(
             return_labels=return_labels
         )
 
+    def blimp_alu_int_hash(self, register_a, start_index, end_index, element_width, stride, hash_mask, mask=-1,
+                           return_labels=True) -> RuntimeResult:
+        """
+        Perform a BLIMP scalar HASH(val) operation on register a starting at a specified byte index and ending on a
+        specified byte index then store the result in register a
+        """
+        # Perform the operation
+        return self._blimp_alu_int_un_op(
+            register_a=register_a,
+            start_index=start_index,
+            end_index=end_index,
+            element_width=element_width,
+            stride=stride,
+            operation=lambda a: ((a * 3634946921) + 2096170329) & hash_mask,
+            invert=False,
+            op_name="HASH",
+            cpi=3+1+1,
+            mask=mask,
+            return_labels=return_labels
+        )
+
     def blimp_coalesce_register_hitmap(self, register_a, start_index, end_index, element_width, stride, bit_offset,
                                        return_labels=True) -> RuntimeResult:
         """
@@ -1560,6 +1581,23 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="GTE",
             mask=mask,
+            return_labels=return_labels
+        )
+
+    def blimpv_alu_int_hash(self, register_a, sew, stride, hash_mask, mask=-1, return_labels=True) -> RuntimeResult:
+        """
+        Perform a BLIMP-V HASH operation on a register on SEW bytes and store the result in register a
+        """
+        # Perform the operation
+        return self._blimpv_alu_int_un_op(
+            register_a=register_a,
+            sew=sew,
+            stride=stride,
+            operation=lambda a: ((a * 3634946921) + 2096170329) & hash_mask,
+            invert=False,
+            op_name="HASH",
+            mask=mask,
+            cpi=3+1+1,
             return_labels=return_labels
         )
 
