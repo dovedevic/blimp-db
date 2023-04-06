@@ -102,6 +102,280 @@ private:
   HashMap<K, Empty> hash_map_;
 };
 
+HashSet<uint32_t> hash_set_build(uint32_t sel, const std::vector<uint32_t> &b_k,
+                                 const std::vector<uint32_t> &b_100) {
+  HashSet<uint32_t> hash_set((uint32_t)(sel / 100.0 * (double)b_k.size()));
+  for (uint32_t i = 0; i < b_k.size(); ++i) {
+    if (b_100[i] < sel) {
+      hash_set.insert(b_k[i]);
+    }
+  }
+
+  return hash_set;
+}
+
+HashMap<uint32_t, uint32_t> hash_map_build(uint32_t sel,
+                                           const std::vector<uint32_t> &b_k,
+                                           const std::vector<uint32_t> &b_100,
+                                           const std::vector<uint32_t> &b_10) {
+  HashMap<uint32_t, uint32_t> hash_map(
+      (uint32_t)(sel / 100.0 * (double)b_k.size()));
+  for (uint32_t i = 0; i < b_k.size(); ++i) {
+    if (b_100[i] < sel) {
+      hash_map.insert(b_k[i], b_10[i]);
+    }
+  }
+
+  return hash_map;
+}
+
+void sq3(size_t trials, uint32_t sel, const std::vector<uint32_t> &a_b_k,
+         const std::vector<uint32_t> &a_100, const std::vector<uint32_t> &b_k,
+         const std::vector<uint32_t> &b_100) {
+  HashSet<uint32_t> hash_set = hash_set_build(sel, b_k, b_100);
+
+  std::vector<double> t_sq3 = util::time(trials, [&] {
+    tbb::parallel_reduce(
+        tbb::blocked_range<size_t>(0, a_b_k.size()), 0,
+        [&](const tbb::blocked_range<size_t> &r, uint32_t acc) {
+          for (size_t i = r.begin(); i < r.end(); ++i) {
+            if (hash_set.fetch(a_b_k[i])) {
+              acc += a_100[i];
+            }
+          }
+          return acc;
+        },
+        std::plus<>());
+  });
+
+  for (double t : t_sq3) {
+    std::cout << t << ' ';
+  }
+  std::cout << std::endl;
+}
+
+std::vector<uint32_t> sq4_hash_set_probe(const std::vector<uint32_t> &a_b_k,
+                                         HashSet<uint32_t> &hash_set) {
+  std::vector<uint32_t> hit_map(a_b_k.size() / 32 + (a_b_k.size() % 32 != 0));
+  tbb::parallel_for(size_t(0), a_b_k.size() / 32, [&](size_t i) {
+    size_t j = i * 32;
+    uint32_t mask = 0;
+    for (size_t k = 0; k < 32; ++k) {
+      uint32_t value_a_b_k = a_b_k[j + k];
+      uint32_t hit = hash_set.fetch(value_a_b_k);
+      mask |= hit << k;
+    }
+    hit_map[i] = mask;
+  });
+
+  for (size_t j = a_b_k.size() / 32 * 32; j < a_b_k.size(); ++j) {
+    uint32_t value_a_b_k = a_b_k[j];
+    uint32_t hit = hash_set.fetch(value_a_b_k);
+    hit_map[j / 32] |= hit << (j % 32);
+  }
+
+  return hit_map;
+}
+
+std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
+sq4_hash_map_probe_emit_hit_map(const std::vector<uint32_t> &a_b_k,
+                                HashMap<uint32_t, uint32_t> &hash_map) {
+  std::vector<uint32_t> hit_map(a_b_k.size() / 32 + (a_b_k.size() % 32 != 0));
+  std::vector<uint32_t> payloads;
+  for (size_t i = 0; i < a_b_k.size(); ++i) {
+    uint32_t value_a_b_k = a_b_k[i];
+    uint32_t *value_b_10 = hash_map.fetch(value_a_b_k);
+    if (value_b_10) {
+      hit_map[i / 32] |= 1 << (i % 32);
+      payloads.push_back(*value_b_10);
+    }
+  }
+
+  return {hit_map, payloads};
+}
+
+std::pair<std::vector<uint32_t>, std::vector<uint32_t>>
+sq4_hash_map_probe_emit_indices(const std::vector<uint32_t> &a_b_k,
+                                HashMap<uint32_t, uint32_t> &hash_map) {
+  std::vector<uint32_t> indices;
+  std::vector<uint32_t> payloads;
+  for (size_t i = 0; i < a_b_k.size(); ++i) {
+    uint32_t value_a_b_k = a_b_k[i];
+    uint32_t *value_b_10 = hash_map.fetch(value_a_b_k);
+    if (value_b_10) {
+      indices.push_back(i);
+      payloads.push_back(*value_b_10);
+    }
+  }
+
+  return {indices, payloads};
+}
+
+void sq4_normal(size_t trials, uint32_t sel, const std::vector<uint32_t> &a_b_k,
+                const std::vector<uint32_t> &a_10,
+                const std::vector<uint32_t> &b_k,
+                const std::vector<uint32_t> &b_10,
+                const std::vector<uint32_t> &b_100) {
+  HashMap<uint32_t, uint32_t> hash_map = hash_map_build(sel, b_k, b_100, b_10);
+
+  std::vector<double> t_sq4 = util::time(trials, [&] {
+    tbb::parallel_reduce(
+        tbb::blocked_range<size_t>(0, a_b_k.size()), std::vector<uint32_t>(10),
+        [&](const tbb::blocked_range<size_t> &r, std::vector<uint32_t> acc) {
+          for (size_t i = r.begin(); i != r.end(); ++i) {
+            uint32_t value_a_b_k = a_b_k[i];
+            uint32_t value_a_10 = a_10[i];
+            uint32_t *value_b_10 = hash_map.fetch(value_a_b_k);
+            if (value_b_10) {
+              acc[*value_b_10] += value_a_10;
+            }
+          }
+
+          return acc;
+        },
+        [](std::vector<uint32_t> acc1, const std::vector<uint32_t> &acc2) {
+          for (size_t i = 0; i < 10; ++i) {
+            acc1[i] += acc2[i];
+          }
+          return acc1;
+        });
+  });
+
+  for (double t : t_sq4) {
+    std::cout << t << ' ';
+  }
+  std::cout << std::endl;
+}
+
+void sq4_semijoin(size_t trials, uint32_t sel,
+                  const std::vector<uint32_t> &a_b_k,
+                  const std::vector<uint32_t> &a_10,
+                  const std::vector<uint32_t> &b_k,
+                  const std::vector<uint32_t> &b_10,
+                  const std::vector<uint32_t> &b_100) {
+  HashMap<uint32_t, uint32_t> hash_map = hash_map_build(sel, b_k, b_100, b_10);
+  HashSet<uint32_t> hash_set = hash_set_build(sel, b_k, b_100);
+  std::vector<uint32_t> hit_map = sq4_hash_set_probe(a_b_k, hash_set);
+
+  std::vector<double> t_sq4 = util::time(trials, [&] {
+    tbb::parallel_reduce(
+        tbb::blocked_range<size_t>(0, hit_map.size()),
+        std::vector<uint32_t>(10),
+        [&](const tbb::blocked_range<size_t> &r, std::vector<uint32_t> acc) {
+          for (size_t i = r.begin(); i != r.end(); ++i) {
+            size_t j = i * 32;
+            uint32_t mask = hit_map[i];
+            while (mask != 0) {
+              size_t k = __builtin_ctz(mask);
+              uint32_t value_a_b_k = a_b_k[j + k];
+              uint32_t value_a_10 = a_10[j + k];
+              uint32_t value_b_10 = *hash_map.fetch(value_a_b_k);
+              acc[value_b_10] += value_a_10;
+              mask ^= (uint32_t(1) << k);
+            }
+          }
+
+          return acc;
+        },
+        [](std::vector<uint32_t> acc1, const std::vector<uint32_t> &acc2) {
+          for (size_t i = 0; i < 10; ++i) {
+            acc1[i] += acc2[i];
+          }
+          return acc1;
+        });
+  });
+
+  for (double t : t_sq4) {
+    std::cout << t << ' ';
+  }
+  std::cout << std::endl;
+}
+
+void sq4_hit_map(size_t trials, uint32_t sel,
+                 const std::vector<uint32_t> &a_b_k,
+                 const std::vector<uint32_t> &a_10,
+                 const std::vector<uint32_t> &b_k,
+                 const std::vector<uint32_t> &b_10,
+                 const std::vector<uint32_t> &b_100) {
+  HashMap<uint32_t, uint32_t> hash_map = hash_map_build(sel, b_k, b_100, b_10);
+  std::pair<std::vector<uint32_t>, std::vector<uint32_t>> probe_result =
+      sq4_hash_map_probe_emit_hit_map(a_b_k, hash_map);
+
+  std::vector<uint32_t> hit_map = probe_result.first;
+  std::vector<uint32_t> payloads = probe_result.second;
+
+  size_t payload_index = 0;
+
+  std::vector<double> t_sq4 = util::time(trials, [&] {
+    tbb::parallel_reduce(
+        tbb::blocked_range<size_t>(0, hit_map.size()),
+        std::vector<uint32_t>(10),
+        [&](const tbb::blocked_range<size_t> &r, std::vector<uint32_t> acc) {
+          for (size_t i = r.begin(); i != r.end(); ++i) {
+            size_t j = i * 32;
+            uint32_t mask = hit_map[i];
+            while (mask != 0) {
+              size_t k = __builtin_ctz(mask);
+              uint32_t value_a_10 = a_10[j + k];
+              acc[payloads[payload_index++]] += value_a_10;
+              mask ^= (uint32_t(1) << k);
+            }
+          }
+
+          return acc;
+        },
+        [](std::vector<uint32_t> acc1, const std::vector<uint32_t> &acc2) {
+          for (size_t i = 0; i < 10; ++i) {
+            acc1[i] += acc2[i];
+          }
+          return acc1;
+        });
+  });
+
+  for (double t : t_sq4) {
+    std::cout << t << ' ';
+  }
+  std::cout << std::endl;
+}
+
+void sq4_indices(size_t trials, uint32_t sel,
+                 const std::vector<uint32_t> &a_b_k,
+                 const std::vector<uint32_t> &a_10,
+                 const std::vector<uint32_t> &b_k,
+                 const std::vector<uint32_t> &b_10,
+                 const std::vector<uint32_t> &b_100) {
+  HashMap<uint32_t, uint32_t> hash_map = hash_map_build(sel, b_k, b_100, b_10);
+  std::pair<std::vector<uint32_t>, std::vector<uint32_t>> probe_result =
+      sq4_hash_map_probe_emit_indices(a_b_k, hash_map);
+
+  std::vector<uint32_t> indices = probe_result.first;
+  std::vector<uint32_t> payloads = probe_result.second;
+
+  std::vector<double> t_sq4 = util::time(trials, [&] {
+    tbb::parallel_reduce(
+        tbb::blocked_range<size_t>(0, indices.size()),
+        std::vector<uint32_t>(10),
+        [&](const tbb::blocked_range<size_t> &r, std::vector<uint32_t> acc) {
+          for (size_t i = r.begin(); i != r.end(); ++i) {
+            acc[payloads[i]] += a_10[indices[i]];
+          }
+
+          return acc;
+        },
+        [](std::vector<uint32_t> acc1, const std::vector<uint32_t> &acc2) {
+          for (size_t i = 0; i < 10; ++i) {
+            acc1[i] += acc2[i];
+          }
+          return acc1;
+        });
+  });
+
+  for (double t : t_sq4) {
+    std::cout << t << ' ';
+  }
+  std::cout << std::endl;
+}
+
 int main(int argc, char **argv) {
   std::string usage = "USAGE:\n"
                       "sqb NA NB SEL TRIALS\n"
@@ -153,34 +427,11 @@ int main(int argc, char **argv) {
   std::generate(b_10.begin(), b_10.end(), [&] { return gen_10(prng); });
   std::generate(b_100.begin(), b_100.end(), [&] { return gen_100(prng); });
 
-  // Run SQ3.
-  HashSet<uint32_t> hash_set((uint32_t)(sel / 100.0 * n_b));
-  for (uint32_t i = 0; i < n_b; ++i) {
-    if (b_100[i] < sel) {
-      hash_set.insert(b_k[i]);
-    }
-  }
-
-  std::vector<double> t_sq3 = util::time(trials, [&] {
-    uint32_t result = tbb::parallel_reduce(
-        tbb::blocked_range<size_t>(0, n_a), 0,
-        [&](const tbb::blocked_range<size_t> &r, uint32_t acc) {
-          for (size_t i = r.begin(); i < r.end(); ++i) {
-            if (hash_set.fetch(a_b_k[i])) {
-              acc += a_100[i];
-            }
-          }
-          return acc;
-        },
-        std::plus<>());
-
-    std::cout << result << std::endl;
-  });
-
-  for (double t : t_sq3) {
-    std::cout << t << ' ';
-  }
-  std::cout << std::endl;
+  sq3(trials, sel, a_b_k, a_100, b_k, b_100);
+  sq4_normal(trials, sel, a_b_k, a_10, b_k, b_10, b_100);
+  sq4_semijoin(trials, sel, a_b_k, a_10, b_k, b_10, b_100);
+  sq4_hit_map(trials, sel, a_b_k, a_10, b_k, b_10, b_100);
+  sq4_indices(trials, sel, a_b_k, a_10, b_k, b_10, b_100);
 
   return 0;
 }
