@@ -2,9 +2,8 @@ import os
 import math
 import random
 
-from utils.performance import start_performance_tracking, end_performance_tracking
-
-from src.simulators import SimulatedBlimpVBank
+from src.utils.performance import start_performance_tracking, end_performance_tracking
+from src.simulators.hardware import SimulatedBlimpVBank
 from src.queries.count.blimpv import BlimpVHitmapCount
 from src.hardware.architectures import BlimpVectorBank
 from src.configurations.hardware.blimp import BlimpVectorHardwareConfiguration
