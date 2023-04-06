@@ -6,8 +6,7 @@ from src.queries.query import Query
 from src.simulators.result import RuntimeResult, HitmapResult
 from src.data_layout_mappings.architectures import BlimpIndexHitmapBankLayoutConfiguration
 from src.configurations.hashables import BlimpSimpleHashSet
-
-from src.simulators import SimulatedBlimpVBank
+from src.simulators.hardware import SimulatedBlimpVBank
 
 
 class BlimpVHashmapJoin(
