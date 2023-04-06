@@ -5,8 +5,7 @@ from src.configurations.hardware.ambit import AmbitHardwareConfiguration
 from src.configurations.database.ambit import AmbitHitmapDatabaseConfiguration
 from src.data_layout_mappings.architectures.ambit import AmbitHitmapLayoutMetadata, AmbitHitmapRowMapping
 from src.queries.logical.operations import HitmapLogicalOperation
-
-from src.simulators.ambit import SimulatedAmbitBank
+from src.simulators.hardware import SimulatedAmbitBank
 
 
 class _AmbitHitmapLogical(

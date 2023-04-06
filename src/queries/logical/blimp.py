@@ -5,8 +5,7 @@ from src.configurations.hardware.blimp import BlimpHardwareConfiguration
 from src.configurations.database.blimp import BlimpHitmapDatabaseConfiguration
 from src.data_layout_mappings.architectures.blimp import BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
 from src.queries.logical.operations import HitmapLogicalOperation
-
-from src.simulators.blimp import SimulatedBlimpBank
+from src.simulators.hardware import SimulatedBlimpBank
 
 
 class _BlimpHitmapLogical(

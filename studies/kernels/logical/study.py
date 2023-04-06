@@ -3,7 +3,7 @@ import os
 import shutil
 
 from studies.study import QueryStudy
-from utils.performance import start_performance_tracking, end_performance_tracking
+from src.utils.performance import start_performance_tracking, end_performance_tracking
 
 
 generic_hardware_configuration = {
@@ -40,21 +40,21 @@ generic_database_configuration = {
 
 from src.generators.record_generators import IncrementalKeyNullDataRecordGenerator
 
-from configurations.hardware.ambit import AmbitHardwareConfiguration, BlimpPlusAmbitHardwareConfiguration
-from configurations.hardware.blimp import BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration
+from src.configurations.hardware.ambit import AmbitHardwareConfiguration, BlimpPlusAmbitHardwareConfiguration
+from src.configurations.hardware.blimp import BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration
 
-from configurations.database.ambit import AmbitHitmapDatabaseConfiguration, BlimpPlusAmbitHitmapDatabaseConfiguration
-from configurations.database.blimp import BlimpHitmapDatabaseConfiguration, BlimpVectorHitmapDatabaseConfiguration
+from src.configurations.database.ambit import AmbitHitmapDatabaseConfiguration, BlimpPlusAmbitHitmapDatabaseConfiguration
+from src.configurations.database.blimp import BlimpHitmapDatabaseConfiguration, BlimpVectorHitmapDatabaseConfiguration
 
-from data_layout_mappings.architectures import AmbitHitmapBankLayoutConfiguration
-from data_layout_mappings.architectures import BlimpHitmapBankLayoutConfiguration
-from data_layout_mappings.architectures import BlimpAmbitHitmapBankLayoutConfiguration
+from src.data_layout_mappings.architectures import AmbitHitmapBankLayoutConfiguration
+from src.data_layout_mappings.architectures import BlimpHitmapBankLayoutConfiguration
+from src.data_layout_mappings.architectures import BlimpAmbitHitmapBankLayoutConfiguration
 
-from hardware.architectures import AmbitBank, BlimpBank, BlimpAmbitBank, BlimpVectorBank
+from src.hardware.architectures import AmbitBank, BlimpBank, BlimpAmbitBank, BlimpVectorBank
 
-from simulators import SimulatedAmbitBank, SimulatedBlimpBank, SimulatedBlimpVBank, SimulatedBlimpAmbitBank
+from src.simulators.hardware import SimulatedAmbitBank, SimulatedBlimpBank, SimulatedBlimpVBank, SimulatedBlimpAmbitBank
 
-from queries.logical import AmbitHitmapLogicalAnd, BlimpVHitmapLogicalAnd, BlimpAmbitHitmapLogicalAnd, BlimpHitmapLogicalAnd
+from src.queries.logical import AmbitHitmapLogicalAnd, BlimpVHitmapLogicalAnd, BlimpAmbitHitmapLogicalAnd, BlimpHitmapLogicalAnd
 
 
 and_logical_studies = [
