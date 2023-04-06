@@ -19,7 +19,7 @@
         {
             "type": "hash_set_probe",
             "column": {"type": "uint32", "name": "lo_orderdate", "length": 6000000, "scale": "lin"},
-            "hash_map": {"length": 365, "scale": "const"},
+            "hash_set": {"length": 365, "scale": "const"},
             "selectivity": 0.143,
             "input_filter": "x2",
             "output_filter": {"type": "hitmap", "name": "x3"}
