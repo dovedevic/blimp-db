@@ -40,6 +40,10 @@ class GenericHashTableValue:
     def __repr__(self):
         return f"<{self.__class__.__name__} {self._value}>"
 
+    def as_int(self) -> int:
+        """Return this object as a _SIZE_BYTES integer"""
+        return self._value
+
 
 class GenericHashTableValuePayload:
     """Defines a generic pythonic structure of a collection of objects, or a payload"""
@@ -90,6 +94,14 @@ class GenericHashTableValuePayload:
 
     def __repr__(self):
         return f"<{self.__class__.__name__} [{', '.join(str(payload) for payload in self.payloads())}]>"
+
+    def as_int(self) -> int:
+        """Return this object as a packed byte array interpreted as a big integer"""
+        value = 0
+        for p in self.payloads():
+            value <<= p.size() * 8
+            value += p.value
+        return value
 
 
 KEY_TYPE = TypeVar('KEY_TYPE', bound=GenericHashTableValue)
@@ -167,6 +179,26 @@ class GenericHashTableObject(Generic[KEY_TYPE, PAYLOAD_TYPE]):
     def __repr__(self):
         return f"<{self.__class__.__name__} Key: {self.key}, Payload: {self.payload}>"
 
+    def as_int(self) -> int:
+        """Return this object as a packed byte array interpreted as a big integer"""
+        value = self.key.as_int()
+        value <<= self.payload.size()
+        value += self.payload.as_int()
+        return value
+
+    @classmethod
+    def from_int(cls, integer) -> 'GenericHashTableObject':
+        key_mask = (2 ** (cls._KEY_OBJECT.size() * 8) - 1) << (cls._PAYLOAD_OBJECT.size() * 8)
+        key = (integer & key_mask) >> (cls._PAYLOAD_OBJECT.size() * 8)
+        payloads = []
+        shift_amount = cls._PAYLOAD_OBJECT.size() * 8
+        for payload in cls._PAYLOAD_OBJECT._PAYLOAD_OBJECTS:
+            shift_amount -= payload.size() * 8
+            payload_mask = (2 ** (payload.size() * 8) - 1) << shift_amount
+            payload = (integer & payload_mask) >> shift_amount
+            payloads.append(payload)
+        return cls(key, payloads)
+
 
 KEY_PAYLOAD_TYPE = TypeVar('KEY_PAYLOAD_TYPE', bound=GenericHashTableObject)
 META_ACTIVE_COUNT_TYPE = TypeVar('META_ACTIVE_COUNT_TYPE', bound=GenericHashTableValue)
@@ -204,7 +236,7 @@ class GenericHashTableBucket(Generic[KEY_PAYLOAD_TYPE, META_ACTIVE_COUNT_TYPE, M
             self._META_NEXT_BUCKET_OBJECT(next_bucket)
 
     @classmethod
-    def bucket_object_type(cls) -> Type[KEY_PAYLOAD_TYPE]:
+    def bucket_object_type(cls) -> KEY_PAYLOAD_TYPE:
         """Return the internal key-payload object"""
         return cls._KEY_PAYLOAD_OBJECT
 
