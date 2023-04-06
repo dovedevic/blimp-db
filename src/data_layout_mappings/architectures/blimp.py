@@ -462,6 +462,8 @@ class BlimpIndexBankLayoutConfiguration(
 
         whole_indices_to_row_buffer = self._hardware_configuration.row_buffer_size_bytes // \
             self._database_configuration.total_index_size_bytes
+        whole_rows_to_index = int(math.ceil(self._database_configuration.total_index_size_bytes /
+                                            self._hardware_configuration.row_buffer_size_bytes))
 
         # Multiple indices to row buffer?
         if whole_indices_to_row_buffer >= 1:
@@ -470,8 +472,6 @@ class BlimpIndexBankLayoutConfiguration(
             data_rows = total_rows_for_configurable_data
         # Multiple rows per one index
         else:
-            whole_rows_to_index = int(math.ceil(self._database_configuration.total_index_size_bytes /
-                                                self._hardware_configuration.row_buffer_size_bytes))
             processable_indices = total_rows_for_configurable_data // whole_rows_to_index
             data_rows = total_rows_for_configurable_data - total_rows_for_configurable_data % whole_rows_to_index
 
@@ -481,6 +481,11 @@ class BlimpIndexBankLayoutConfiguration(
         limit_records = total_indices_processable
         if self._record_generator.get_max_records() is not None:
             limit_records = min(limit_records, self._record_generator.get_max_records())
+
+            if whole_indices_to_row_buffer >= 1:
+                total_rows_for_indices = int(math.ceil(limit_records / whole_indices_to_row_buffer))
+            else:
+                total_rows_for_indices = limit_records * whole_rows_to_index
 
         self._layout_metadata = BlimpLayoutMetadata(
             total_rows_for_records=total_rows_for_indices,
