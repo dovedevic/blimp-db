@@ -1,5 +1,7 @@
 import typing
 
+from src.utils import bitmanip
+
 
 class RuntimeResult:
     """Defines a list of simulation steps, runtimes (in ns), and actions"""
@@ -67,3 +69,30 @@ class HitmapResult:
                         bit_indexes.append(bitmaps_processed)
                     bitmaps_processed += 1
         return HitmapResult(bit_indexes)
+
+
+class MemoryArrayResult:
+    """Defines the result of a memory-array-returning query."""
+    def __init__(self, result_array: typing.List[object]=list):
+        self.result_array = result_array
+        self.result_count = len(self.result_array)
+
+    def save(self, path: str):
+        """Save the array result"""
+        with open(path, 'w') as fp:
+            fp.write(f"hits: {self.result_count}\n")
+            fp.write(f"array items: [\n")
+            for array_item in self.result_array:
+                fp.write(f"\t{str(array_item)},\n")
+            fp.write("]")
+
+    @staticmethod
+    def from_byte_array(byte_array: list, element_width: int, cast_as: callable=int):
+        """Given a byte array, fetch all array values and attempt to cast them"""
+        assert len(byte_array) % element_width == 0, "there is not a integer multiple number of values in this array"
+        values = [
+            cast_as(
+                bitmanip.byte_array_to_int(byte_array[n:n+element_width])
+            ) for n in range(0, len(byte_array), element_width)
+        ]
+        return MemoryArrayResult(values)
