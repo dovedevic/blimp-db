@@ -20,7 +20,7 @@ class BlimpHashmapHitmapPayloadJoin(
             hitmap_index: int = 0,
             return_labels: bool=False,
             **kwargs
-    ) -> (RuntimeResult, MemoryArrayResult):
+    ) -> (RuntimeResult, MemoryArrayResult, HitmapResult):
         """
         Perform an BLIMP 32-bit Hash Probe operation on 32-bit keys. This assumes the database configuration
         parameter `total_index_size_bytes` is only referencing the entire key, not a multikey, and that the key is 32
