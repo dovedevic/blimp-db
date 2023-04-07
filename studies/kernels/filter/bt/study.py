@@ -35,7 +35,7 @@ generic_hardware_configuration = {
     "blimp_frequency": 200000000,
     "time_to_v0_transfer_ns": 5,
     "blimp_processor_bit_architecture": 64,
-    "ambit_compute_register_rows": 6,
+    "ambit_compute_register_rows": 7,
     "ambit_dcc_rows": 2,
     "blimp_extension_popcount": True,
     "blimpv_extension_vpopcount": True,
@@ -54,7 +54,8 @@ generic_database_configuration = {
 generic_query_params = {
     "pi_subindex_offset_bytes": 0,
     "pi_element_size_bytes": KEY_SIZE_BYTES,
-    "value": 1995,
+    "value_low": 0,
+    "value_high": 1995,
     "return_labels": True,
     "hitmap_index": 0
 }
@@ -77,12 +78,12 @@ from src.hardware.architectures import AmbitBank, BlimpBank, BlimpVectorBank, Bl
 
 from src.simulators.hardware import SimulatedAmbitBank, SimulatedBlimpBank, SimulatedBlimpVBank, SimulatedBlimpAmbitBank
 
-from src.queries.filter.lt.ambit import AmbitHitmapLessThan
-from src.queries.filter.lt.blimp import BlimpHitmapLessThan
-from src.queries.filter.lt.blimpv import BlimpVHitmapLessThan
-from src.queries.filter.lt.blimp_ambit import BlimpAmbitHitmapLessThan
-from src.queries.filter.lt.blimpv_bitweave import BlimpVBitweaveHitmapLessThan
-from src.queries.filter.lt.blimp_bitweave import BlimpBitweaveHitmapLessThan
+from src.queries.filter.bt.ambit import AmbitHitmapBetween
+from src.queries.filter.bt.blimp import BlimpHitmapBetween
+from src.queries.filter.bt.blimpv import BlimpVHitmapBetween
+from src.queries.filter.bt.blimp_ambit import BlimpAmbitHitmapBetween
+# from src.queries.filter.bt.blimpv_bitweave import BlimpVBitweaveHitmapBetween  # TODO
+# from src.queries.filter.bt.blimp_bitweave import BlimpBitweaveHitmapBetween  # TODO
 
 ambit_studies = [
     QueryStudy(
@@ -91,7 +92,7 @@ ambit_studies = [
         database_configuration_type=AmbitHitmapDatabaseConfiguration,
         hardware_type=AmbitBank,
         simulator_type=SimulatedAmbitBank,
-        query_type=AmbitHitmapLessThan,
+        query_type=AmbitHitmapBetween,
         name="ambit",
     ),
 ]
@@ -103,18 +104,18 @@ blimp_studies = [
         database_configuration_type=BlimpHitmapDatabaseConfiguration,
         hardware_type=BlimpBank,
         simulator_type=SimulatedBlimpBank,
-        query_type=BlimpHitmapLessThan,
+        query_type=BlimpHitmapBetween,
         name="blimp",
     ),
-    QueryStudy(
-        layout_configuration_type=BlimpHitmapIndexBitweaveBankLayoutConfiguration,
-        hardware_configuration_type=BlimpHardwareConfiguration,
-        database_configuration_type=BlimpHitmapDatabaseConfiguration,
-        hardware_type=BlimpBank,
-        simulator_type=SimulatedBlimpBank,
-        query_type=BlimpBitweaveHitmapLessThan,
-        name="blimp bitweave",
-    ),
+    #QueryStudy(
+    #    layout_configuration_type=BlimpHitmapIndexBitweaveBankLayoutConfiguration,
+    #    hardware_configuration_type=BlimpHardwareConfiguration,
+    #    database_configuration_type=BlimpHitmapDatabaseConfiguration,
+    #    hardware_type=BlimpBank,
+    #    simulator_type=SimulatedBlimpBank,
+    #    query_type=BlimpBitweaveHitmapBetween,
+    #    name="blimp bitweave",
+    #),
 ]
 
 blimpv_studies = [
@@ -124,18 +125,18 @@ blimpv_studies = [
         database_configuration_type=BlimpHitmapDatabaseConfiguration,
         hardware_type=BlimpVectorBank,
         simulator_type=SimulatedBlimpVBank,
-        query_type=BlimpVHitmapLessThan,
+        query_type=BlimpVHitmapBetween,
         name="blimpv",
     ),
-    QueryStudy(
-        layout_configuration_type=BlimpHitmapIndexBitweaveBankLayoutConfiguration,
-        hardware_configuration_type=BlimpVectorHardwareConfiguration,
-        database_configuration_type=BlimpHitmapDatabaseConfiguration,
-        hardware_type=BlimpVectorBank,
-        simulator_type=SimulatedBlimpVBank,
-        query_type=BlimpVBitweaveHitmapLessThan,
-        name="blimpv bitweave",
-    ),
+    #QueryStudy(
+    #    layout_configuration_type=BlimpHitmapIndexBitweaveBankLayoutConfiguration,
+    #    hardware_configuration_type=BlimpVectorHardwareConfiguration,
+    #    database_configuration_type=BlimpHitmapDatabaseConfiguration,
+    #    hardware_type=BlimpVectorBank,
+    #    simulator_type=SimulatedBlimpVBank,
+    #    query_type=BlimpVBitweaveHitmapBetween,
+    #    name="blimpv bitweave",
+    #),
 ]
 
 blimp_ambit_studies = [
@@ -145,7 +146,7 @@ blimp_ambit_studies = [
         database_configuration_type=BlimpPlusAmbitHitmapDatabaseConfiguration,
         hardware_type=BlimpAmbitBank,
         simulator_type=SimulatedBlimpAmbitBank,
-        query_type=BlimpAmbitHitmapLessThan,
+        query_type=BlimpAmbitHitmapBetween,
         name="blimp ambit",
     ),
 ]

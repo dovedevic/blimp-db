@@ -10,7 +10,7 @@ from src.generators.record_generators import BoundedRandomKeyNullDataRecordGener
 PARALLELISM_FACTOR = 512
 KEY_SIZE_BYTES = 2
 BANK_SIZE_BYTES = 33554432
-RECORD_LIMITER = math.ceil(600000000 * KEY_SIZE_BYTES / PARALLELISM_FACTOR)
+RECORD_LIMITER = math.ceil(600000000 / PARALLELISM_FACTOR)
 
 record_generator_configuration = {
     "pi_record_size": KEY_SIZE_BYTES,
@@ -75,7 +75,7 @@ from src.data_layout_mappings.architectures import BlimpAmbitIndexHitmapBankLayo
 
 from src.hardware.architectures import AmbitBank, BlimpBank, BlimpVectorBank, BlimpAmbitBank
 
-from src.simulators import SimulatedAmbitBank, SimulatedBlimpBank, SimulatedBlimpVBank, SimulatedBlimpAmbitBank
+from src.simulators.hardware import SimulatedAmbitBank, SimulatedBlimpBank, SimulatedBlimpVBank, SimulatedBlimpAmbitBank
 
 from src.queries.filter.lte.ambit import AmbitHitmapLessThanOrEqual
 from src.queries.filter.lte.blimp import BlimpHitmapLessThanOrEqual

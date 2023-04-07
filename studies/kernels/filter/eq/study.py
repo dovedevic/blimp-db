@@ -10,7 +10,7 @@ from src.generators.record_generators import BoundedRandomKeyNullDataRecordGener
 PARALLELISM_FACTOR = 512
 KEY_SIZE_BYTES = 2
 BANK_SIZE_BYTES = 33554432
-RECORD_LIMITER = math.ceil(600000000 * KEY_SIZE_BYTES / PARALLELISM_FACTOR)
+RECORD_LIMITER = math.ceil(600000000 / PARALLELISM_FACTOR)
 
 record_generator_configuration = {
     "pi_record_size": KEY_SIZE_BYTES,
@@ -54,7 +54,7 @@ generic_database_configuration = {
 generic_query_params = {
     "pi_subindex_offset_bytes": 0,
     "pi_element_size_bytes": KEY_SIZE_BYTES,
-    "value": 1,
+    "value": 1995,
     "return_labels": True,
     "hitmap_index": 0
 }
@@ -75,7 +75,7 @@ from src.data_layout_mappings.architectures import BlimpAmbitIndexHitmapBankLayo
 
 from src.hardware.architectures import AmbitBank, BlimpBank, BlimpVectorBank, BlimpAmbitBank
 
-from src.simulators import SimulatedAmbitBank, SimulatedBlimpBank, SimulatedBlimpVBank, SimulatedBlimpAmbitBank
+from src.simulators.hardware import SimulatedAmbitBank, SimulatedBlimpBank, SimulatedBlimpVBank, SimulatedBlimpAmbitBank
 
 from src.queries.filter.eq.ambit import AmbitHitmapEqual
 from src.queries.filter.eq.blimp import BlimpHitmapEqual
@@ -98,15 +98,15 @@ ambit_studies = [
         query_type=AmbitHitmapEqual,
         name="ambit",
     ),
-    # QueryStudy(
-    #     layout_configuration_type=AmbitIndexHitmapBankLayoutConfiguration,
-    #     hardware_configuration_type=AmbitHardwareConfiguration,
-    #     database_configuration_type=AmbitHitmapDatabaseConfiguration,
-    #     hardware_type=AmbitBank,
-    #     simulator_type=SimulatedAmbitBank,
-    #     query_type=AmbitEarlyTerminationHitmapEqual,
-    #     name="ambit early termination",
-    # )
+    QueryStudy(
+        layout_configuration_type=AmbitIndexHitmapBankLayoutConfiguration,
+        hardware_configuration_type=AmbitHardwareConfiguration,
+        database_configuration_type=AmbitHitmapDatabaseConfiguration,
+        hardware_type=AmbitBank,
+        simulator_type=SimulatedAmbitBank,
+        query_type=AmbitEarlyTerminationHitmapEqual,
+        name="ambit early termination",
+    )
 ]
 
 blimp_studies = [
@@ -128,15 +128,15 @@ blimp_studies = [
         query_type=BlimpBitweaveHitmapEqual,
         name="blimp bitweave",
     ),
-    # QueryStudy(
-    #     layout_configuration_type=BlimpHitmapIndexBitweaveBankLayoutConfiguration,
-    #     hardware_configuration_type=BlimpHardwareConfiguration,
-    #     database_configuration_type=BlimpHitmapDatabaseConfiguration,
-    #     hardware_type=BlimpBank,
-    #     simulator_type=SimulatedBlimpBank,
-    #     query_type=BlimpEarlyTerminationBitweaveHitmapEqual,
-    #     name="blimp bitweave early termination",
-    # )
+    QueryStudy(
+        layout_configuration_type=BlimpHitmapIndexBitweaveBankLayoutConfiguration,
+        hardware_configuration_type=BlimpHardwareConfiguration,
+        database_configuration_type=BlimpHitmapDatabaseConfiguration,
+        hardware_type=BlimpBank,
+        simulator_type=SimulatedBlimpBank,
+        query_type=BlimpEarlyTerminationBitweaveHitmapEqual,
+        name="blimp bitweave early termination",
+    )
 ]
 
 blimpv_studies = [
@@ -158,15 +158,15 @@ blimpv_studies = [
         query_type=BlimpVBitweaveHitmapEqual,
         name="blimpv bitweave",
     ),
-    # QueryStudy(
-    #     layout_configuration_type=BlimpHitmapIndexBitweaveBankLayoutConfiguration,
-    #     hardware_configuration_type=BlimpVectorHardwareConfiguration,
-    #     database_configuration_type=BlimpHitmapDatabaseConfiguration,
-    #     hardware_type=BlimpVectorBank,
-    #     simulator_type=SimulatedBlimpVBank,
-    #     query_type=BlimpVEarlyTerminationBitweaveHitmapEqual,
-    #     name="blimpv bitweave early termination",
-    # )
+    QueryStudy(
+        layout_configuration_type=BlimpHitmapIndexBitweaveBankLayoutConfiguration,
+        hardware_configuration_type=BlimpVectorHardwareConfiguration,
+        database_configuration_type=BlimpHitmapDatabaseConfiguration,
+        hardware_type=BlimpVectorBank,
+        simulator_type=SimulatedBlimpVBank,
+        query_type=BlimpVEarlyTerminationBitweaveHitmapEqual,
+        name="blimpv bitweave early termination",
+    )
 ]
 
 blimp_ambit_studies = [
@@ -179,15 +179,15 @@ blimp_ambit_studies = [
         query_type=BlimpAmbitHitmapEqual,
         name="blimp ambit",
     ),
-    # QueryStudy(
-    #     layout_configuration_type=BlimpAmbitIndexHitmapBankLayoutConfiguration,
-    #     hardware_configuration_type=BlimpPlusAmbitHardwareConfiguration,
-    #     database_configuration_type=BlimpPlusAmbitHitmapDatabaseConfiguration,
-    #     hardware_type=BlimpAmbitBank,
-    #     simulator_type=SimulatedBlimpAmbitBank,
-    #     query_type=BlimpAmbitEarlyTerminationHitmapEqual,
-    #     name="blimp ambit early termination",
-    # )
+    QueryStudy(
+        layout_configuration_type=BlimpAmbitIndexHitmapBankLayoutConfiguration,
+        hardware_configuration_type=BlimpPlusAmbitHardwareConfiguration,
+        database_configuration_type=BlimpPlusAmbitHitmapDatabaseConfiguration,
+        hardware_type=BlimpAmbitBank,
+        simulator_type=SimulatedBlimpAmbitBank,
+        query_type=BlimpAmbitEarlyTerminationHitmapEqual,
+        name="blimp ambit early termination",
+    )
 ]
 
 
