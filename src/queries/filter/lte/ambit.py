@@ -93,6 +93,7 @@ class _AmbitHitmapLessThanOrEqual(
                 pi_subindex_offset_bytes * 8
 
             # Ambit t0 becomes m_lt
+            runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
             runtime += self.simulator.ambit_copy(
                 src_row=self.simulator.ambit_c0,
                 dst_row=self.simulator.ambit_t0,
@@ -100,6 +101,7 @@ class _AmbitHitmapLessThanOrEqual(
             )
 
             # Ambit t1 becomes hitmap initial / m_eq
+            runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
             runtime += self.simulator.ambit_copy(
                 src_row=hitmap_row,
                 dst_row=self.simulator.ambit_t1,
@@ -210,6 +212,11 @@ class _AmbitHitmapLessThanOrEqual(
                 )
 
                 # depending on the bit of the value for this ambit row, copy a 0 or 1
+                runtime += self.simulator.cpu_cycle(
+                    cycles=1,
+                    label="cmp negate",
+                    return_labels=return_labels
+                )
                 runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
                 if bit_at_value:
                     runtime += self.simulator.ambit_copy(
@@ -246,6 +253,11 @@ class _AmbitHitmapLessThanOrEqual(
                 )
 
                 # dup a control row for this bit
+                runtime += self.simulator.cpu_cycle(
+                    cycles=1,
+                    label="cmp negate",
+                    return_labels=return_labels
+                )
                 runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
                 if bit_at_value:
                     runtime += self.simulator.ambit_copy(
@@ -341,13 +353,13 @@ class _AmbitHitmapLessThanOrEqual(
 
             runtime += self.simulator.cpu_cycle(
                 cycles=2,
-                label="; inner loop return",
+                label="; outer loop return",
                 return_labels=return_labels
             )
 
         runtime += self.simulator.cpu_cycle(
-            cycles=2,
-            label="; outer loop return",
+            cycles=1,
+            label="; end",
             return_labels=return_labels
         )
 
