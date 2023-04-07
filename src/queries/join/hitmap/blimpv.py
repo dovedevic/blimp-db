@@ -1,7 +1,5 @@
 import math
 
-from typing import Union
-
 from src.queries.query import Query
 from src.simulators.result import RuntimeResult, HitmapResult
 from src.data_layout_mappings.architectures import BlimpIndexHitmapBankLayoutConfiguration
