@@ -4,14 +4,13 @@ from pydantic import Field
 
 from src.configurations.hardware.ambit import AmbitHardwareConfiguration
 from src.configurations.database.ambit import AmbitDatabaseConfiguration, AmbitHitmapDatabaseConfiguration
-from hardware import Bank
-from generators import DatabaseRecordGenerator
-from data_layout_mappings import RowMappingSet, RowMapping, LayoutMetadata, DataLayoutConfiguration
-from data_layout_mappings.methods import \
-    perform_record_msb_vertical_layout, \
-    perform_index_msb_vertical_layout, \
-    place_hitmap
-from utils.generic import ceil_to_multiple
+from src.hardware import Bank
+from src.generators import DatabaseRecordGenerator
+from src.data_layout_mappings import RowMappingSet, RowMapping, LayoutMetadata, DataLayoutConfiguration
+from src.data_layout_mappings.architectures.hitmap import \
+    GenericHitmapBankLayoutConfiguration, GenericHitmapRowMapping, GenericHitmapLayoutMetadata
+from src.data_layout_mappings.methods import perform_record_msb_vertical_layout, perform_index_msb_vertical_layout
+from src.utils.generic import ceil_to_multiple
 
 
 class AmbitRowMapping(RowMappingSet):
@@ -36,22 +35,17 @@ class AmbitLayoutMetadata(LayoutMetadata):
         description="The total number of rows reserved for Ambit compute")
 
 
-class AmbitHitmapRowMapping(AmbitRowMapping):
+class AmbitHitmapRowMapping(AmbitRowMapping, GenericHitmapRowMapping):
     """Standard Ambit row mappings but with space for hitmaps"""
-    hitmaps: RowMapping = Field(
-        description="The start row address for ambit hitmaps and the number of rows this region contains")
+    pass
 
 
-class AmbitHitmapLayoutMetadata(AmbitLayoutMetadata):
+class AmbitHitmapLayoutMetadata(AmbitLayoutMetadata, GenericHitmapLayoutMetadata):
     """Metadata for a standard BLIMP layout but with hitmaps"""
-    total_rows_for_hitmaps: int = Field(
-        description="The total number of rows reserved for hitmaps")
+    pass
 
 
-class GenericAmbitBankLayoutConfiguration(
-    DataLayoutConfiguration
-):
-
+class GenericAmbitBankLayoutConfiguration(DataLayoutConfiguration):
     def reset_ambit_control_rows(self, bank: Bank):
         """Reset/Initialize all ambit controlled rows; This sets the C-group, and defines the B-group rows"""
         self._logger.info("initializing ambit-reserved control and bitwise rows, temporary ambit D-group space")
@@ -76,22 +70,9 @@ class GenericAmbitBankLayoutConfiguration(
             bank.set_raw_row(self._row_mapping_set.ambit_compute_rows[0] + t, _ambit_zero)
 
 
-class GenericAmbitHitmapBankLayoutConfiguration(
-    GenericAmbitBankLayoutConfiguration
-):
-    def reset_hitmaps_to_value(self, bank: Bank, value: bool):
-        for hitmap in range(self._database_configuration.hitmap_count):
-            self.reset_hitmap_index_to_value(bank, value, hitmap)
-
-    def reset_hitmap_index_to_value(self, bank: Bank, value: bool, index: int):
-        rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
-        place_hitmap(
-            self._row_mapping_set.hitmaps[0] + index * rows_per_hitmap,
-            rows_per_hitmap,
-            bank,
-            value,
-            self._layout_metadata.total_records_processable
-        )
+class GenericAmbitHitmapBankLayoutConfiguration(GenericAmbitBankLayoutConfiguration,
+                                                GenericHitmapBankLayoutConfiguration):
+    pass
 
 
 class StandardAmbitBankLayoutConfiguration(
@@ -144,9 +125,6 @@ class StandardAmbitBankLayoutConfiguration(
             database: AmbitDatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         # User-defined temporary rows (ambit D group) for ambit calculations
         total_rows_for_temporary_ambit_compute = self._database_configuration.ambit_temporary_bits
@@ -272,9 +250,6 @@ class AmbitIndexBankLayoutConfiguration(
             database: AmbitDatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         # User-defined temporary rows (ambit D group) for ambit calculations
         total_rows_for_temporary_ambit_compute = self._database_configuration.ambit_temporary_bits
@@ -404,9 +379,6 @@ class AmbitHitmapBankLayoutConfiguration(
     ):
         super().__init__(hardware, database, generator)
 
-        self._hardware_configuration = hardware
-        self._database_configuration = database
-
         # User-defined temporary rows (ambit D group) for ambit calculations
         total_rows_for_temporary_ambit_compute = self._database_configuration.ambit_temporary_bits
 
@@ -515,11 +487,6 @@ class AmbitHitmapBankLayoutConfiguration(
             limit=self.layout_metadata.total_records_processable
         )
 
-        self.reset_hitmaps_to_value(
-            bank=bank,
-            value=False
-        )
-
 
 class AmbitIndexHitmapBankLayoutConfiguration(
     GenericAmbitHitmapBankLayoutConfiguration,
@@ -573,9 +540,6 @@ class AmbitIndexHitmapBankLayoutConfiguration(
             database: AmbitHitmapDatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         # User-defined temporary rows (ambit D group) for ambit calculations
         total_rows_for_temporary_ambit_compute = self._database_configuration.ambit_temporary_bits
@@ -683,9 +647,4 @@ class AmbitIndexHitmapBankLayoutConfiguration(
             bank=bank,
             record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
-        )
-
-        self.reset_hitmaps_to_value(
-            bank=bank,
-            value=False
         )

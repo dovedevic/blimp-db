@@ -5,11 +5,13 @@ from typing import Union
 
 from src.configurations.hardware.blimp import BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration
 from src.configurations.database.blimp import BlimpHitmapDatabaseConfiguration, BlimpDatabaseConfiguration
-from hardware import Bank
-from generators import DatabaseRecordGenerator
-from data_layout_mappings import RowMappingSet, RowMapping, LayoutMetadata, DataLayoutConfiguration
-from data_layout_mappings.methods import perform_record_aligned_horizontal_layout, place_hitmap, \
+from src.hardware import Bank
+from src.generators import DatabaseRecordGenerator
+from src.data_layout_mappings import RowMappingSet, RowMapping, LayoutMetadata, DataLayoutConfiguration
+from src.data_layout_mappings.methods import perform_record_aligned_horizontal_layout, \
     perform_index_aligned_horizontal_layout, perform_record_msb_vertical_layout, perform_index_msb_vertical_layout
+from src.data_layout_mappings.architectures.hitmap import \
+    GenericHitmapBankLayoutConfiguration, GenericHitmapRowMapping, GenericHitmapLayoutMetadata
 
 
 class BlimpRowMapping(RowMappingSet):
@@ -30,34 +32,14 @@ class BlimpLayoutMetadata(LayoutMetadata):
         description="The total number of rows reserved for temporary BLIMP data or stack space")
 
 
-class BlimpHitmapRowMapping(BlimpRowMapping):
+class BlimpHitmapRowMapping(BlimpRowMapping, GenericHitmapRowMapping):
     """Standard BLIMP row mappings but with space for hitmaps"""
-    hitmaps: RowMapping = Field(
-        description="The start row address for blimp hitmaps and the number of rows this region contains")
+    pass
 
 
-class BlimpHitmapLayoutMetadata(BlimpLayoutMetadata):
+class BlimpHitmapLayoutMetadata(BlimpLayoutMetadata, GenericHitmapLayoutMetadata):
     """Metadata for a standard BLIMP layout but with hitmaps"""
-    total_rows_for_hitmaps: int = Field(
-        description="The total number of rows reserved for hitmaps")
-
-
-class GenericBlimpHitmapBankLayoutConfiguration(
-    DataLayoutConfiguration
-):
-    def reset_hitmaps_to_value(self, bank: Bank, value: bool):
-        for hitmap in range(self._database_configuration.hitmap_count):
-            self.reset_hitmap_index_to_value(bank, value, hitmap)
-
-    def reset_hitmap_index_to_value(self, bank: Bank, value: bool, index: int):
-        rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
-        place_hitmap(
-            self._row_mapping_set.hitmaps[0] + index * rows_per_hitmap,
-            rows_per_hitmap,
-            bank,
-            value,
-            self._layout_metadata.total_records_processable
-        )
+    pass
 
 
 class StandardBlimpBankLayoutConfiguration(
@@ -101,9 +83,6 @@ class StandardBlimpBankLayoutConfiguration(
             database: BlimpDatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         # User-defined rows dedicated to storing BLIMP compute code
         total_rows_for_blimp_code_region = int(
@@ -200,7 +179,7 @@ class StandardBlimpBankLayoutConfiguration(
 
 
 class BlimpHitmapBankLayoutConfiguration(
-    GenericBlimpHitmapBankLayoutConfiguration,
+    GenericHitmapBankLayoutConfiguration,
     DataLayoutConfiguration[
         Union[BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration],
         BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
@@ -243,9 +222,6 @@ class BlimpHitmapBankLayoutConfiguration(
             database: BlimpHitmapDatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         # User-defined rows dedicated to storing BLIMP compute code
         total_rows_for_blimp_code_region = int(
@@ -360,7 +336,6 @@ class BlimpHitmapBankLayoutConfiguration(
 
     def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many records into the bank as possible"""
-        super().perform_data_layout(bank)
         assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
         assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
 
@@ -371,16 +346,6 @@ class BlimpHitmapBankLayoutConfiguration(
             record_generator=self._record_generator,
             limit=self.layout_metadata.total_records_processable
         )
-
-        rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
-        for hitmap in range(self._database_configuration.hitmap_count):
-            place_hitmap(
-                self._row_mapping_set.hitmaps[0] + hitmap * rows_per_hitmap,
-                rows_per_hitmap,
-                bank,
-                True,
-                self.layout_metadata.total_records_processable
-            )
 
 
 class BlimpIndexBankLayoutConfiguration(
@@ -424,9 +389,6 @@ class BlimpIndexBankLayoutConfiguration(
             database: BlimpDatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         # User-defined rows dedicated to storing BLIMP compute code
         total_rows_for_blimp_code_region = int(
@@ -528,7 +490,7 @@ class BlimpIndexBankLayoutConfiguration(
 
 
 class BlimpIndexHitmapBankLayoutConfiguration(
-    GenericBlimpHitmapBankLayoutConfiguration,
+    GenericHitmapBankLayoutConfiguration,
     DataLayoutConfiguration[
         Union[BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration],
         BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
@@ -571,9 +533,6 @@ class BlimpIndexHitmapBankLayoutConfiguration(
             database: BlimpHitmapDatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         # User-defined rows dedicated to storing BLIMP compute code
         total_rows_for_blimp_code_region = int(
@@ -686,17 +645,16 @@ class BlimpIndexHitmapBankLayoutConfiguration(
 
     def perform_data_layout(self, bank: Bank):
         """Given a bank hardware and record generator, attempt to place as many indices into the bank as possible"""
-        super().perform_data_layout(bank)
+        assert self._hardware_configuration.row_buffer_size_bytes == bank.hardware_configuration.row_buffer_size_bytes
+        assert self._hardware_configuration.bank_size_bytes == bank.hardware_configuration.bank_size_bytes
 
-        rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
-        for hitmap in range(self._database_configuration.hitmap_count):
-            place_hitmap(
-                self._row_mapping_set.hitmaps[0] + hitmap * rows_per_hitmap,
-                rows_per_hitmap,
-                bank,
-                True,
-                self.layout_metadata.total_records_processable
-            )
+        perform_index_aligned_horizontal_layout(
+            base_row=self.row_mapping.data[0],
+            row_count=self.row_mapping.data[1],
+            bank=bank,
+            record_generator=self._record_generator,
+            limit=self.layout_metadata.total_records_processable
+        )
 
 
 class BlimpRecordBitweaveBankLayoutConfiguration(
@@ -741,9 +699,6 @@ class BlimpRecordBitweaveBankLayoutConfiguration(
             database: BlimpDatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         # User-defined rows dedicated to storing BLIMP compute code
         total_rows_for_blimp_code_region = int(
@@ -858,9 +813,6 @@ class BlimpIndexBitweaveBankLayoutConfiguration(
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
 
-        self._hardware_configuration = hardware
-        self._database_configuration = database
-
         # User-defined rows dedicated to storing BLIMP compute code
         total_rows_for_blimp_code_region = int(
             math.ceil(
@@ -932,7 +884,7 @@ class BlimpIndexBitweaveBankLayoutConfiguration(
 
 
 class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
-    GenericBlimpHitmapBankLayoutConfiguration,
+    GenericHitmapBankLayoutConfiguration,
     DataLayoutConfiguration[
         BlimpHardwareConfiguration, BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
     ]
@@ -976,9 +928,6 @@ class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
             database: BlimpHitmapDatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         # User-defined rows dedicated to storing BLIMP compute code
         total_rows_for_blimp_code_region = int(
@@ -1085,19 +1034,9 @@ class BlimpHitmapRecordBitweaveBankLayoutConfiguration(
             limit=self.layout_metadata.total_records_processable
         )
 
-        rows_per_hitmap = self._layout_metadata.total_rows_for_hitmaps // self._database_configuration.hitmap_count
-        for hitmap in range(self._database_configuration.hitmap_count):
-            place_hitmap(
-                self._row_mapping_set.hitmaps[0] + hitmap * rows_per_hitmap,
-                rows_per_hitmap,
-                bank,
-                False,
-                self.layout_metadata.total_records_processable
-            )
-
 
 class BlimpHitmapIndexBitweaveBankLayoutConfiguration(
-    GenericBlimpHitmapBankLayoutConfiguration,
+    GenericHitmapBankLayoutConfiguration,
     DataLayoutConfiguration[
         Union[BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration],
         BlimpHitmapDatabaseConfiguration, BlimpHitmapLayoutMetadata, BlimpHitmapRowMapping
@@ -1142,9 +1081,6 @@ class BlimpHitmapIndexBitweaveBankLayoutConfiguration(
             database: BlimpHitmapDatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         # User-defined rows dedicated to storing BLIMP compute code
         total_rows_for_blimp_code_region = int(

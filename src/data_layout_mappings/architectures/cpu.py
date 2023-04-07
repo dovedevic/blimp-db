@@ -2,16 +2,16 @@ import math
 
 from src.configurations.hardware import HardwareConfiguration
 from src.configurations.database import DatabaseConfiguration
-from hardware import Bank
-from generators import DatabaseRecordGenerator
-from data_layout_mappings.methods import \
+from src.hardware import Bank
+from src.generators import DatabaseRecordGenerator
+from src.data_layout_mappings.methods import \
     perform_record_packed_horizontal_layout, \
     perform_record_aligned_horizontal_layout, \
     perform_index_packed_horizontal_layout, \
     perform_index_aligned_horizontal_layout, \
     perform_record_msb_vertical_layout, \
     perform_index_msb_vertical_layout
-from data_layout_mappings import RowMappingSet, LayoutMetadata, DataLayoutConfiguration
+from src.data_layout_mappings import RowMappingSet, LayoutMetadata, DataLayoutConfiguration
 
 
 class StandardPackedDataLayout(DataLayoutConfiguration):
@@ -47,9 +47,6 @@ class StandardPackedDataLayout(DataLayoutConfiguration):
             database: DatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         self._row_mapping_set = RowMappingSet(
             data=(0, hardware.bank_rows)
@@ -111,9 +108,6 @@ class StandardAlignedDataLayout(DataLayoutConfiguration):
             database: DatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         whole_records_to_row_buffer = self._hardware_configuration.row_buffer_size_bytes // \
             self._database_configuration.total_record_size_bytes
@@ -191,9 +185,6 @@ class StandardPackedIndexDataLayout(DataLayoutConfiguration):
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
 
-        self._hardware_configuration = hardware
-        self._database_configuration = database
-
         self._row_mapping_set = RowMappingSet(
             data=(0, hardware.bank_rows)
         )
@@ -254,9 +245,6 @@ class StandardAlignedIndexDataLayout(DataLayoutConfiguration):
             database: DatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         whole_indices_to_row_buffer = self._hardware_configuration.row_buffer_size_bytes // \
             self._database_configuration.total_index_size_bytes
@@ -335,9 +323,6 @@ class StandardBitweaveVerticalRecordDataLayout(DataLayoutConfiguration):
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
 
-        self._hardware_configuration = hardware
-        self._database_configuration = database
-
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (hardware.bank_rows // (self._database_configuration.total_record_size_bytes * 8))
 
@@ -402,9 +387,6 @@ class StandardBitweaveVerticalIndexDataLayout(DataLayoutConfiguration):
             database: DatabaseConfiguration,
             generator: DatabaseRecordGenerator):
         super().__init__(hardware, database, generator)
-
-        self._hardware_configuration = hardware
-        self._database_configuration = database
 
         total_records_processable = self._hardware_configuration.row_buffer_size_bytes * 8 * \
             (hardware.bank_rows // (self._database_configuration.total_index_size_bytes * 8))
