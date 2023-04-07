@@ -1,5 +1,5 @@
-from generators import DatabaseRecordGenerator
-from generators.data_generators import ConstantDataGenerator, UniformRandomDataGenerator, IncrementalDataGenerator
+from src.generators import DatabaseRecordGenerator
+from src.generators.data_generators import ConstantDataGenerator, UniformRandomDataGenerator, IncrementalDataGenerator
 
 
 class RandomKeyConstantDataRecordGenerator(DatabaseRecordGenerator):

@@ -1,4 +1,4 @@
-from generators import DataGenerator
+from src.generators import DataGenerator
 
 
 class ConstantDataGenerator(DataGenerator):

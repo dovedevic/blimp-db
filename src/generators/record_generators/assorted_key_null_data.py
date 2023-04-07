@@ -1,5 +1,5 @@
-from generators import DatabaseRecordGenerator
-from generators.data_generators import \
+from src.generators import DatabaseRecordGenerator
+from src.generators.data_generators import \
     NullDataGenerator, UniformRandomDataGenerator, IncrementalDataGenerator, BoundedUniformRandomDataGenerator
 
 

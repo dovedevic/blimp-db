@@ -1,6 +1,6 @@
 import random
 
-from generators import DataGenerator
+from src.generators import DataGenerator
 
 
 class BoundedUniformRandomDataGenerator(DataGenerator):
