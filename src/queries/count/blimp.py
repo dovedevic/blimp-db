@@ -100,6 +100,6 @@ class BlimpHitmapCount(
 
         # We have finished the query, return a dummy result
 
-        result = HitmapResult([])
+        result = HitmapResult([], 0)
         result.result_count = count
         return runtime, result
