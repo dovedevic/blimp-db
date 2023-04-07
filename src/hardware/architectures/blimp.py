@@ -1,5 +1,5 @@
-from hardware import Bank
-from configurations.hardware.blimp import BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration
+from src.hardware import Bank
+from src.configurations.hardware.blimp import BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration
 
 
 class BlimpBank(

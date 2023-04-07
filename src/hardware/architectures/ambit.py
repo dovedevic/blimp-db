@@ -1,6 +1,6 @@
-from hardware import Bank
-from configurations.hardware.ambit import AmbitHardwareConfiguration
-from utils.bitmanip import int_to_byte_array
+from src.hardware import Bank
+from src.configurations.hardware.ambit import AmbitHardwareConfiguration
+from src.utils.bitmanip import int_to_byte_array
 
 
 class AmbitBank(

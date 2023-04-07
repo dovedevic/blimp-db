@@ -4,8 +4,8 @@ import logging
 from typing import Generic, TypeVar
 
 from src.configurations import HardwareConfiguration
-from utils import performance
-from utils.bitmanip import byte_array_to_int, int_to_byte_array
+from src.utils import performance
+from src.utils.bitmanip import byte_array_to_int, int_to_byte_array
 
 
 HardwareConfig = TypeVar('HardwareConfig', bound=HardwareConfiguration)

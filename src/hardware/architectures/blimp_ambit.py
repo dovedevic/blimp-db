@@ -1,6 +1,6 @@
-from hardware import Bank
-from hardware.architectures import BlimpBank, AmbitBank, BlimpVectorBank
-from configurations.hardware.ambit import BlimpPlusAmbitHardwareConfiguration, \
+from src.hardware import Bank
+from src.hardware.architectures import BlimpBank, AmbitBank, BlimpVectorBank
+from src.configurations.hardware.ambit import BlimpPlusAmbitHardwareConfiguration, \
     BlimpVectorPlusAmbitHardwareConfiguration
 
 
