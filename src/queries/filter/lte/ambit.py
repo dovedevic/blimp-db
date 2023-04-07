@@ -214,7 +214,7 @@ class _AmbitHitmapLessThanOrEqual(
                 # depending on the bit of the value for this ambit row, copy a 0 or 1
                 runtime += self.simulator.cpu_cycle(
                     cycles=1,
-                    label="cmp negate",
+                    label="cmp bit",
                     return_labels=return_labels
                 )
                 runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
@@ -255,7 +255,7 @@ class _AmbitHitmapLessThanOrEqual(
                 # dup a control row for this bit
                 runtime += self.simulator.cpu_cycle(
                     cycles=1,
-                    label="cmp negate",
+                    label="cmp bit",
                     return_labels=return_labels
                 )
                 runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
