@@ -90,6 +90,7 @@ class _BlimpAmbitHitmapLessThan(
                 pi_subindex_offset_bytes * 8
 
             # Ambit t0 becomes m_lt
+            runtime += self.simulator.blimp_ambit_dispatch(return_labels=return_labels)
             runtime += self.simulator.ambit_copy(
                 src_row=self.simulator.ambit_c0,
                 dst_row=self.simulator.ambit_t0,
@@ -97,6 +98,7 @@ class _BlimpAmbitHitmapLessThan(
             )
 
             # Ambit t1 becomes hitmap initial / m_eq
+            runtime += self.simulator.blimp_ambit_dispatch(return_labels=return_labels)
             runtime += self.simulator.ambit_copy(
                 src_row=hitmap_row,
                 dst_row=self.simulator.ambit_t1,
@@ -131,6 +133,11 @@ class _BlimpAmbitHitmapLessThan(
 
                 # depending on the bit of the value for this ambit row, copy a 0 or 1
                 # Ambit t2 becomes VALUE[bit]
+                runtime += self.simulator.blimp_cycle(
+                    cycles=2,
+                    label="cmp bit",
+                    return_labels=return_labels
+                )
                 runtime += self.simulator.blimp_ambit_dispatch(return_labels=return_labels)
                 if bit_at_value:
                     runtime += self.simulator.ambit_copy(
@@ -202,6 +209,11 @@ class _BlimpAmbitHitmapLessThan(
                 )
 
                 # depending on the bit of the value for this ambit row, copy a 0 or 1
+                runtime += self.simulator.blimp_cycle(
+                    cycles=2,
+                    label="cmp bit",
+                    return_labels=return_labels
+                )
                 runtime += self.simulator.blimp_ambit_dispatch(return_labels=return_labels)
                 if bit_at_value:
                     runtime += self.simulator.ambit_copy(
@@ -238,6 +250,11 @@ class _BlimpAmbitHitmapLessThan(
                 )
 
                 # dup a control row for this bit
+                runtime += self.simulator.blimp_cycle(
+                    cycles=2,
+                    label="cmp bit",
+                    return_labels=return_labels
+                )
                 runtime += self.simulator.blimp_ambit_dispatch(return_labels=return_labels)
                 if bit_at_value:
                     runtime += self.simulator.ambit_copy(

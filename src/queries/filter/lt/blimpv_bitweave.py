@@ -193,6 +193,11 @@ class _BlimpVBitweaveHitmapLessThan(
                     return_labels=return_labels
                 )
 
+                runtime += self.simulator.blimp_cycle(
+                    cycles=2,
+                    label="cmp bit",
+                    return_labels=return_labels
+                )
                 if bit_at_value:
                     runtime += self.simulator.blimpv_alu_int_xnor_val(
                         register_a=self.simulator.blimp_v5,
