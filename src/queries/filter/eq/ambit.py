@@ -260,7 +260,11 @@ class _AmbitHitmapEquality(
                 return_labels=return_labels
             )
 
-        runtime += self.simulator.cpu_cycle(1, "; end", return_labels)
+        runtime += self.simulator.cpu_cycle(
+            cycles=1,
+            label="; end",
+            return_labels=return_labels
+        )
 
         # We have finished the query, fetch the hitmap to one single hitmap row
         hitmap_byte_array = []
