@@ -34,14 +34,16 @@ class RuntimeResult:
 
 class HitmapResult:
     """Defines the result of a hitmap-returning query. Returns the indexes of query-hit records"""
-    def __init__(self, result_record_indexes: typing.List[int]=list):
+    def __init__(self, result_record_indexes: typing.List[int], max_bits: int):
         self.result_record_indexes = result_record_indexes
+        self.max_bits = max_bits
         self.result_count = len(self.result_record_indexes)
 
     def save(self, path: str):
         """Save the simulation result"""
         with open(path, 'w') as fp:
             fp.write(f"hits: {self.result_count}\n")
+            fp.write(f"max_hits: {self.max_bits}\n")
             fp.write(f"indices: {self.result_record_indexes}\n")
 
     @staticmethod
@@ -68,7 +70,7 @@ class HitmapResult:
                     if (1 << (7 - b)) & byte > 0:
                         bit_indexes.append(bitmaps_processed)
                     bitmaps_processed += 1
-        return HitmapResult(bit_indexes)
+        return HitmapResult(bit_indexes, num_bits)
 
 
 class MemoryArrayResult:
