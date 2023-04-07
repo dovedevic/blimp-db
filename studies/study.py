@@ -2,10 +2,11 @@ from dataclasses import dataclass
 from typing import Type, Optional
 
 from src.hardware import Bank
-from src.queries import Query, RuntimeResult
+from src.queries import Query
 from src.configurations import HardwareConfiguration, DatabaseConfiguration
 from src.data_layout_mappings import DataLayoutConfiguration
 from src.simulators.hardware import SimulatedBank
+from src.simulators.result import RuntimeResult
 
 
 @dataclass
