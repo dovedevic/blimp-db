@@ -129,6 +129,11 @@ class _AmbitHitmapEquality(
                 )
 
                 # depending on the bit of the value for this ambit row, copy a 0 or 1
+                runtime += self.simulator.cpu_cycle(
+                    cycles=2,
+                    label="cmp bit",
+                    return_labels=return_labels
+                )
                 runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
                 if bit_at_value:
                     runtime += self.simulator.ambit_copy(
@@ -165,6 +170,11 @@ class _AmbitHitmapEquality(
                 )
 
                 # dup a control row for this bit
+                runtime += self.simulator.cpu_cycle(
+                    cycles=2,
+                    label="cmp bit",
+                    return_labels=return_labels
+                )
                 runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
                 if bit_at_value:
                     runtime += self.simulator.ambit_copy(
