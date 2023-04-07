@@ -1,4 +1,4 @@
-from hardware import Bank
+from src.hardware import Bank
 
 
 def place_hitmap(

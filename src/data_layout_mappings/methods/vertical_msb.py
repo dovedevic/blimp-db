@@ -1,6 +1,6 @@
-from generators import DatabaseRecordGenerator
-from hardware import Bank
-from utils import bitmanip
+from src.generators import DatabaseRecordGenerator
+from src.hardware import Bank
+from src.utils import bitmanip
 
 
 def perform_record_msb_vertical_layout(

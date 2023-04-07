@@ -1,5 +1,5 @@
-from generators import DatabaseRecordGenerator
-from hardware import Bank
+from src.generators import DatabaseRecordGenerator
+from src.hardware import Bank
 
 
 def perform_record_packed_horizontal_layout(
