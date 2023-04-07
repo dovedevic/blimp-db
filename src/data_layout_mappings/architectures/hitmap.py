@@ -1,9 +1,10 @@
+from pydantic import Field
+
 from src.data_layout_mappings.methods import place_hitmap
 from src.simulators.result import HitmapResult
 from src.data_layout_mappings import DataLayoutConfiguration
 from src.data_layout_mappings import RowMapping, RowMappingSet, LayoutMetadata
 from src.hardware import Bank
-from pydantic import Field
 
 
 class GenericHitmapBankLayoutConfiguration(DataLayoutConfiguration):
