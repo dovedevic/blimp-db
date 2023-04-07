@@ -4,11 +4,11 @@ import logging
 from pydantic import BaseModel, Field
 from typing import Tuple, Generic, TypeVar
 
-from configurations.hardware import HardwareConfiguration
-from configurations.database import DatabaseConfiguration
-from hardware import Bank
-from generators import DatabaseRecordGenerator
-from data_layout_mappings.methods import perform_record_packed_horizontal_layout
+from src.configurations.hardware import HardwareConfiguration
+from src.configurations.database import DatabaseConfiguration
+from src.hardware import Bank
+from src.generators import DatabaseRecordGenerator
+from src.data_layout_mappings.methods import perform_record_packed_horizontal_layout
 
 
 RowMapping = Tuple[int, int]
@@ -162,4 +162,4 @@ class DataLayoutConfiguration(Generic[HardwareConfig, DatabaseConfig, LayoutMeta
             configuration = json.load(fp)
             return cls(hardware_config(**configuration["hardware"]),
                        database_config(**configuration["database"]),
-                       DatabaseRecordGenerator.load(path + '.gen'))
+                       record_generator.load(path + '.gen'))
