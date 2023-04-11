@@ -1,4 +1,5 @@
-from configurations.database import DatabaseConfiguration
+from src.configurations.database import DatabaseConfiguration
+from src.configurations.database.hitmap import HitmapDatabaseConfiguration
 
 
 class AmbitDatabaseConfiguration(DatabaseConfiguration):
@@ -7,6 +8,6 @@ class AmbitDatabaseConfiguration(DatabaseConfiguration):
     ambit_temporary_bits: int
 
 
-class AmbitHitmapDatabaseConfiguration(AmbitDatabaseConfiguration):
+class AmbitHitmapDatabaseConfiguration(AmbitDatabaseConfiguration, HitmapDatabaseConfiguration):
     """Extends the Ambit database configuration to utilize hitmaps"""
-    hitmap_count: int
+    pass

@@ -1,6 +1,6 @@
-from configurations.database.ambit import AmbitDatabaseConfiguration, AmbitHitmapDatabaseConfiguration
-from configurations.database.blimp import BlimpDatabaseConfiguration, BlimpVectorDatabaseConfiguration, \
-    BlimpHitmapDatabaseConfiguration
+from src.configurations.database.ambit import AmbitDatabaseConfiguration
+from src.configurations.database.blimp import BlimpDatabaseConfiguration, BlimpVectorDatabaseConfiguration
+from src.configurations.database.hitmap import HitmapDatabaseConfiguration
 
 
 class BlimpPlusAmbitDatabaseConfiguration(BlimpDatabaseConfiguration, AmbitDatabaseConfiguration):
@@ -13,6 +13,8 @@ class BlimpVectorPlusAmbitDatabaseConfiguration(BlimpVectorDatabaseConfiguration
     pass
 
 
-class BlimpPlusAmbitHitmapDatabaseConfiguration(BlimpHitmapDatabaseConfiguration, AmbitHitmapDatabaseConfiguration):
+class BlimpPlusAmbitHitmapDatabaseConfiguration(BlimpDatabaseConfiguration,
+                                                AmbitDatabaseConfiguration,
+                                                HitmapDatabaseConfiguration):
     """Defines changeable AMBIT-only-compute database configurations with BLIMP orchestration with hitmaps"""
     pass

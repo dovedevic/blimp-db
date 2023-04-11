@@ -1,4 +1,5 @@
-from configurations.database.base import DatabaseConfiguration
+from src.configurations.database.base import DatabaseConfiguration
+from src.configurations.database.hitmap import HitmapDatabaseConfiguration
 
 
 class BlimpDatabaseConfiguration(DatabaseConfiguration):
@@ -13,9 +14,9 @@ class BlimpVectorDatabaseConfiguration(BlimpDatabaseConfiguration):
     pass
 
 
-class BlimpHitmapDatabaseConfiguration(BlimpDatabaseConfiguration):
+class BlimpHitmapDatabaseConfiguration(BlimpDatabaseConfiguration, HitmapDatabaseConfiguration):
     """Extends the BLIMP database configuration to utilize hitmaps"""
-    hitmap_count: int
+    pass
 
 
 class BlimpVectorHitmapDatabaseConfiguration(BlimpHitmapDatabaseConfiguration):
