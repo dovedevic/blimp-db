@@ -1,4 +1,4 @@
-from configurations.hardware import HardwareConfiguration
+from src.configurations.hardware import HardwareConfiguration
 
 
 class BlimpHardwareConfiguration(HardwareConfiguration):

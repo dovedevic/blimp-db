@@ -1,5 +1,5 @@
-from configurations.hardware.ambit import AmbitHardwareConfiguration
-from configurations.hardware.blimp import BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration
+from src.configurations.hardware.ambit import AmbitHardwareConfiguration
+from src.configurations.hardware.blimp import BlimpHardwareConfiguration, BlimpVectorHardwareConfiguration
 
 
 class BlimpPlusAmbitHardwareConfiguration(BlimpHardwareConfiguration, AmbitHardwareConfiguration):
