@@ -47,9 +47,6 @@ class _BlimpVBitweaveHitmapGreaterThan(
                 f"The provided hitmap index {hitmap_index} is out of bounds. The current configuration "
                 f"only supports {self.layout_configuration.database_configuration.hitmap_count} hitmaps")
 
-        # Ensure we have a fresh set of hitmaps
-        self.layout_configuration.reset_hitmap_index_to_value(self.hardware, True, hitmap_index)
-
         # How many rows are represented by one hitmap
         rows_per_hitmap = self.layout_configuration.layout_metadata.total_rows_for_hitmaps \
             // self.layout_configuration.database_configuration.hitmap_count
