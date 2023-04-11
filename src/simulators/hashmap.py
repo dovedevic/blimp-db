@@ -412,6 +412,31 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
             else:
                 bucket = self.buckets[bucket.next_bucket]
 
+    def traced_fetch(self, key) -> ([int], [int], Optional[GenericHashTableObject]):
+        """
+        Fetch the object from the hash map by its key, and traverse buckets as necessary. Regardless of hit, this fetch
+        returns the number of buckets traversed, each bucket's corresponding active count, and the hit object (if any)
+        """
+        bucket_indices, bucket_iterations, fetched = [], [], None
+        bucket_index = self._hash(key)  # noqa:: mixin for GenericHashMap
+
+        while True:  # poor man's python do-while
+            bucket = self.buckets[bucket_index]  # noqa:: mixin for GenericHashMap
+            bucket_indices.append(bucket_index)
+            index, hit_object = bucket.get_hit_index(key)
+            if hit_object is not None:
+                bucket_iterations.append(index + 1)
+                fetched = hit_object
+                break
+
+            bucket_iterations.append(bucket.count)
+            if not bucket.is_next_bucket_valid():
+                break
+            else:
+                bucket_index = bucket.next_bucket
+
+        return bucket_indices, bucket_iterations, fetched
+
     def save(self, path: str, compact=True):
         """
         Save the hashmap as a JSON object

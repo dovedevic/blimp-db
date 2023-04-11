@@ -1,5 +1,3 @@
-from typing import Optional
-
 from src.simulators.hashmap import GenericHashTableValue, GenericHashTableValuePayload, GenericHashTableObject, \
     GenericHashTableBucket, GenericHashMap
 
@@ -61,24 +59,3 @@ class BlimpSimpleHashSet(GenericHashMap[BlimpBucket]):
     @property
     def mask(self):  # used to get the mask info for vectorized hashing
         return self._mask
-
-    def traced_fetch(self, key) -> ([int], [int], Optional[BlimpBucket._KEY_PAYLOAD_OBJECT]):
-        bucket_indices, bucket_iterations, fetched = [], [], None
-        bucket_index = self._hash(key)
-
-        while True:  # poor man's python do-while
-            bucket = self.buckets[bucket_index]  # type: BlimpBucket
-            bucket_indices.append(bucket_index)
-            index, hit_object = bucket.get_hit_index(key)
-            if hit_object is not None:
-                bucket_iterations.append(index + 1)
-                fetched = hit_object
-                break
-
-            bucket_iterations.append(bucket.count)
-            if not bucket.is_next_bucket_valid():
-                break
-            else:
-                bucket_index = bucket.next_bucket
-
-        return bucket_indices, bucket_iterations, fetched
