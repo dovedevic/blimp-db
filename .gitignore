@@ -1,3 +1,8 @@
+# Ignore zips
+*.zip
+*.tar
+*.gz
+
 # Ignore tables
 *.tbl
 
