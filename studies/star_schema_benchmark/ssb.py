@@ -13,7 +13,7 @@ class SSBTable:
     class TableRecord(BaseModel):
         pass
 
-    def __init__(self, scale_factor=100, fill_to=0):
+    def __init__(self, scale_factor=100, fill_to=0, no_storage=False):
         self._fp = open(
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
@@ -21,34 +21,46 @@ class SSBTable:
                 self._table_file_name.format(scale_factor=scale_factor)
             ), 'r'
         )
+        self._no_storage = no_storage
 
-        self._db = []
-        self._done = False
-        if fill_to > 0:
-            for _ in self.records:
-                if len(self._db) >= fill_to:
-                    break
-            else:
-                raise IndexError("not enough records were parsable to satisfy prefill amount")
-            self._done = True
-            self._fp.close()
+        if not no_storage:
+            self._db = []
+            self._done = False
+            if fill_to > 0:
+                for _ in self.records:
+                    if len(self._db) >= fill_to:
+                        break
+                else:
+                    raise IndexError("not enough records were parsable to satisfy fill_to amount")
+                self._done = True
+                self._fp.close()
+        else:
+            self._done = False
 
     def _translate(self, db_text: str) -> TableRecord:
         raise NotImplemented
 
     @property
     def records(self) -> TableRecord:
-        for r in self._db:
-            yield r
-
-        if not self._done:
+        if self._no_storage:
+            self._fp.seek(0)
             for row in self._fp.readlines():
-                self._db.append(self._translate(row))
-                yield self._db[-1]
-            self._done = True
-            self._fp.close()
+                yield self._translate(row)
+        else:
+            for r in self._db:
+                yield r
+
+            if not self._done:
+                for row in self._fp.readlines():
+                    self._db.append(self._translate(row))
+                    yield self._db[-1]
+                self._done = True
+                self._fp.close()
 
     def get_generated_record(self, index) -> TableRecord:
+        if self._no_storage:
+            raise RuntimeError("cannot index records when the DB is set to no_storage mode")
+
         if index < 0:
             raise IndexError
         elif index >= len(self._db):
