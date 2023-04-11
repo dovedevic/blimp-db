@@ -6,7 +6,7 @@ from src.queries import Query
 from src.configurations import HardwareConfiguration, DatabaseConfiguration
 from src.data_layout_mappings import DataLayoutConfiguration
 from src.simulators.hardware import SimulatedBank
-from src.simulators.result import RuntimeResult
+from src.simulators.result import RuntimeResult, MemoryArrayResult
 
 
 @dataclass
@@ -22,6 +22,7 @@ class QueryStudy:
 
     # Post-simulation
     runtime: Optional[RuntimeResult] = None
+    memory: Optional[MemoryArrayResult] = None
 
     class Config:
         arbitrary_types_allowed = True
