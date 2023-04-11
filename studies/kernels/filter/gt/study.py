@@ -2,8 +2,8 @@ import os
 import math
 
 from studies.study import QueryStudy
-from utils.performance import start_performance_tracking, end_performance_tracking
 
+from src.utils.performance import start_performance_tracking, end_performance_tracking
 from src.generators.record_generators import BoundedRandomKeyNullDataRecordGenerator
 
 
@@ -226,6 +226,7 @@ def perform_studies(study_path: str, studies: [QueryStudy]):
             print("\tperforming data layout...", end='')
             start_performance_tracking()
             layout_configuration.perform_data_layout(bank=bank_hardware)
+            layout_configuration.reset_hitmaps_to_value(bank=bank_hardware, value=True)
             time = end_performance_tracking()
             print(f' laid out in {time}s')
 
