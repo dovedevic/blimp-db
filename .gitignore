@@ -9,10 +9,11 @@
 # Ignore hashtable dumps
 studies/simple_query_benchmark/*.json
 
-# Ignore memdump and db files
+# Ignore memdump, db, and result files
 *.memdump
 *.db
 *.sim
+*.res
 
 # Ignore Mac files
 *.DS_Store
