@@ -54,7 +54,7 @@ class BlimpVHashmapEarlyTerminationIndexJoin(
         )
         assert self.layout_configuration.row_mapping.blimp_temp_region[1] - hash_map_rows > 0, \
             "No left over rows in the reserved space for output structures"
-        assert self.layout_configuration.row_mapping.blimp_temp_region[0] + hash_map_rows < output_array_start_row < (
+        assert self.layout_configuration.row_mapping.blimp_temp_region[0] + hash_map_rows <= output_array_start_row < (
                 self.layout_configuration.row_mapping.blimp_temp_region[0] +
                 self.layout_configuration.row_mapping.blimp_temp_region[1]
                 ), "output_array_start_row is out of bounds from the defined temporary memory region"
@@ -277,7 +277,7 @@ class BlimpVHashmapEarlyTerminationIndexJoin(
                             return_labels=return_labels
                         )
                         if output_byte_index >= self.hardware.hardware_configuration.row_buffer_size_bytes:
-                            if current_output_row <= max_output_row:
+                            if current_output_row >= max_output_row:
                                 raise RuntimeError("maximum output memory exceeded")
 
                             # try to save the output buffer
