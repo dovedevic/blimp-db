@@ -150,6 +150,8 @@ class GenericHashTableObject(Generic[KEY_TYPE, PAYLOAD_TYPE]):
 
         if isinstance(payload, self._PAYLOAD_OBJECT):
             self._payload = payload
+        elif isinstance(payload, int):
+            self._payload = self._PAYLOAD_OBJECT.from_int(payload)
         elif payload is None:
             self._payload = self._PAYLOAD_OBJECT()
         elif isinstance(payload, list) and all(isinstance(p, int) for p in payload):
