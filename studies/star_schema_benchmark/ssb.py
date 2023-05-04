@@ -145,9 +145,9 @@ class SSBPartTable(SSBTable):
     class TableRecord(BaseModel):
         part_key: int
         name: str
-        mfgr: str
-        category: str
-        brand: str
+        mfgr: int
+        category: int
+        brand: int
         color: str
         type: str
         size: int
@@ -158,9 +158,9 @@ class SSBPartTable(SSBTable):
         return self.TableRecord(
             part_key=db_columns[0],
             name=db_columns[1],
-            mfgr=db_columns[2],
-            category=db_columns[3],
-            brand=db_columns[4],
+            mfgr=int(db_columns[2][len("MFGR#"):]),
+            category=int(db_columns[3][len("MFGR#"):]),
+            brand=int(db_columns[4][len("MFGR#"):]),
             color=db_columns[5],
             type=db_columns[6],
             size=db_columns[7],
