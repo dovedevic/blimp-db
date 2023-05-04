@@ -56,3 +56,17 @@ class LineOrderOrderDate(_LineOrderColumn):
 
     def _column(self, record):
         return record.order_date_key
+
+
+class LineOrderPartKey(_LineOrderColumn):
+    column_size = 4
+
+    def _column(self, record):
+        return record.part_key
+
+
+class LineOrderSupplyKey(_LineOrderColumn):
+    column_size = 4
+
+    def _column(self, record):
+        return record.supplier_key
