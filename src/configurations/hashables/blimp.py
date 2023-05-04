@@ -2,20 +2,29 @@ from src.simulators.hashmap import GenericHashTableValue, GenericHashTableValueP
     GenericHashTableBucket, GenericHashMap
 
 
-# Define 32bit numbers
-class Object32bit(GenericHashTableValue):
-    _SIZE_BYTES = 4
-
-
 # Define 8bit numbers
 class Object8bit(GenericHashTableValue):
     _SIZE_BYTES = 1
 
 
+# Define 16bit numbers
+class Object16bit(GenericHashTableValue):
+    _SIZE_BYTES = 2
+
+
 # Define 24bit numbers
 class Object24bit(GenericHashTableValue):
     _SIZE_BYTES = 3
-    _NULL_VALUE = 2 ** (_SIZE_BYTES * 8) - 1
+
+
+# Define 32bit numbers
+class Object32bit(GenericHashTableValue):
+    _SIZE_BYTES = 4
+
+
+# Define 24bit numbers with 2^24-1 null values
+class Object24bitNullMax(Object24bit):
+    _NULL_VALUE = 2 ** 24 - 1
 
 
 # Define a null payload
@@ -30,10 +39,10 @@ class Hash32bitObjectNullPayload(GenericHashTableObject[Object32bit, NullPayload
 
 
 # Define a bucket as a collection of 31 Hash32bitObjectNullPayload, with 16bit metadata
-class BlimpBucket(GenericHashTableBucket[Hash32bitObjectNullPayload, Object24bit, Object8bit]):
+class BlimpBucket(GenericHashTableBucket[Hash32bitObjectNullPayload, Object24bitNullMax, Object8bit]):
     _KEY_PAYLOAD_OBJECT = Hash32bitObjectNullPayload
     _BUCKET_OBJECT_CAPACITY = 31
-    _META_NEXT_BUCKET_OBJECT = Object24bit
+    _META_NEXT_BUCKET_OBJECT = Object24bitNullMax
     _META_ACTIVE_COUNT_OBJECT = Object8bit
 
 
