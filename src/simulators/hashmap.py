@@ -494,3 +494,49 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
                 next_bucket=bucket['next_bucket']
             ) for bucket in hashobj['buckets']]
         )
+
+    def get_statistics(self, display=False):
+        longest_bucket_chain = 0
+        longest_record_chain = 0
+        total_records = 0
+        chain_histo = {}
+        for idx, b in enumerate(self.buckets):
+            total_records += b.count
+
+            if idx >= self.initial_buckets:
+                continue
+            chain_length = 1
+            record_length = b.count
+            while b.is_next_bucket_valid():
+                b = self.buckets[b.next_bucket]
+                chain_length += 1
+                record_length += b.count
+
+            if chain_length not in chain_histo:
+                chain_histo[chain_length] = 0
+            chain_histo[chain_length] += 1
+
+            longest_bucket_chain = max(longest_bucket_chain, chain_length)
+            longest_record_chain = max(longest_record_chain, record_length)
+
+        stats = {
+            'meta': {
+                'initial_buckets': self.initial_buckets,
+                'maximum_buckets': self.maximum_buckets,
+                'bucket_size': self._BUCKET_OBJECT.size(),
+                'bucket_capacity': self._BUCKET_OBJECT.bucket_capacity(),
+                'bucket_object_size': self._BUCKET_OBJECT.bucket_object_type().size(),
+                'bucket_object_key_size': self._BUCKET_OBJECT.bucket_object_type().key_type().size(),
+                'bucket_object_payload_size': self._BUCKET_OBJECT.bucket_object_type().payload_type().size(),
+            },
+            'size': self.size,
+            'buckets': len(self.buckets),
+            'total_records': total_records,
+            'longest_bucket_chain': longest_bucket_chain,
+            'longest_record_chain': longest_record_chain,
+            'bucket_chain_histogram': chain_histo,
+        }
+
+        if display:
+            print(json.dumps(stats, indent=4))
+        return stats
