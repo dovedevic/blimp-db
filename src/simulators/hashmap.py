@@ -133,7 +133,7 @@ class GenericHashTableObject(Generic[KEY_TYPE, PAYLOAD_TYPE]):
     def __init__(
             self,
             key: Union[KEY_TYPE, int],
-            payload: Optional[Union[PAYLOAD_TYPE, List[int]]]=None
+            payload: Optional[Union[PAYLOAD_TYPE, int, List[int]]]=None
             ):
         """
         Defines a generic payload object that is a collection of Type[GenericHashTableValue] values.
@@ -353,6 +353,10 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
             self.buckets = buckets
         else:
             self.buckets = [self._BUCKET_OBJECT() for _ in range(initial_buckets)]
+
+    def reset(self):
+        del self.buckets
+        self.buckets = [self._BUCKET_OBJECT() for _ in range(self._initial_buckets)]
 
     @classmethod
     def bucket_type(cls) -> Type[BUCKET_TYPE]:
