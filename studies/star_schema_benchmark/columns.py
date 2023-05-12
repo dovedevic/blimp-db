@@ -70,3 +70,10 @@ class LineOrderSupplyKey(_LineOrderColumn):
 
     def _column(self, record):
         return record.supplier_key
+
+
+class LineOrderRevenue(_LineOrderColumn):
+    column_size = 4
+
+    def _column(self, record):
+        return record.revenue
