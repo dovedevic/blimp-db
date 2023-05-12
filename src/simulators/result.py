@@ -75,7 +75,7 @@ class HitmapResult:
 
 class MemoryArrayResult:
     """Defines the result of a memory-array-returning query."""
-    def __init__(self, result_array: typing.List[object]=list):
+    def __init__(self, result_array: typing.List[int]=()):
         self.result_array = result_array
         self.result_count = len(self.result_array)
 
@@ -89,7 +89,7 @@ class MemoryArrayResult:
             fp.write("]")
 
     @staticmethod
-    def from_byte_array(byte_array: list, element_width: int, cast_as: callable=int):
+    def from_byte_array(byte_array: typing.List[int]=(), element_width: int=0, cast_as: callable=int):
         """Given a byte array, fetch all array values and attempt to cast them"""
         assert len(byte_array) % element_width == 0, "there is not a integer multiple number of values in this array"
         values = [
