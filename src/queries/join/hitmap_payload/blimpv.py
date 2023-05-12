@@ -147,6 +147,15 @@ class BlimpVHashmapHitmapPayloadJoin(
                     element_width=self.layout_configuration.database_configuration.total_index_size_bytes)):
 
                 if elements_processed + index >= self.layout_configuration.layout_metadata.total_records_processable:
+                    # The rest of the hitmap must be zeroed out
+                    for i in range(index, elements_per_row):
+                        self.simulator.blimp_set_register_data_at_index(
+                            register=self.simulator.blimp_v1,
+                            element_width=self.layout_configuration.database_configuration.total_index_size_bytes,
+                            index=i,
+                            value=0,
+                            return_labels=return_labels
+                        )
                     break
 
                 traced_buckets, traced_iterations, hit = hash_map.traced_fetch(key)
@@ -260,7 +269,7 @@ class BlimpVHashmapHitmapPayloadJoin(
                 register_a=self.simulator.blimp_v1,
                 sew=self.layout_configuration.database_configuration.total_index_size_bytes,
                 stride=self.layout_configuration.database_configuration.total_index_size_bytes,
-                bit_offset=elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8),
+                bit_offset=(d * elements_per_row) % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8),
                 return_labels=return_labels
             )
 
