@@ -30,7 +30,7 @@ class GenericHitmapBankLayoutConfiguration(DataLayoutConfiguration):
         result_index = 0
 
         for hitmap_index in range(math.ceil(result.max_bits / rb_bits)):
-            stop_value = rb_bits * (hitmap_index + 1) + 1
+            stop_value = rb_bits * (hitmap_index + 1)
             hitmap_value = 0
 
             while result_index < len(result.result_record_indexes) and \
