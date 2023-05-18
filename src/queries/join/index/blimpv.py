@@ -152,19 +152,19 @@ class BlimpVHashmapIndexJoin(
                             return_labels=return_labels
                         )
 
-                        # Use the vector register to perform several equality checks at once in the bucket
-                        cycles = 1  # Start with one cycle to dispatch to the vector engine
-                        elements_to_check = hash_map.bucket_type().bucket_capacity()
-                        operable_alus = self.hardware.hardware_configuration.number_of_vALUs
-                        alu_rounds = int(math.ceil(elements_to_check / operable_alus))
-                        cycles += alu_rounds  # perform == on all elements wrt hash(key)
-                        cycles += 1  # check v3 ZERO register
-                        cycles += 1  # jump, depending on answer
+                    # Use the vector register to perform several equality checks at once in the bucket
+                    cycles = 1  # Start with one cycle to dispatch to the vector engine
+                    elements_to_check = hash_map.bucket_type().bucket_capacity()
+                    operable_alus = self.hardware.hardware_configuration.number_of_vALUs
+                    alu_rounds = int(math.ceil(elements_to_check / operable_alus))
+                    cycles += alu_rounds  # perform == on all elements wrt hash(key)
+                    cycles += 1  # check v3 ZERO register
+                    cycles += 1  # jump, depending on answer
 
-                        runtime += self.simulator.blimp_cycle(
-                            cycles=cycles,
-                            return_labels=return_labels
-                        )
+                    runtime += self.simulator.blimp_cycle(
+                        cycles=cycles,
+                        return_labels=return_labels
+                    )
 
                 # set the hit
                 runtime += self.simulator.blimp_cycle(
