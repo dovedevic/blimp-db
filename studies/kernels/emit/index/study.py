@@ -6,7 +6,7 @@ from src.configurations.database.blimp import BlimpHitmapDatabaseConfiguration
 from src.data_layout_mappings.architectures import BlimpIndexHitmapBankLayoutConfiguration
 from src.hardware.architectures import BlimpBank, BlimpVectorBank
 from src.simulators.hardware import SimulatedBlimpBank, SimulatedBlimpVBank
-from src.queries.emit.blimp import BlimpHitmapEmit
+from queries.emit.index.blimp import BlimpHitmapEmit
 from src.simulators.result import RuntimeResult, HitmapResult, MemoryArrayResult
 
 
