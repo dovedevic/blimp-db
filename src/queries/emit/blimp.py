@@ -25,7 +25,7 @@ class BlimpHitmapEmit(
         """
         Perform a BLIMP hitmap emit operation on a provided hitmap index.
 
-        @param hitmap_index: Which hitmap to target for bit counting
+        @param hitmap_index: Which hitmap to target for index emission
         @param output_array_start_row: The row number where the output array begins
         @param return_labels: Whether to return debug labels with the RuntimeResult history
         """
