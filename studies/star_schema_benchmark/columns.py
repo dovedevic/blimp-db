@@ -32,47 +32,47 @@ class _SSBColumnGenerator(DatabaseRecordGenerator):
         raise NotImplemented
 
 
-class _LineOrderColumn(_SSBColumnGenerator, LinearScale):
+class GenericLineOrderColumn(_SSBColumnGenerator, LinearScale):
     base_factor = 6_000_000
     ssb_table_class = SSBLineOrderTable
 
 
-class LineOrderDiscount(_LineOrderColumn):
+class LineOrderDiscount(GenericLineOrderColumn):
     column_size = 1
 
     def _column(self, record):
         return record.discount
 
 
-class LineOrderQuantity(_LineOrderColumn):
+class LineOrderQuantity(GenericLineOrderColumn):
     column_size = 1
 
     def _column(self, record):
         return record.quantity
 
 
-class LineOrderOrderDate(_LineOrderColumn):
+class LineOrderOrderDate(GenericLineOrderColumn):
     column_size = 4
 
     def _column(self, record):
         return record.order_date_key
 
 
-class LineOrderPartKey(_LineOrderColumn):
+class LineOrderPartKey(GenericLineOrderColumn):
     column_size = 4
 
     def _column(self, record):
         return record.part_key
 
 
-class LineOrderSupplyKey(_LineOrderColumn):
+class LineOrderSupplyKey(GenericLineOrderColumn):
     column_size = 4
 
     def _column(self, record):
         return record.supplier_key
 
 
-class LineOrderRevenue(_LineOrderColumn):
+class LineOrderRevenue(GenericLineOrderColumn):
     column_size = 4
 
     def _column(self, record):
