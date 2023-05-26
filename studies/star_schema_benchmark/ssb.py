@@ -69,6 +69,125 @@ class SSBTable:
             return self._db[index]
 
 
+class SSBEncoding:
+    _encoding = {}
+
+    @classmethod
+    def convert(cls, region: str) -> int:
+        return cls._encoding[region]
+
+
+class SSBRegionEncoding(SSBEncoding):
+    AFRICA = 0
+    AMERICA = 1
+    ASIA = 2
+    EUROPE = 3
+    MIDDLE_EAST = 4
+
+    _encoding = {
+        "AFRICA": AFRICA,
+        "AMERICA": AMERICA,
+        "ASIA": ASIA,
+        "EUROPE": EUROPE,
+        "MIDDLE EAST": MIDDLE_EAST,
+    }
+
+
+class SSBNationEncoding(SSBEncoding):
+    ALGERIA = 0
+    ARGENTINA = 1
+    BRAZIL = 2
+    CANADA = 3
+    EGYPT = 4
+    ETHIOPIA = 5
+    FRANCE = 6
+    GERMANY = 7
+    INDIA = 8
+    INDONESIA = 9
+    IRAN = 10
+    IRAQ = 11
+    JAPAN = 12
+    JORDAN = 13
+    KENYA = 14
+    MOROCCO = 15
+    MOZAMBIQUE = 16
+    PERU = 17
+    CHINA = 18
+    ROMANIA = 19
+    SAUDI_ARABIA = 20
+    VIETNAM = 21
+    RUSSIA = 22
+    UNITED_KINGDOM = 23
+    UNITED_STATES = 24
+
+    _encoding = {
+        "ALGERIA": ALGERIA,
+        "ARGENTINA": ARGENTINA,
+        "BRAZIL": BRAZIL,
+        "CANADA": CANADA,
+        "EGYPT": EGYPT,
+        "ETHIOPIA": ETHIOPIA,
+        "FRANCE": FRANCE,
+        "GERMANY": GERMANY,
+        "INDIA": INDIA,
+        "INDONESIA": INDONESIA,
+        "IRAN": IRAN,
+        "IRAQ": IRAQ,
+        "JAPAN": JAPAN,
+        "JORDAN": JORDAN,
+        "KENYA": KENYA,
+        "MOROCCO": MOROCCO,
+        "MOZAMBIQUE": MOZAMBIQUE,
+        "PERU": PERU,
+        "CHINA": CHINA,
+        "ROMANIA": ROMANIA,
+        "SAUDI ARABIA": SAUDI_ARABIA,
+        "VIETNAM": VIETNAM,
+        "RUSSIA": RUSSIA,
+        "UNITED KINGDOM": UNITED_KINGDOM,
+        "UNITED STATES": UNITED_STATES,
+    }
+
+
+class SSBCityEncoding(SSBEncoding):
+    _prefixes = ["ALGERIA  ", "ARGENTINA", "BRAZIL   ", "CANADA   ", "EGYPT    ", "ETHIOPIA ", "FRANCE   ",
+                 "GERMANY  ", "INDIA    ", "INDONESIA", "IRAN     ", "IRAQ     ", "JAPAN    ", "JORDAN   ",
+                 "KENYA    ", "MOROCCO  ", "MOZAMBIQU", "PERU     ", "CHINA    ", "ROMANIA  ", "SAUDI ARA",
+                 "VIETNAM  ", "RUSSIA   ", "UNITED KI", "UNITED ST"]
+    _encoding = {}
+    for __p in _prefixes:
+        for __i in range(10):
+            _encoding[f"{__p}{__i}"] = len(_encoding)
+
+
+class SSBMFGREncoding(SSBEncoding):
+    MFGR_1 = 0
+    MFGR_2 = 1
+    MFGR_3 = 2
+    MFGR_4 = 3
+    MFGR_5 = 4
+
+    _encoding = {
+        "MFGR#1": MFGR_1,
+        "MFGR#2": MFGR_2,
+        "MFGR#3": MFGR_3,
+        "MFGR#4": MFGR_4,
+        "MFGR#5": MFGR_5,
+    }
+
+
+class SSBBrandEncoding(SSBEncoding):
+    _encoding = {}
+    for __i in range(1000):
+        _encoding[f"MFGR#{__i//200+1}{(__i%200)//40+1}{__i%40+1}"] = len(_encoding)
+
+
+class SSBCategoryEncoding(SSBEncoding):
+    _encoding = {}
+    for __i in range(25):
+        _encoding[f"MFGR#{__i//5+1}{__i%5+1}"] = len(_encoding)
+
+
 class SSBDateTable(SSBTable):
     _table_file_name = "sf{scale_factor}-date.tbl"
 
@@ -116,14 +235,17 @@ class SSBDateTable(SSBTable):
 
 class SSBSupplierTable(SSBTable):
     _table_file_name = "sf{scale_factor}-supplier.tbl"
+    _city_encoder = SSBCityEncoding()
+    _nation_encoder = SSBNationEncoding()
+    _region_encoder = SSBRegionEncoding()
 
     class TableRecord(BaseModel):
         supplier_key: int
         name: str
         address: str
-        city: str
-        nation: str
-        region: str
+        city: int
+        nation: int
+        region: int
         phone: str
 
     def _translate(self, db_text: str) -> TableRecord:
@@ -132,15 +254,18 @@ class SSBSupplierTable(SSBTable):
             supplier_key=db_columns[0],
             name=db_columns[1],
             address=db_columns[2],
-            city=db_columns[3],
-            nation=db_columns[4],
-            region=db_columns[5],
+            city=self._city_encoder.convert(db_columns[3]),
+            nation=self._nation_encoder.convert(db_columns[4]),
+            region=self._region_encoder.convert(db_columns[5]),
             phone=db_columns[6],
         )
 
 
 class SSBPartTable(SSBTable):
     _table_file_name = "sf{scale_factor}-part.tbl"
+    _mfgr_encoder = SSBMFGREncoding()
+    _brand_encoder = SSBBrandEncoding()
+    _category_encoder = SSBCategoryEncoding()
 
     class TableRecord(BaseModel):
         part_key: int
@@ -158,9 +283,9 @@ class SSBPartTable(SSBTable):
         return self.TableRecord(
             part_key=db_columns[0],
             name=db_columns[1],
-            mfgr=int(db_columns[2][len("MFGR#"):]),
-            category=int(db_columns[3][len("MFGR#"):]),
-            brand=int(db_columns[4][len("MFGR#"):]),
+            mfgr=self._mfgr_encoder.convert(db_columns[2]),
+            category=self._category_encoder.convert(db_columns[3]),
+            brand=self._brand_encoder.convert(db_columns[4]),
             color=db_columns[5],
             type=db_columns[6],
             size=db_columns[7],
@@ -170,14 +295,17 @@ class SSBPartTable(SSBTable):
 
 class SSBCustomerTable(SSBTable):
     _table_file_name = "sf{scale_factor}-customer.tbl"
+    _city_encoder = SSBCityEncoding()
+    _nation_encoder = SSBNationEncoding()
+    _region_encoder = SSBRegionEncoding()
 
     class TableRecord(BaseModel):
         customer_key: int
         name: str
         address: str
-        city: str
-        nation: str
-        region: str
+        city: int
+        nation: int
+        region: int
         phone: str
         mktsegmenmt: str
 
@@ -187,9 +315,9 @@ class SSBCustomerTable(SSBTable):
             customer_key=db_columns[0],
             name=db_columns[1],
             address=db_columns[2],
-            city=db_columns[3],
-            nation=db_columns[4],
-            region=db_columns[5],
+            city=self._city_encoder.convert(db_columns[3]),
+            nation=self._nation_encoder.convert(db_columns[4]),
+            region=self._region_encoder.convert(db_columns[5]),
             phone=db_columns[6],
             mktsegmenmt=db_columns[7],
         )
