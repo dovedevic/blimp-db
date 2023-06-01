@@ -285,7 +285,7 @@ class SSBQuery2pX(GenericSSBQuery):
 
     def _perform_emit_1_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
-        kernel = self.emit_1_query_class(self._get_simulator(), self._get_date_layout_configuration())
+        kernel = self.emit_1_query_class(self._get_simulator(), self._get_revenue_layout_configuration())
         kernel_runtime, kernel_memory_array = kernel.perform_operation(
             output_array_start_row=self._get_revenue_layout_configuration().row_mapping.blimp_temp_region[0],
             hitmap_index=0,
