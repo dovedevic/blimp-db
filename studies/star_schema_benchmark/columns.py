@@ -77,3 +77,10 @@ class LineOrderRevenue(GenericLineOrderColumn):
 
     def _column(self, record):
         return record.revenue
+
+
+class LineOrderCustomerKey(GenericLineOrderColumn):
+    column_size = 4
+
+    def _column(self, record):
+        return record.customer_key
