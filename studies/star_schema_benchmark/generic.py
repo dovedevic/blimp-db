@@ -19,7 +19,7 @@ class GenericSSBQuery:
         "number_of_vFPUs": 0,
         "blimpv_sew_max_bytes": 8,
         "blimpv_sew_min_bytes": 1,
-        "blimp_frequency": 400000000,
+        "blimp_frequency": 200000000,
         "time_to_v0_transfer_ns": 5,
         "blimp_processor_bit_architecture": 64,
         "ambit_compute_register_rows": 6,
