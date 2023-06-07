@@ -464,8 +464,8 @@ class SSBQuery3pXSupplierCustomerDate(SSBQuery3pX):
     def _perform_join_2_layout(self, *args):
         self._get_customer_layout_configuration().perform_data_layout(self._get_bank_object())
 
-    def _perform_join_2_placement(self, supplier_hitmap, *args):
-        self._get_customer_layout_configuration().load_hitmap_result(self._get_bank_object(), supplier_hitmap, 0)
+    def _perform_join_2_placement(self, previous_hitmap, *args):
+        self._get_customer_layout_configuration().load_hitmap_result(self._get_bank_object(), previous_hitmap, 0)
 
     def _perform_join_2_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, Union[HitmapResult, Tuple[HitmapResult, MemoryArrayResult]]]:
@@ -491,8 +491,8 @@ class SSBQuery3pXSupplierCustomerDate(SSBQuery3pX):
     def _perform_join_3_layout(self, *args):
         self._get_date_layout_configuration().perform_data_layout(self._get_bank_object())
 
-    def _perform_join_3_placement(self, customer_hitmap, *args):
-        self._get_date_layout_configuration().load_hitmap_result(self._get_bank_object(), customer_hitmap, 0)
+    def _perform_join_3_placement(self, previous_hitmap, *args):
+        self._get_date_layout_configuration().load_hitmap_result(self._get_bank_object(), previous_hitmap, 0)
 
     def _perform_join_3_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, Union[HitmapResult, Tuple[HitmapResult, MemoryArrayResult]]]:
@@ -548,8 +548,8 @@ class SSBQuery3pXCustomerSupplierDate(SSBQuery3pX):
     def _perform_join_2_layout(self, *args):
         self._get_supplier_layout_configuration().perform_data_layout(self._get_bank_object())
 
-    def _perform_join_2_placement(self, customer_hitmap, *args):
-        self._get_supplier_layout_configuration().load_hitmap_result(self._get_bank_object(), customer_hitmap, 0)
+    def _perform_join_2_placement(self, previous_hitmap, *args):
+        self._get_supplier_layout_configuration().load_hitmap_result(self._get_bank_object(), previous_hitmap, 0)
 
     def _perform_join_2_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, Union[HitmapResult, Tuple[HitmapResult, MemoryArrayResult]]]:
@@ -575,8 +575,8 @@ class SSBQuery3pXCustomerSupplierDate(SSBQuery3pX):
     def _perform_join_3_layout(self, *args):
         self._get_date_layout_configuration().perform_data_layout(self._get_bank_object())
 
-    def _perform_join_3_placement(self, supplier_hitmap, *args):
-        self._get_date_layout_configuration().load_hitmap_result(self._get_bank_object(), supplier_hitmap, 0)
+    def _perform_join_3_placement(self, previous_hitmap, *args):
+        self._get_date_layout_configuration().load_hitmap_result(self._get_bank_object(), previous_hitmap, 0)
 
     def _perform_join_3_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, Union[HitmapResult, Tuple[HitmapResult, MemoryArrayResult]]]:
