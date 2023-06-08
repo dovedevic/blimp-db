@@ -25,7 +25,6 @@ class BlimpVHitmapEqual(_BlimpVHitmapGenericScalarALO):
         return self._perform_operation(
             pi_element_size_bytes=pi_element_size_bytes,
             value=value,
-            negate=False,
             operation=GenericArithmeticLogicalOperation.EQ,
             return_labels=return_labels,
             hitmap_index=hitmap_index
@@ -54,8 +53,7 @@ class BlimpVHitmapNotEqual(_BlimpVHitmapGenericScalarALO):
         return self._perform_operation(
             pi_element_size_bytes=pi_element_size_bytes,
             value=value,
-            negate=True,
-            operation=GenericArithmeticLogicalOperation.EQ,
+            operation=GenericArithmeticLogicalOperation.NEQ,
             return_labels=return_labels,
             hitmap_index=hitmap_index
         )
