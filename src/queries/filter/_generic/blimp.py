@@ -21,7 +21,6 @@ class _BlimpHitmapGenericScalarALO(
             pi_element_size_bytes: int,
             value: int,
             operation: GenericArithmeticLogicalOperation,
-            negate: bool,
             return_labels: bool=False,
             hitmap_index: int=0
     ) -> (RuntimeResult, HitmapResult):
@@ -31,7 +30,6 @@ class _BlimpHitmapGenericScalarALO(
         @param pi_element_size_bytes: The PI/Key field size in bytes.
         @param value: The value to check all targeted PI/Keys against. This must be less than 2^pi_element_size
         @param operation: The operation to perform element-wise
-        @param negate: Whether operation needs negating
         @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
@@ -98,6 +96,16 @@ class _BlimpHitmapGenericScalarALO(
                     value=value,
                     return_labels=return_labels
                 )
+            elif operation == GenericArithmeticLogicalOperation.NEQ:
+                runtime += self.simulator.blimp_alu_int_neq_val(
+                    register_a=self.simulator.blimp_v1,
+                    start_index=0,
+                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    element_width=pi_element_size_bytes,
+                    stride=pi_element_size_bytes,
+                    value=value,
+                    return_labels=return_labels
+                )
             elif operation == GenericArithmeticLogicalOperation.LT:
                 runtime += self.simulator.blimp_alu_int_lt_val(
                     register_a=self.simulator.blimp_v1,
@@ -139,8 +147,9 @@ class _BlimpHitmapGenericScalarALO(
                     return_labels=return_labels
                 )
 
-            # Coalesce the bitmap
-            runtime += self.simulator.blimp_coalesce_register_hitmap(
+            # Coalesce the bitmap, no need to save the runtime since ideally we would do this while looping when we
+            # do the above ALU operations. We do this here just to do it handily with the sim
+            self.simulator.blimp_coalesce_register_hitmap(
                 register_a=self.simulator.blimp_v1,
                 start_index=0,
                 end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
@@ -150,8 +159,8 @@ class _BlimpHitmapGenericScalarALO(
                 return_labels=return_labels
             )
 
-            # Or the bitmap into the temporary one
-            runtime += self.simulator.blimp_alu_int_or(
+            # Or the bitmap into the temporary one, no runtime for the same reason as above
+            self.simulator.blimp_alu_int_or(
                 register_a=self.simulator.blimp_v1,
                 register_b=self.simulator.blimp_v2,
                 start_index=0,
@@ -178,23 +187,6 @@ class _BlimpHitmapGenericScalarALO(
                 return_labels=return_labels
             )
             if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) == 0:
-
-                runtime += self.simulator.blimp_cycle(
-                    cycles=1,
-                    label="; cmp negate",
-                    return_labels=return_labels
-                )
-                if negate:
-                    # If we are negating, invert v2 (since it was just saved)
-                    runtime += self.simulator.blimp_alu_int_not(
-                        register_a=self.simulator.blimp_v2,
-                        start_index=0,
-                        end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
-                        element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                        stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                        return_labels=return_labels
-                    )
-
                 # Save the hitmap
                 runtime += self.simulator.blimp_save_register(
                     register=self.simulator.blimp_v2,
@@ -222,22 +214,6 @@ class _BlimpHitmapGenericScalarALO(
             return_labels=return_labels
         )
         if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) != 0:
-            runtime += self.simulator.blimp_cycle(
-                cycles=1,
-                label="; cmp negate",
-                return_labels=return_labels
-            )
-            if negate:
-                # If we are negating, invert v2 (since it was just saved)
-                runtime += self.simulator.blimp_alu_int_not(
-                    register_a=self.simulator.blimp_v2,
-                    start_index=0,
-                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
-                    element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                    stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                    return_labels=return_labels
-                )
-
             runtime += self.simulator.blimp_save_register(
                 register=self.simulator.blimp_v2,
                 row=hitmap_base +
