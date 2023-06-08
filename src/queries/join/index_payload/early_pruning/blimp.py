@@ -4,13 +4,13 @@ from src.queries.query import Query
 from src.simulators.result import RuntimeResult, MemoryArrayResult, HitmapResult
 from src.data_layout_mappings.architectures import BlimpIndexHitmapBankLayoutConfiguration
 from src.configurations.hashables import BlimpSimpleHashSet
-from src.simulators.hardware import SimulatedBlimpVBank
+from src.simulators.hardware import SimulatedBlimpBank
 from src.utils.bitmanip import msb_bit
 
 
-class BlimpVHashmapEarlyTerminationIndexPayloadJoin(
+class BlimpHashmapEarlyPruningIndexPayloadJoin(
     Query[
-        SimulatedBlimpVBank,
+        SimulatedBlimpBank,
         BlimpIndexHitmapBankLayoutConfiguration
     ]
 ):
@@ -24,7 +24,7 @@ class BlimpVHashmapEarlyTerminationIndexPayloadJoin(
             **kwargs
     ) -> (RuntimeResult, MemoryArrayResult, HitmapResult):
         """
-        Perform an BLIMP-V 32-bit Hash Probe operation on 32-bit keys. This assumes the database configuration
+        Perform an BLIMP 32-bit Hash Probe operation on 32-bit keys. This assumes the database configuration
         parameter `total_index_size_bytes` is only referencing the entire key, not a multikey, and that the key is 32
         bits, or 4 bytes. Before a key is evaluated, we check the param:hitmap_index bit to see if this key should be
         evaluated. If it should be, we attempt to find a hit. When a hit is found the tuple (key,payload) is placed in
@@ -80,7 +80,7 @@ class BlimpVHashmapEarlyTerminationIndexPayloadJoin(
             // self.layout_configuration.database_configuration.total_index_size_bytes
         assert elements_per_row > 0, "Total element size must be at least less than one row buffer"
 
-        # Begin by enabling BLIMP-V
+        # Begin by enabling BLIMP
         runtime = self.simulator.blimp_begin(
             return_labels=return_labels
         )
@@ -93,7 +93,7 @@ class BlimpVHashmapEarlyTerminationIndexPayloadJoin(
         )
 
         # Clear a register for temporary output in V2
-        runtime += self.simulator.blimpv_set_register_to_zero(
+        runtime += self.simulator.blimp_set_register_to_zero(
             register=self.simulator.blimp_v2,
             return_labels=return_labels
         )
@@ -163,9 +163,11 @@ class BlimpVHashmapEarlyTerminationIndexPayloadJoin(
             )
 
             # Hash and mask the keys
-            runtime += self.simulator.blimpv_alu_int_hash(
+            runtime += self.simulator.blimp_alu_int_hash(
                 register_a=self.simulator.blimp_v1,
-                sew=key_size,
+                start_index=0,
+                end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                element_width=key_size,
                 stride=key_size,
                 hash_mask=hash_map.mask,
                 mask=mask,
@@ -188,11 +190,8 @@ class BlimpVHashmapEarlyTerminationIndexPayloadJoin(
                     break
 
                 # check if this index was masked out
-                runtime += self.simulator.blimp_cycle(
-                    cycles=2,
-                    label="; bit check",
-                    return_labels=return_labels
-                )
+                # super hacky: this cycle count is included in the hash call since ideally these would be done together
+                # like so: for key in keys... if bit { hash(key) traverse(hash) } else { next }
                 if not msb_bit(mask, index, elements_per_row):
                     continue
 
@@ -216,17 +215,9 @@ class BlimpVHashmapEarlyTerminationIndexPayloadJoin(
                             return_labels=return_labels
                         )
 
-                    # Use the vector register to perform several equality checks at once in the bucket
-                    cycles = 1  # Start with one cycle to dispatch to the vector engine
-                    elements_to_check = hash_map.bucket_type().bucket_capacity()
-                    operable_alus = self.hardware.hardware_configuration.number_of_vALUs
-                    alu_rounds = int(math.ceil(elements_to_check / operable_alus))
-                    cycles += alu_rounds  # perform == on all elements wrt hash(key)
-                    cycles += 1  # check v3 ZERO register
-                    cycles += 1  # jump, depending on answer
-
+                    # add iterations * 2 for cmp/jmp on keys
                     runtime += self.simulator.blimp_cycle(
-                        cycles=cycles,
+                        cycles=max(1, traced_iteration * 2),
                         return_labels=return_labels
                     )
 
@@ -289,7 +280,7 @@ class BlimpVHashmapEarlyTerminationIndexPayloadJoin(
                                 row=current_output_row,
                                 return_labels=return_labels
                             )
-                            runtime += self.simulator.blimpv_set_register_to_zero(
+                            runtime += self.simulator.blimp_set_register_to_zero(
                                 register=self.simulator.blimp_v2,
                                 return_labels=return_labels
                             )

@@ -4,8 +4,8 @@ from src.simulators.hardware import SimulatedBlimpVBank, SimulatedBlimpBank
 from src.simulators.result import HitmapResult
 from queries.emit.index.blimp import BlimpHitmapEmit
 from src.queries.join.hitmap import BlimpVHashmapJoin, BlimpHashmapJoin
-from src.queries.join.hitmap.early_termination import BlimpVHashmapEarlyTerminationJoin, BlimpHashmapEarlyTerminationJoin
-from src.queries.join.hitmap_payload.early_termination import BlimpVHashmapEarlyTerminationHitmapPayloadJoin, BlimpHashmapEarlyTerminationHitmapPayloadJoin
+from src.queries.join.hitmap.early_pruning import BlimpVHashmapEarlyPruningJoin, BlimpHashmapEarlyPruningJoin
+from src.queries.join.hitmap_payload.early_pruning import BlimpVHashmapEarlyPruningHitmapPayloadJoin, BlimpHashmapEarlyPruningHitmapPayloadJoin
 from src.queries.emit.hashmap_payload import BlimpHitmapEmitHashmapPayload, BlimpVHitmapEmitHashmapPayload
 
 from studies.star_schema_benchmark.ssb import SSBSupplierTable, SSBCustomerTable, SSBDateTable, SSBLineOrderTable
@@ -57,8 +57,8 @@ class SSBQuery3p3BlimpVSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSB
     bank_object_class = BlimpVectorBank
     simulator_class = SimulatedBlimpVBank
     join_1_query_class = BlimpVHashmapJoin
-    join_2_query_class = BlimpVHashmapEarlyTerminationJoin
-    join_3_query_class = BlimpVHashmapEarlyTerminationHitmapPayloadJoin
+    join_2_query_class = BlimpVHashmapEarlyPruningJoin
+    join_3_query_class = BlimpVHashmapEarlyPruningHitmapPayloadJoin
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpVHitmapEmitHashmapPayload
     emit_3_query_class = BlimpVHitmapEmitHashmapPayload
@@ -69,8 +69,8 @@ class SSBQuery3p3BlimpSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSBQ
     bank_object_class = BlimpBank
     simulator_class = SimulatedBlimpBank
     join_1_query_class = BlimpHashmapJoin
-    join_2_query_class = BlimpHashmapEarlyTerminationJoin
-    join_3_query_class = BlimpHashmapEarlyTerminationHitmapPayloadJoin
+    join_2_query_class = BlimpHashmapEarlyPruningJoin
+    join_3_query_class = BlimpHashmapEarlyPruningHitmapPayloadJoin
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmitHashmapPayload
     emit_3_query_class = BlimpHitmapEmitHashmapPayload
@@ -81,8 +81,8 @@ class SSBQuery3p3BlimpVCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSB
     bank_object_class = BlimpVectorBank
     simulator_class = SimulatedBlimpVBank
     join_1_query_class = BlimpVHashmapJoin
-    join_2_query_class = BlimpVHashmapEarlyTerminationJoin
-    join_3_query_class = BlimpVHashmapEarlyTerminationHitmapPayloadJoin
+    join_2_query_class = BlimpVHashmapEarlyPruningJoin
+    join_3_query_class = BlimpVHashmapEarlyPruningHitmapPayloadJoin
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpVHitmapEmitHashmapPayload
     emit_3_query_class = BlimpVHitmapEmitHashmapPayload
@@ -93,8 +93,8 @@ class SSBQuery3p3BlimpCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSBQ
     bank_object_class = BlimpBank
     simulator_class = SimulatedBlimpBank
     join_1_query_class = BlimpHashmapJoin
-    join_2_query_class = BlimpHashmapEarlyTerminationJoin
-    join_3_query_class = BlimpHashmapEarlyTerminationHitmapPayloadJoin
+    join_2_query_class = BlimpHashmapEarlyPruningJoin
+    join_3_query_class = BlimpHashmapEarlyPruningHitmapPayloadJoin
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmitHashmapPayload
     emit_3_query_class = BlimpHitmapEmitHashmapPayload

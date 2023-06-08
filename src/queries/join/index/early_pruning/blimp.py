@@ -8,7 +8,7 @@ from src.simulators.hardware import SimulatedBlimpBank
 from src.utils.bitmanip import msb_bit
 
 
-class BlimpHashmapEarlyTerminationIndexJoin(
+class BlimpHashmapEarlyPruningIndexJoin(
     Query[
         SimulatedBlimpBank,
         BlimpIndexHitmapBankLayoutConfiguration

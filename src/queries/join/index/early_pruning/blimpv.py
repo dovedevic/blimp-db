@@ -1,34 +1,40 @@
+import math
+
 from src.queries.query import Query
-from src.simulators.result import RuntimeResult, HitmapResult
+from src.simulators.result import RuntimeResult, MemoryArrayResult, HitmapResult
 from src.data_layout_mappings.architectures import BlimpIndexHitmapBankLayoutConfiguration
 from src.configurations.hashables import BlimpSimpleHashSet
-from src.simulators.hardware import SimulatedBlimpBank
+from src.simulators.hardware import SimulatedBlimpVBank
 from src.utils.bitmanip import msb_bit
 
 
-class BlimpHashmapEarlyTerminationJoin(
+class BlimpVHashmapEarlyPruningIndexJoin(
     Query[
-        SimulatedBlimpBank,
+        SimulatedBlimpVBank,
         BlimpIndexHitmapBankLayoutConfiguration
     ]
 ):
     def perform_operation(
             self,
             hash_map: BlimpSimpleHashSet,
-            return_labels: bool=False,
+            output_array_start_row: int,
+            output_index_size_bytes: int,
             hitmap_index: int = 0,
+            return_labels: bool=False,
             **kwargs
-    ) -> (RuntimeResult, HitmapResult):
+    ) -> (RuntimeResult, MemoryArrayResult, HitmapResult):
         """
-        Perform an BLIMP 32-bit Hash Probe operation on 32-bit keys. This assumes the database configuration
+        Perform an BLIMP-V 32-bit Hash Probe operation on 32-bit keys. This assumes the database configuration
         parameter `total_index_size_bytes` is only referencing the entire key, not a multikey, and that the key is 32
-        bits, or 4 bytes. Before a key is evaluated however, we check the existing hitmap to see if the bit is on to
-        indicate if this key should be checked or evaluated. If no hit was found when the bit was set, we toggle the
-        output hitmap bit.
+        bits, or 4 bytes. Before a key is evaluated, we check the param:hitmap_index bit to see if this key should be
+        evaluated. If it should be, we attempt to find a hit. When a hit is found the local index is placed in an array
+        starting at the :param:output_array_start_row memory address. If no hit was found the hitmap bit is flipped.
 
-        @param hash_map: The hash map to be used for probing
+        @param hash_map: The hash set to be used for probing
+        @param output_array_start_row: The row number where the output array begins
+        @param output_index_size_bytes: The number of bytes to use for index hit values in the output array
+        @param hitmap_index: Which hitmap to target results into and where to draw early termination results from
         @param return_labels: Whether to return debug labels with the RuntimeResult history
-        @param hitmap_index: Which hitmap to target results into
         """
         key_size = self.layout_configuration.database_configuration.total_index_size_bytes
         assert key_size == 4, "This implementation of Hash Probe expects keys to be 4 bytes / 32 bits"
@@ -42,6 +48,17 @@ class BlimpHashmapEarlyTerminationJoin(
                 f"The provided hitmap index {hitmap_index} is out of bounds. The current configuration "
                 f"only supports {self.layout_configuration.database_configuration.hitmap_count} hitmaps")
 
+        # Ensure our memory bounds are valid
+        hash_map_rows = math.ceil(
+            hash_map.size // self.layout_configuration.hardware_configuration.row_buffer_size_bytes
+        )
+        assert self.layout_configuration.row_mapping.blimp_temp_region[1] - hash_map_rows > 0, \
+            "No left over rows in the reserved space for output structures"
+        assert self.layout_configuration.row_mapping.blimp_temp_region[0] + hash_map_rows <= output_array_start_row < (
+                self.layout_configuration.row_mapping.blimp_temp_region[0] +
+                self.layout_configuration.row_mapping.blimp_temp_region[1]
+                ), "output_array_start_row is out of bounds from the defined temporary memory region"
+
         # How many rows are represented by one hitmap
         rows_per_hitmap = self.layout_configuration.layout_metadata.total_rows_for_hitmaps \
             // self.layout_configuration.database_configuration.hitmap_count
@@ -49,22 +66,34 @@ class BlimpHashmapEarlyTerminationJoin(
         hitmap_base = self.layout_configuration.row_mapping.hitmaps[0] + rows_per_hitmap * hitmap_index
         base_data_row = self.layout_configuration.row_mapping.data[0]
         base_hashmap_row = self.layout_configuration.row_mapping.blimp_temp_region[0]
+        base_output_row = output_array_start_row
+        current_output_row = base_output_row
+        output_byte_index = 0
+        hit_elements = 0
+        current_hitmap_row = hitmap_base
+        max_output_row = self.layout_configuration.row_mapping.blimp_temp_region[0] + \
+            self.layout_configuration.row_mapping.blimp_temp_region[1]
 
         elements_processed = 0
-        current_hitmap_row = hitmap_base
         elements_per_row = self.layout_configuration.hardware_configuration.row_buffer_size_bytes \
             // self.layout_configuration.database_configuration.total_index_size_bytes
         assert elements_per_row > 0, "Total element size must be at least less than one row buffer"
 
-        # Begin by enabling BLIMP
+        # Begin by enabling BLIMP-V
         runtime = self.simulator.blimp_begin(
             return_labels=return_labels
         )
 
         # Calculate the above metadata
         runtime += self.simulator.blimp_cycle(
-            cycles=5,
+            cycles=15,
             label="; meta start",
+            return_labels=return_labels
+        )
+
+        # Clear a register for temporary output in V2
+        runtime += self.simulator.blimpv_set_register_to_zero(
+            register=self.simulator.blimp_v2,
             return_labels=return_labels
         )
 
@@ -106,6 +135,7 @@ class BlimpHashmapEarlyTerminationJoin(
                     row=current_hitmap_row,
                     return_labels=return_labels
                 )
+
             runtime += self.simulator.blimp_cycle(
                 cycles=5,
                 label="; mask point",
@@ -132,11 +162,9 @@ class BlimpHashmapEarlyTerminationJoin(
             )
 
             # Hash and mask the keys
-            runtime += self.simulator.blimp_alu_int_hash(
+            runtime += self.simulator.blimpv_alu_int_hash(
                 register_a=self.simulator.blimp_v1,
-                start_index=0,
-                end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
-                element_width=key_size,
+                sew=key_size,
                 stride=key_size,
                 hash_mask=hash_map.mask,
                 mask=mask,
@@ -159,8 +187,11 @@ class BlimpHashmapEarlyTerminationJoin(
                     break
 
                 # check if this index was masked out
-                # super hacky: this cycle count is included in the hash call since ideally these would be done together
-                # like so: for key in keys... if bit { hash(key) traverse(hash) } else { next }
+                runtime += self.simulator.blimp_cycle(
+                    cycles=2,
+                    label="; bit check",
+                    return_labels=return_labels
+                )
                 if not msb_bit(mask, index, elements_per_row):
                     continue
 
@@ -179,14 +210,22 @@ class BlimpHashmapEarlyTerminationJoin(
                     if current_row_index != traced_row_index:
                         current_row_index = traced_row_index
                         runtime += self.simulator.blimp_load_register(
-                            register=self.simulator.blimp_v2,
+                            register=self.simulator.blimp_v4,
                             row=base_hashmap_row + current_row_index,
                             return_labels=return_labels
                         )
 
-                    # add iterations * 2 for cmp/jmp on keys
+                    # Use the vector register to perform several equality checks at once in the bucket
+                    cycles = 1  # Start with one cycle to dispatch to the vector engine
+                    elements_to_check = hash_map.bucket_type().bucket_capacity()
+                    operable_alus = self.hardware.hardware_configuration.number_of_vALUs
+                    alu_rounds = int(math.ceil(elements_to_check / operable_alus))
+                    cycles += alu_rounds  # perform == on all elements wrt hash(key)
+                    cycles += 1  # check v3 ZERO register
+                    cycles += 1  # jump, depending on answer
+
                     runtime += self.simulator.blimp_cycle(
-                        cycles=max(1, traced_iteration * 2),
+                        cycles=cycles,
                         return_labels=return_labels
                     )
 
@@ -196,7 +235,64 @@ class BlimpHashmapEarlyTerminationJoin(
                     label="; hit check",
                     return_labels=return_labels
                 )
-                if not hit:  # update the hitmap to reflect the non-hit
+                if hit:
+                    runtime += self.simulator.blimp_cycle(
+                        cycles=10,
+                        label="; hit meta calculation",
+                        return_labels=return_labels
+                    )
+                    hit_value = (index + elements_per_row * d) & (2 ** (output_index_size_bytes * 8) - 1)
+                    hit_size = output_index_size_bytes
+                    hit_elements += 1
+
+                    while hit_size > 0:
+                        # partially save what we can
+                        bytes_remaining = self.hardware.hardware_configuration.row_buffer_size_bytes - output_byte_index
+                        placeable_bytes = min(
+                            hit_size,
+                            bytes_remaining
+                        )  # we want to assert the condition that placeable_bytes is always at least > 0
+
+                        if placeable_bytes < hit_size:
+                            mask = (2 ** (placeable_bytes * 8) - 1) << ((hit_size - placeable_bytes) * 8)
+                            inserted_value = (hit_value & mask) >> ((hit_size - placeable_bytes) * 8)
+                        else:
+                            inserted_value = hit_value
+
+                        runtime += self.simulator.blimp_set_register_data_at_index(
+                            register=self.simulator.blimp_v2,
+                            element_width=placeable_bytes,
+                            index=output_byte_index // output_index_size_bytes,
+                            value=inserted_value,
+                            return_labels=return_labels
+                        )
+                        output_byte_index += placeable_bytes
+
+                        hit_value &= (2 ** ((hit_size - placeable_bytes) * 8)) - 1
+                        hit_size -= placeable_bytes
+
+                        runtime += self.simulator.blimp_cycle(
+                            cycles=2,
+                            label="; hit state check",
+                            return_labels=return_labels
+                        )
+                        if output_byte_index >= self.hardware.hardware_configuration.row_buffer_size_bytes:
+                            if current_output_row >= max_output_row:
+                                raise RuntimeError("maximum output memory exceeded")
+
+                            # try to save the output buffer
+                            runtime += self.simulator.blimp_save_register(
+                                register=self.simulator.blimp_v2,
+                                row=current_output_row,
+                                return_labels=return_labels
+                            )
+                            runtime += self.simulator.blimpv_set_register_to_zero(
+                                register=self.simulator.blimp_v2,
+                                return_labels=return_labels
+                            )
+                            current_output_row += 1
+                            output_byte_index = 0
+                else:  # update the hitmap to reflect the non-hit
                     runtime += self.simulator.blimp_cycle(
                         cycles=2,
                         label="; bit flip",
@@ -233,7 +329,24 @@ class BlimpHashmapEarlyTerminationJoin(
                 return_labels=return_labels
             )
 
-        # were done with records processing, but we need to save one last time
+        # were done with records processing, but we need to save one last time possibly
+        runtime += self.simulator.blimp_cycle(
+            cycles=3,
+            label="; cmp save",
+            return_labels=return_labels
+        )
+        if output_byte_index != 0:
+            if current_output_row >= max_output_row:
+                raise RuntimeError("maximum output memory exceeded")
+
+            # save the output buffer
+            runtime += self.simulator.blimp_save_register(
+                register=self.simulator.blimp_v2,
+                row=current_output_row,
+                return_labels=return_labels
+            )
+            current_output_row += 1
+
         runtime += self.simulator.blimp_save_register(
             register=self.simulator.blimp_v3,
             row=current_hitmap_row,
@@ -242,19 +355,16 @@ class BlimpHashmapEarlyTerminationJoin(
 
         runtime += self.simulator.blimp_end(return_labels=return_labels)
 
-        # Do we need to pad off remaining hits? This will be handled already by us with V-ASM but we need to do it here
-        remainder = elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)
-        null_remainder = self.hardware.hardware_configuration.row_buffer_size_bytes * 8 - remainder
-        segmented_row = ((2 ** remainder) - 1) << null_remainder
+        # We have finished the query, fetch the memory array to one single array
+        memory_byte_array = []
+        for r in range(current_output_row - base_output_row):
+            # Append the byte array for the next hitmap sub row
+            memory_byte_array += self.simulator.bank_hardware.get_row_bytes(base_output_row + r)
 
-        raw_row = self.hardware.get_raw_row(
-            hitmap_base + (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8))
-        )
-        new_raw_row = raw_row & segmented_row
-
-        self.hardware.set_raw_row(
-            hitmap_base + (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)),
-            new_raw_row
+        memory_result = MemoryArrayResult.from_byte_array(
+            byte_array=memory_byte_array[0:output_index_size_bytes * hit_elements],
+            element_width=output_index_size_bytes,
+            cast_as=int
         )
 
         # We have finished the query, fetch the hitmap to one single hitmap row
@@ -266,8 +376,9 @@ class BlimpHashmapEarlyTerminationJoin(
             # Append the byte array for the next hitmap sub row
             hitmap_byte_array += self.simulator.bank_hardware.get_row_bytes(hitmap_row)
 
-        result = HitmapResult.from_hitmap_byte_array(
+        hitmap_result = HitmapResult.from_hitmap_byte_array(
             hitmap_byte_array=hitmap_byte_array,
             num_bits=self.layout_configuration.layout_metadata.total_records_processable
         )
-        return runtime, result
+
+        return runtime, memory_result, hitmap_result

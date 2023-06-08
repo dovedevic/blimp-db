@@ -8,7 +8,7 @@ from src.simulators.hardware import SimulatedBlimpVBank
 from src.utils.bitmanip import msb_bit
 
 
-class BlimpVHashmapEarlyTerminationIndexJoin(
+class BlimpVHashmapEarlyPruningIndexPayloadJoin(
     Query[
         SimulatedBlimpVBank,
         BlimpIndexHitmapBankLayoutConfiguration
@@ -27,8 +27,9 @@ class BlimpVHashmapEarlyTerminationIndexJoin(
         Perform an BLIMP-V 32-bit Hash Probe operation on 32-bit keys. This assumes the database configuration
         parameter `total_index_size_bytes` is only referencing the entire key, not a multikey, and that the key is 32
         bits, or 4 bytes. Before a key is evaluated, we check the param:hitmap_index bit to see if this key should be
-        evaluated. If it should be, we attempt to find a hit. When a hit is found the local index is placed in an array
-        starting at the :param:output_array_start_row memory address. If no hit was found the hitmap bit is flipped.
+        evaluated. If it should be, we attempt to find a hit. When a hit is found the tuple (key,payload) is placed in
+        an array starting at the :param:output_array_start_row memory address. If no hit was found the hitmap bit is
+        flipped.
 
         @param hash_map: The hash set to be used for probing
         @param output_array_start_row: The row number where the output array begins
@@ -241,8 +242,10 @@ class BlimpVHashmapEarlyTerminationIndexJoin(
                         label="; hit meta calculation",
                         return_labels=return_labels
                     )
-                    hit_value = (index + elements_per_row * d) & (2 ** (output_index_size_bytes * 8) - 1)
-                    hit_size = output_index_size_bytes
+                    rounded_index = (index + elements_per_row * d) & (2 ** (output_index_size_bytes * 8) - 1)
+                    hit_value = (rounded_index << (hit.payload_type().size() * 8)) + hit.payload.as_int()
+                    hit_size = output_index_size_bytes + hit.payload_type().size()
+                    original_hit_size = hit_size
                     hit_elements += 1
 
                     while hit_size > 0:
@@ -262,7 +265,7 @@ class BlimpVHashmapEarlyTerminationIndexJoin(
                         runtime += self.simulator.blimp_set_register_data_at_index(
                             register=self.simulator.blimp_v2,
                             element_width=placeable_bytes,
-                            index=output_byte_index // output_index_size_bytes,
+                            index=output_byte_index // original_hit_size,
                             value=inserted_value,
                             return_labels=return_labels
                         )
@@ -361,10 +364,19 @@ class BlimpVHashmapEarlyTerminationIndexJoin(
             # Append the byte array for the next hitmap sub row
             memory_byte_array += self.simulator.bank_hardware.get_row_bytes(base_output_row + r)
 
+        class IndexPayloadResult(hash_map.bucket_type().bucket_object_type()):
+            class IndexHit(hash_map.bucket_type().bucket_object_type().key_type()):
+                _SIZE_BYTES = output_index_size_bytes
+            _KEY_OBJECT = IndexHit
+
         memory_result = MemoryArrayResult.from_byte_array(
-            byte_array=memory_byte_array[0:output_index_size_bytes * hit_elements],
-            element_width=output_index_size_bytes,
-            cast_as=int
+            byte_array=memory_byte_array[
+                0:(
+                    output_index_size_bytes + hash_map.bucket_type().bucket_object_type().payload_type().size()
+                ) * hit_elements
+            ],
+            element_width=output_index_size_bytes + hash_map.bucket_type().bucket_object_type().payload_type().size(),
+            cast_as=IndexPayloadResult.from_int
         )
 
         # We have finished the query, fetch the hitmap to one single hitmap row

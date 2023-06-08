@@ -8,7 +8,7 @@ from src.simulators.hardware import SimulatedBlimpVBank
 from src.utils.bitmanip import msb_bit
 
 
-class BlimpVHashmapEarlyTerminationJoin(
+class BlimpVHashmapEarlyPruningJoin(
     Query[
         SimulatedBlimpVBank,
         BlimpIndexHitmapBankLayoutConfiguration

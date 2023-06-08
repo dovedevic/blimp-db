@@ -4,13 +4,13 @@ from src.queries.query import Query
 from src.simulators.result import RuntimeResult, MemoryArrayResult, HitmapResult
 from src.data_layout_mappings.architectures import BlimpIndexHitmapBankLayoutConfiguration
 from src.configurations.hashables import BlimpSimpleHashSet
-from src.simulators.hardware import SimulatedBlimpBank
+from src.simulators.hardware import SimulatedBlimpVBank
 from src.utils.bitmanip import msb_bit
 
 
-class BlimpHashmapEarlyTerminationIndexPayloadJoin(
+class BlimpVHashmapEarlyPruningHitmapPayloadJoin(
     Query[
-        SimulatedBlimpBank,
+        SimulatedBlimpVBank,
         BlimpIndexHitmapBankLayoutConfiguration
     ]
 ):
@@ -18,23 +18,21 @@ class BlimpHashmapEarlyTerminationIndexPayloadJoin(
             self,
             hash_map: BlimpSimpleHashSet,
             output_array_start_row: int,
-            output_index_size_bytes: int,
             hitmap_index: int = 0,
             return_labels: bool=False,
             **kwargs
     ) -> (RuntimeResult, MemoryArrayResult, HitmapResult):
         """
-        Perform an BLIMP 32-bit Hash Probe operation on 32-bit keys. This assumes the database configuration
+        Perform an BLIMP-V 32-bit Hash Probe operation on 32-bit keys. This assumes the database configuration
         parameter `total_index_size_bytes` is only referencing the entire key, not a multikey, and that the key is 32
-        bits, or 4 bytes. Before a key is evaluated, we check the param:hitmap_index bit to see if this key should be
-        evaluated. If it should be, we attempt to find a hit. When a hit is found the tuple (key,payload) is placed in
-        an array starting at the :param:output_array_start_row memory address. If no hit was found the hitmap bit is
-        flipped.
+        bits, or 4 bytes. When a hit is found, the payload is placed in an array starting at the
+        :param:output_array_start_row memory address and a hit is indicated in the hitmap. Before a key is evaluated
+        however, we check the existing hitmap to see if the bit is on to indicate if this key should be checked or
+        evaluated. If no hit was found when the bit was set, we toggle toe output hitmap bit.
 
         @param hash_map: The hash set to be used for probing
         @param output_array_start_row: The row number where the output array begins
-        @param output_index_size_bytes: The number of bytes to use for index hit values in the output array
-        @param hitmap_index: Which hitmap to target results into and where to draw early termination results from
+        @param hitmap_index: Which hitmap to target results into
         @param return_labels: Whether to return debug labels with the RuntimeResult history
         """
         key_size = self.layout_configuration.database_configuration.total_index_size_bytes
@@ -80,7 +78,7 @@ class BlimpHashmapEarlyTerminationIndexPayloadJoin(
             // self.layout_configuration.database_configuration.total_index_size_bytes
         assert elements_per_row > 0, "Total element size must be at least less than one row buffer"
 
-        # Begin by enabling BLIMP
+        # Begin by enabling BLIMP-V
         runtime = self.simulator.blimp_begin(
             return_labels=return_labels
         )
@@ -93,7 +91,7 @@ class BlimpHashmapEarlyTerminationIndexPayloadJoin(
         )
 
         # Clear a register for temporary output in V2
-        runtime += self.simulator.blimp_set_register_to_zero(
+        runtime += self.simulator.blimpv_set_register_to_zero(
             register=self.simulator.blimp_v2,
             return_labels=return_labels
         )
@@ -136,7 +134,6 @@ class BlimpHashmapEarlyTerminationIndexPayloadJoin(
                     row=current_hitmap_row,
                     return_labels=return_labels
                 )
-
             runtime += self.simulator.blimp_cycle(
                 cycles=5,
                 label="; mask point",
@@ -163,11 +160,9 @@ class BlimpHashmapEarlyTerminationIndexPayloadJoin(
             )
 
             # Hash and mask the keys
-            runtime += self.simulator.blimp_alu_int_hash(
+            runtime += self.simulator.blimpv_alu_int_hash(
                 register_a=self.simulator.blimp_v1,
-                start_index=0,
-                end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
-                element_width=key_size,
+                sew=key_size,
                 stride=key_size,
                 hash_mask=hash_map.mask,
                 mask=mask,
@@ -190,8 +185,11 @@ class BlimpHashmapEarlyTerminationIndexPayloadJoin(
                     break
 
                 # check if this index was masked out
-                # super hacky: this cycle count is included in the hash call since ideally these would be done together
-                # like so: for key in keys... if bit { hash(key) traverse(hash) } else { next }
+                runtime += self.simulator.blimp_cycle(
+                    cycles=2,
+                    label="; bit check",
+                    return_labels=return_labels
+                )
                 if not msb_bit(mask, index, elements_per_row):
                     continue
 
@@ -215,9 +213,17 @@ class BlimpHashmapEarlyTerminationIndexPayloadJoin(
                             return_labels=return_labels
                         )
 
-                    # add iterations * 2 for cmp/jmp on keys
+                    # Use the vector register to perform several equality checks at once in the bucket
+                    cycles = 1  # Start with one cycle to dispatch to the vector engine
+                    elements_to_check = hash_map.bucket_type().bucket_capacity()
+                    operable_alus = self.hardware.hardware_configuration.number_of_vALUs
+                    alu_rounds = int(math.ceil(elements_to_check / operable_alus))
+                    cycles += alu_rounds  # perform == on all elements wrt hash(key)
+                    cycles += 1  # check v3 ZERO register
+                    cycles += 1  # jump, depending on answer
+
                     runtime += self.simulator.blimp_cycle(
-                        cycles=max(1, traced_iteration * 2),
+                        cycles=cycles,
                         return_labels=return_labels
                     )
 
@@ -233,10 +239,8 @@ class BlimpHashmapEarlyTerminationIndexPayloadJoin(
                         label="; hit meta calculation",
                         return_labels=return_labels
                     )
-                    rounded_index = (index + elements_per_row * d) & (2 ** (output_index_size_bytes * 8) - 1)
-                    hit_value = (rounded_index << (hit.payload_type().size() * 8)) + hit.payload.as_int()
-                    hit_size = output_index_size_bytes + hit.payload_type().size()
-                    original_hit_size = hit_size
+                    hit_value = hit.payload.as_int()
+                    hit_size = hit.payload_type().size()
                     hit_elements += 1
 
                     while hit_size > 0:
@@ -256,7 +260,7 @@ class BlimpHashmapEarlyTerminationIndexPayloadJoin(
                         runtime += self.simulator.blimp_set_register_data_at_index(
                             register=self.simulator.blimp_v2,
                             element_width=placeable_bytes,
-                            index=output_byte_index // original_hit_size,
+                            index=output_byte_index // hit.payload_type().size(),
                             value=inserted_value,
                             return_labels=return_labels
                         )
@@ -280,7 +284,7 @@ class BlimpHashmapEarlyTerminationIndexPayloadJoin(
                                 row=current_output_row,
                                 return_labels=return_labels
                             )
-                            runtime += self.simulator.blimp_set_register_to_zero(
+                            runtime += self.simulator.blimpv_set_register_to_zero(
                                 register=self.simulator.blimp_v2,
                                 return_labels=return_labels
                             )
@@ -355,19 +359,11 @@ class BlimpHashmapEarlyTerminationIndexPayloadJoin(
             # Append the byte array for the next hitmap sub row
             memory_byte_array += self.simulator.bank_hardware.get_row_bytes(base_output_row + r)
 
-        class IndexPayloadResult(hash_map.bucket_type().bucket_object_type()):
-            class IndexHit(hash_map.bucket_type().bucket_object_type().key_type()):
-                _SIZE_BYTES = output_index_size_bytes
-            _KEY_OBJECT = IndexHit
-
         memory_result = MemoryArrayResult.from_byte_array(
             byte_array=memory_byte_array[
-                0:(
-                    output_index_size_bytes + hash_map.bucket_type().bucket_object_type().payload_type().size()
-                ) * hit_elements
-            ],
-            element_width=output_index_size_bytes + hash_map.bucket_type().bucket_object_type().payload_type().size(),
-            cast_as=IndexPayloadResult.from_int
+                       0:(hash_map.bucket_type().bucket_object_type().payload_type().size() * hit_elements)],
+            element_width=hash_map.bucket_type().bucket_object_type().payload_type().size(),
+            cast_as=hash_map.bucket_type().bucket_object_type().payload_type().from_int
         )
 
         # We have finished the query, fetch the hitmap to one single hitmap row
