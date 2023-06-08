@@ -194,6 +194,25 @@ class _BlimpHitmapGenericScalarALO(
                 return_labels=return_labels
             )
             if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) == 0:
+                # Load the existing hitmap
+                runtime += self.simulator.blimp_load_register(
+                    register=self.simulator.blimp_data_scratchpad,
+                    row=hitmap_base +
+                    (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1,
+                    return_labels=return_labels
+                )
+
+                # And what was there previously
+                runtime += self.simulator.blimp_alu_int_and(
+                    register_a=self.simulator.blimp_data_scratchpad,
+                    register_b=self.simulator.blimp_v2,
+                    start_index=0,
+                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    return_labels=return_labels
+                )
+
                 # Save the hitmap
                 runtime += self.simulator.blimp_save_register(
                     register=self.simulator.blimp_v2,
@@ -221,6 +240,25 @@ class _BlimpHitmapGenericScalarALO(
             return_labels=return_labels
         )
         if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) != 0:
+            # Load the existing hitmap
+            runtime += self.simulator.blimp_load_register(
+                register=self.simulator.blimp_data_scratchpad,
+                row=hitmap_base +
+                (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)),
+                return_labels=return_labels
+            )
+
+            # And what was there previously
+            runtime += self.simulator.blimp_alu_int_and(
+                register_a=self.simulator.blimp_data_scratchpad,
+                register_b=self.simulator.blimp_v2,
+                start_index=0,
+                end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                return_labels=return_labels
+            )
+
             runtime += self.simulator.blimp_save_register(
                 register=self.simulator.blimp_v2,
                 row=hitmap_base +

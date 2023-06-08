@@ -177,6 +177,23 @@ class _BlimpVHitmapGenericScalarALO(
                 return_labels=return_labels
             )
             if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) == 0:
+                # Load the existing hitmap
+                runtime += self.simulator.blimp_load_register(
+                    register=self.simulator.blimp_data_scratchpad,
+                    row=hitmap_base +
+                    (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1,
+                    return_labels=return_labels
+                )
+
+                # And what was there previously
+                runtime += self.simulator.blimpv_alu_int_or(
+                    register_a=self.simulator.blimp_data_scratchpad,
+                    register_b=self.simulator.blimp_v2,
+                    sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                    stride=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                    return_labels=return_labels
+                )
+
                 # Save the hitmap
                 runtime += self.simulator.blimp_save_register(
                     register=self.simulator.blimp_v2,
@@ -204,6 +221,23 @@ class _BlimpVHitmapGenericScalarALO(
             return_labels=return_labels
         )
         if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) != 0:
+            # Load the existing hitmap
+            runtime += self.simulator.blimp_load_register(
+                register=self.simulator.blimp_data_scratchpad,
+                row=hitmap_base +
+                (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)),
+                return_labels=return_labels
+            )
+
+            # And what was there previously
+            runtime += self.simulator.blimpv_alu_int_or(
+                register_a=self.simulator.blimp_data_scratchpad,
+                register_b=self.simulator.blimp_v2,
+                sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                stride=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                return_labels=return_labels
+            )
+
             runtime += self.simulator.blimp_save_register(
                 register=self.simulator.blimp_v2,
                 row=hitmap_base +
