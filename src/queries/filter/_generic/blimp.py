@@ -57,6 +57,13 @@ class _BlimpHitmapGenericScalarALO(
         # Begin by enabling BLIMP
         runtime = self.simulator.blimp_begin(return_labels=return_labels)
 
+        # Calculate the above metadata
+        runtime += self.simulator.blimp_cycle(
+            cycles=5,
+            label="; meta start",
+            return_labels=return_labels
+        )
+
         # Clear a register for temporary hitmaps
         runtime += self.simulator.blimp_set_register_to_zero(
             register=self.simulator.blimp_v2,
