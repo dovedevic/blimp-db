@@ -91,3 +91,10 @@ class LineOrderSupplyCost(GenericLineOrderColumn):
 
     def _column(self, record):
         return record.supply_cost
+
+
+class LineOrderExtendedPrice(GenericLineOrderColumn):
+    column_size = 4
+
+    def _column(self, record):
+        return record.extended_price
