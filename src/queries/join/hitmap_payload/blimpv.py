@@ -264,8 +264,9 @@ class BlimpVHashmapHitmapPayloadJoin(
                             current_output_row += 1
                             output_byte_index = 0
 
-            # Coalesce the bitmap
-            runtime += self.simulator.blimpv_coalesce_register_hitmap(
+            # Coalesce the bitmap, no need to save the runtime since ideally we would do this while looping when we
+            # do the above ALU operations. We do this here just to do it handily with the sim
+            self.simulator.blimpv_coalesce_register_hitmap(
                 register_a=self.simulator.blimp_v1,
                 sew=self.layout_configuration.database_configuration.total_index_size_bytes,
                 stride=self.layout_configuration.database_configuration.total_index_size_bytes,
@@ -273,8 +274,8 @@ class BlimpVHashmapHitmapPayloadJoin(
                 return_labels=return_labels
             )
 
-            # Or the bitmap into the temporary one
-            runtime += self.simulator.blimpv_alu_int_or(
+            # Or the bitmap into the temporary one, no runtime for the same reason as above
+            self.simulator.blimpv_alu_int_or(
                 register_a=self.simulator.blimp_v1,
                 register_b=self.simulator.blimp_v3,
                 sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
