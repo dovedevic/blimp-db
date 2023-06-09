@@ -186,7 +186,7 @@ class _BlimpVHitmapGenericScalarALO(
                 )
 
                 # And what was there previously
-                runtime += self.simulator.blimpv_alu_int_or(
+                runtime += self.simulator.blimpv_alu_int_and(
                     register_a=self.simulator.blimp_data_scratchpad,
                     register_b=self.simulator.blimp_v2,
                     sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
@@ -230,7 +230,7 @@ class _BlimpVHitmapGenericScalarALO(
             )
 
             # And what was there previously
-            runtime += self.simulator.blimpv_alu_int_or(
+            runtime += self.simulator.blimpv_alu_int_and(
                 register_a=self.simulator.blimp_data_scratchpad,
                 register_b=self.simulator.blimp_v2,
                 sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
