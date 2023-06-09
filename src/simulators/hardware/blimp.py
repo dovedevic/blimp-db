@@ -352,6 +352,8 @@ class SimulatedBlimpBank(
             if element % (stride // element_width) == 0 and msb_bit(mask, element, max_maskable_bits):
                 c = operation(a)
                 c = ((~c if invert else c) & (2 ** (element_width * 8)) - 1)  # eliminate any carry's, invert if needed
+            elif not msb_bit(mask, element, max_maskable_bits):
+                c = 0  # is this masked out?
             else:
                 c = a  # just keep what was there
             c = int_to_byte_array(c, element_width)
@@ -386,6 +388,8 @@ class SimulatedBlimpBank(
             if element % (stride // element_width) == 0 and msb_bit(mask, element, max_maskable_bits):
                 c = operation(a, b)
                 c = ((~c if invert else c) & (2 ** (element_width * 8)) - 1)  # eliminate any carry's, invert if needed
+            elif not msb_bit(mask, element, max_maskable_bits):
+                c = 0  # is this masked out?
             else:
                 c = a  # just keep what was in the source register
             c = int_to_byte_array(c, element_width)
@@ -1116,6 +1120,8 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             if sew_chunk % (stride // sew) == 0 and msb_bit(mask, sew_chunk, max_maskable_bits):
                 c = operation(a)
                 c = ((~c if invert else c) & (2 ** (sew * 8)) - 1)  # eliminate any carry's and invert if needed
+            elif not msb_bit(mask, sew_chunk, max_maskable_bits):
+                c = 0  # is this masked out?
             else:
                 c = a  # just keep what was there
             result <<= sew * 8
@@ -1144,6 +1150,8 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             if sew_chunk % (stride // sew) == 0 and msb_bit(mask, sew_chunk, max_maskable_bits):
                 c = operation(a, b)
                 c = ((~c if invert else c) & (2 ** (sew * 8)) - 1)  # eliminate any carry's and invert if needed
+            elif not msb_bit(mask, sew_chunk, max_maskable_bits):
+                c = 0  # is this masked out?
             else:
                 c = a  # just keep what was there in the source register
             result <<= sew * 8
