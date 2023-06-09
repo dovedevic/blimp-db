@@ -24,7 +24,7 @@ class _BlimpHitmapBetween(
             hitmap_index: int=0
     ) -> (RuntimeResult, HitmapResult):
         """
-        Perform a generic BLIMP BETWEEN (vl < # < vh) query operation assuming reserved space for hitmaps.
+        Perform a generic BLIMP BETWEEN (vl <= # <= vh) query operation assuming reserved space for hitmaps.
 
         @param pi_element_size_bytes: The PI/Key field size in bytes.
         @param value_low: The low value to check all targeted PI/Keys against. Must be less than 2^pi_element_size
@@ -58,6 +58,13 @@ class _BlimpHitmapBetween(
 
         # Begin by enabling BLIMP
         runtime = self.simulator.blimp_begin(return_labels=return_labels)
+
+        # Calculate the above metadata
+        runtime += self.simulator.blimp_cycle(
+            cycles=5,
+            label="; meta start",
+            return_labels=return_labels
+        )
 
         # Clear a register for temporary hitmaps
         runtime += self.simulator.blimp_set_register_to_zero(
@@ -95,39 +102,72 @@ class _BlimpHitmapBetween(
             )
 
             # Perform the operation
-            runtime += self.simulator.blimp_alu_int_lt_val(
-                register_a=self.simulator.blimp_v2,
-                start_index=0,
-                end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
-                element_width=pi_element_size_bytes,
-                stride=pi_element_size_bytes,
-                value=value_high,
-                return_labels=return_labels
-            )
+            if not negate:
+                runtime += self.simulator.blimp_alu_int_lte_val(
+                    register_a=self.simulator.blimp_v2,
+                    start_index=0,
+                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    element_width=pi_element_size_bytes,
+                    stride=pi_element_size_bytes,
+                    value=value_high,
+                    return_labels=return_labels
+                )
 
-            runtime += self.simulator.blimp_alu_int_gt_val(
-                register_a=self.simulator.blimp_v3,
-                start_index=0,
-                end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
-                element_width=pi_element_size_bytes,
-                stride=pi_element_size_bytes,
-                value=value_low,
-                return_labels=return_labels
-            )
+                runtime += self.simulator.blimp_alu_int_gte_val(
+                    register_a=self.simulator.blimp_v3,
+                    start_index=0,
+                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    element_width=pi_element_size_bytes,
+                    stride=pi_element_size_bytes,
+                    value=value_low,
+                    return_labels=return_labels
+                )
 
-            # Combine the results
-            runtime += self.simulator.blimp_alu_int_and(
-                register_a=self.simulator.blimp_v2,
-                register_b=self.simulator.blimp_v3,
-                start_index=0,
-                end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
-                element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                return_labels=return_labels
-            )
+                # Combine the results
+                runtime += self.simulator.blimp_alu_int_and(
+                    register_a=self.simulator.blimp_v2,
+                    register_b=self.simulator.blimp_v3,
+                    start_index=0,
+                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    return_labels=return_labels
+                )
+            else:
+                runtime += self.simulator.blimp_alu_int_gt_val(
+                    register_a=self.simulator.blimp_v2,
+                    start_index=0,
+                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    element_width=pi_element_size_bytes,
+                    stride=pi_element_size_bytes,
+                    value=value_high,
+                    return_labels=return_labels
+                )
 
-            # Coalesce the bitmap
-            runtime += self.simulator.blimp_coalesce_register_hitmap(
+                runtime += self.simulator.blimp_alu_int_lt_val(
+                    register_a=self.simulator.blimp_v3,
+                    start_index=0,
+                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    element_width=pi_element_size_bytes,
+                    stride=pi_element_size_bytes,
+                    value=value_low,
+                    return_labels=return_labels
+                )
+
+                # Combine the results
+                runtime += self.simulator.blimp_alu_int_or(
+                    register_a=self.simulator.blimp_v2,
+                    register_b=self.simulator.blimp_v3,
+                    start_index=0,
+                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    return_labels=return_labels
+                )
+
+            # Coalesce the bitmap, no need to save the runtime since ideally we would do this while looping when we
+            # do the above ALU operations. We do this here just to do it handily with the sim
+            self.simulator.blimp_coalesce_register_hitmap(
                 register_a=self.simulator.blimp_v3,
                 start_index=0,
                 end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
@@ -137,8 +177,8 @@ class _BlimpHitmapBetween(
                 return_labels=return_labels
             )
 
-            # Or the bitmap into the temporary one
-            runtime += self.simulator.blimp_alu_int_or(
+            # Or the bitmap into the temporary one, no runtime for the same reason as above
+            self.simulator.blimp_alu_int_or(
                 register_a=self.simulator.blimp_v3,
                 register_b=self.simulator.blimp_v1,
                 start_index=0,
@@ -165,22 +205,24 @@ class _BlimpHitmapBetween(
                 return_labels=return_labels
             )
             if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) == 0:
-
-                runtime += self.simulator.blimp_cycle(
-                    cycles=1,
-                    label="; cmp negate",
+                # load the existing hitmap
+                runtime += self.simulator.blimp_load_register(
+                    register=self.simulator.blimp_data_scratchpad,
+                    row=hitmap_base +
+                    (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1,
                     return_labels=return_labels
                 )
-                if negate:
-                    # If we are negating, invert v1 (since it was just saved)
-                    runtime += self.simulator.blimp_alu_int_not(
-                        register_a=self.simulator.blimp_v1,
-                        start_index=0,
-                        end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
-                        element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                        stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                        return_labels=return_labels
-                    )
+
+                # and the results
+                runtime += self.simulator.blimp_alu_int_and(
+                    register_a=self.simulator.blimp_data_scratchpad,
+                    register_b=self.simulator.blimp_v1,
+                    start_index=0,
+                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                    element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                    return_labels=return_labels
+                )
 
                 # Save the hitmap
                 runtime += self.simulator.blimp_save_register(
@@ -209,21 +251,24 @@ class _BlimpHitmapBetween(
             return_labels=return_labels
         )
         if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) != 0:
-            runtime += self.simulator.blimp_cycle(
-                cycles=1,
-                label="; cmp negate",
+            # load the hitmap
+            runtime += self.simulator.blimp_load_register(
+                register=self.simulator.blimp_data_scratchpad,
+                row=hitmap_base +
+                (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)),
                 return_labels=return_labels
             )
-            if negate:
-                # If we are negating, invert v2 (since it was just saved)
-                runtime += self.simulator.blimp_alu_int_not(
-                    register_a=self.simulator.blimp_v1,
-                    start_index=0,
-                    end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
-                    element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                    stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                    return_labels=return_labels
-                )
+
+            # and the results
+            runtime += self.simulator.blimp_alu_int_and(
+                register_a=self.simulator.blimp_data_scratchpad,
+                register_b=self.simulator.blimp_v1,
+                start_index=0,
+                end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
+                element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
+                return_labels=return_labels
+            )
 
             runtime += self.simulator.blimp_save_register(
                 register=self.simulator.blimp_v1,

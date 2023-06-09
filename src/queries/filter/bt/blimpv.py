@@ -24,7 +24,7 @@ class _BlimpVHitmapBetween(
             hitmap_index: int=0
     ) -> (RuntimeResult, HitmapResult):
         """
-        Perform a generic BLIMP-V BETWEEN (vl < # < vh) query operation assuming reserved space for hitmaps.
+        Perform a generic BLIMP-V BETWEEN (vl <= # <= vh) query operation assuming reserved space for hitmaps.
 
         @param pi_element_size_bytes: The PI/Key field size in bytes.
         @param value_low: The low value to check all targeted PI/Keys against. Must be less than 2^pi_element_size
@@ -58,6 +58,13 @@ class _BlimpVHitmapBetween(
 
         # Begin by enabling BLIMP-V
         runtime = self.simulator.blimp_begin(return_labels=return_labels)
+
+        # Calculate the above metadata
+        runtime += self.simulator.blimp_cycle(
+            cycles=5,
+            label="; meta start",
+            return_labels=return_labels
+        )
 
         # Clear a register for temporary hitmaps
         runtime += self.simulator.blimpv_set_register_to_zero(
@@ -95,30 +102,56 @@ class _BlimpVHitmapBetween(
             )
 
             # Perform the operation
-            runtime += self.simulator.blimpv_alu_int_lt_val(
-                register_a=self.simulator.blimp_v2,
-                sew=pi_element_size_bytes,
-                stride=pi_element_size_bytes,
-                value=value_high,
-                return_labels=return_labels
-            )
+            if not negate:
+                runtime += self.simulator.blimpv_alu_int_lte_val(
+                    register_a=self.simulator.blimp_v2,
+                    sew=pi_element_size_bytes,
+                    stride=pi_element_size_bytes,
+                    value=value_high,
+                    return_labels=return_labels
+                )
 
-            runtime += self.simulator.blimpv_alu_int_gt_val(
-                register_a=self.simulator.blimp_v3,
-                sew=pi_element_size_bytes,
-                stride=pi_element_size_bytes,
-                value=value_low,
-                return_labels=return_labels
-            )
+                runtime += self.simulator.blimpv_alu_int_gte_val(
+                    register_a=self.simulator.blimp_v3,
+                    sew=pi_element_size_bytes,
+                    stride=pi_element_size_bytes,
+                    value=value_low,
+                    return_labels=return_labels
+                )
 
-            # Combine the results
-            runtime += self.simulator.blimpv_alu_int_and(
-                register_a=self.simulator.blimp_v2,
-                register_b=self.simulator.blimp_v3,
-                sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
-                stride=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
-                return_labels=return_labels
-            )
+                # Combine the results
+                runtime += self.simulator.blimpv_alu_int_and(
+                    register_a=self.simulator.blimp_v2,
+                    register_b=self.simulator.blimp_v3,
+                    sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                    stride=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                    return_labels=return_labels
+                )
+            else:
+                runtime += self.simulator.blimpv_alu_int_gt_val(
+                    register_a=self.simulator.blimp_v2,
+                    sew=pi_element_size_bytes,
+                    stride=pi_element_size_bytes,
+                    value=value_high,
+                    return_labels=return_labels
+                )
+
+                runtime += self.simulator.blimpv_alu_int_lt_val(
+                    register_a=self.simulator.blimp_v3,
+                    sew=pi_element_size_bytes,
+                    stride=pi_element_size_bytes,
+                    value=value_low,
+                    return_labels=return_labels
+                )
+
+                # Combine the results
+                runtime += self.simulator.blimpv_alu_int_or(
+                    register_a=self.simulator.blimp_v2,
+                    register_b=self.simulator.blimp_v3,
+                    sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                    stride=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                    return_labels=return_labels
+                )
 
             # Coalesce the bitmap
             runtime += self.simulator.blimpv_coalesce_register_hitmap(
@@ -155,20 +188,22 @@ class _BlimpVHitmapBetween(
                 return_labels=return_labels
             )
             if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) == 0:
-
-                runtime += self.simulator.blimp_cycle(
-                    cycles=1,
-                    label="; cmp negate",
+                # Load the existing hitmap
+                runtime += self.simulator.blimp_load_register(
+                    register=self.simulator.blimp_data_scratchpad,
+                    row=hitmap_base +
+                    (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1,
                     return_labels=return_labels
                 )
-                if negate:
-                    # If we are negating, invert v1 (since it was just saved)
-                    runtime += self.simulator.blimpv_alu_int_not(
-                        register_a=self.simulator.blimp_v1,
-                        sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
-                        stride=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
-                        return_labels=return_labels
-                    )
+
+                # and the results
+                runtime += self.simulator.blimpv_alu_int_and(
+                    register_a=self.simulator.blimp_data_scratchpad,
+                    register_b=self.simulator.blimp_v1,
+                    sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                    stride=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                    return_labels=return_labels
+                )
 
                 # Save the hitmap
                 runtime += self.simulator.blimp_save_register(
@@ -197,19 +232,22 @@ class _BlimpVHitmapBetween(
             return_labels=return_labels
         )
         if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) != 0:
-            runtime += self.simulator.blimp_cycle(
-                cycles=1,
-                label="; cmp negate",
+            # Load the existing hitmap
+            runtime += self.simulator.blimp_load_register(
+                register=self.simulator.blimp_data_scratchpad,
+                row=hitmap_base +
+                (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)),
                 return_labels=return_labels
             )
-            if negate:
-                # If we are negating, invert v2 (since it was just saved)
-                runtime += self.simulator.blimpv_alu_int_not(
-                    register_a=self.simulator.blimp_v1,
-                    sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
-                    stride=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
-                    return_labels=return_labels
-                )
+
+            # and the results
+            runtime += self.simulator.blimpv_alu_int_and(
+                register_a=self.simulator.blimp_data_scratchpad,
+                register_b=self.simulator.blimp_v1,
+                sew=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                stride=self.layout_configuration.hardware_configuration.blimpv_sew_max_bytes,
+                return_labels=return_labels
+            )
 
             runtime += self.simulator.blimp_save_register(
                 register=self.simulator.blimp_v1,
