@@ -335,16 +335,12 @@ class SSBQuery4pX(GenericSSBQuery):
     def _setup(self, **kwargs):
         self.logger.info("Building Supplier Hash Table...")
         self._build_supplier_hash_table()
-        self.supplier_join_hash_table.get_statistics(display=True)
         self.logger.info("Building Part Hash Table...")
         self._build_part_hash_table()
-        self.part_join_hash_table.get_statistics(display=True)
         self.logger.info("Building Customer Hash Table...")
         self._build_customer_hash_table()
-        self.customer_join_hash_table.get_statistics(display=True)
         self.logger.info("Building Date Hash Table...")
         self._build_date_hash_table()
-        self.date_join_hash_table.get_statistics(display=True)
 
         self.logger.info("Performing checks...")
         assert self._get_supplier_layout_configuration().layout_metadata.total_records_processable == \
