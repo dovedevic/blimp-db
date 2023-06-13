@@ -192,10 +192,10 @@ class SSBQuery1pX(GenericSSBQuery):
         return self.__extended_price_emit_data_layout
 
     def _setup(self, **kwargs):
-        print("Building Date Hash Table...")
+        self.logger.info("Building Date Hash Table...")
         self._build_date_hash_table()
 
-        print("Performing checks...")
+        self.logger.info("Performing checks...")
         assert self._get_discount_layout_configuration().layout_metadata.total_records_processable == \
                self._get_discount_record_limit(), "LO_Discount scale factor is too big for this parallelism factor"
         assert self._get_quantity_layout_configuration().layout_metadata.total_records_processable == \
@@ -281,7 +281,7 @@ class SSBQuery1pX(GenericSSBQuery):
             display_runtime_output=True,
             **kwargs
     ) -> Any:
-        print("Starting Query...")
+        self.logger.info("Starting Query...")
         self._perform_operation_1_layout()
         self._perform_operation_1_placement()
         operation_1_runtime, operation_1_output = self._perform_operation_1_query(save_query_output)

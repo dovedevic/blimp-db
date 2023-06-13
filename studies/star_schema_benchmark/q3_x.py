@@ -245,14 +245,14 @@ class SSBQuery3pX(GenericSSBQuery):
         return self.__revenue_emit_data_layout
 
     def _setup(self, **kwargs):
-        print("Building Supplier Hash Table...")
+        self.logger.info("Building Supplier Hash Table...")
         self._build_supplier_hash_table()
-        print("Building Customer Hash Table...")
+        self.logger.info("Building Customer Hash Table...")
         self._build_customer_hash_table()
-        print("Building Date Hash Table...")
+        self.logger.info("Building Date Hash Table...")
         self._build_date_hash_table()
 
-        print("Performing checks...")
+        self.logger.info("Performing checks...")
         assert self._get_supplier_layout_configuration().layout_metadata.total_records_processable == \
                self._get_supplier_record_limit(), "LO_SupplierKey scale factor is too big for this parallelism factor"
         assert self._get_customer_layout_configuration().layout_metadata.total_records_processable == \
@@ -378,7 +378,7 @@ class SSBQuery3pX(GenericSSBQuery):
             display_runtime_output=True,
             **kwargs
     ) -> Any:
-        print("Starting Query...")
+        self.logger.info("Starting Query...")
         self._perform_join_1_layout()
         self._perform_join_1_placement()
         join_1_runtime, join_1_output = self._perform_join_1_query(save_query_output)

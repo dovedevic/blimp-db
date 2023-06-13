@@ -1,3 +1,5 @@
+import logging
+
 from typing import Tuple, List
 
 from src.configurations.hardware import HardwareConfiguration
@@ -35,6 +37,9 @@ class GenericSSBQuery:
     scale_factor = 100
     parallelism_factor = 512
 
+    def __init__(self):
+        self.logger = logging.getLogger(self.__class__.__name__)
+
     __hardware_config = None
 
     def _get_hardware_config(self):
@@ -71,10 +76,10 @@ class GenericSSBQuery:
         pass
 
     def run_query(self, **kwargs):
-        print('Performing setup...')
+        self.logger.info('Performing setup...')
         self._setup(**kwargs)
-        print('Performing query...')
+        self.logger.info('Performing query...')
         results = self._perform_query(**kwargs)
-        print('Validating...')
+        self.logger.info('Validating...')
         self._validate(*results)
         return results
