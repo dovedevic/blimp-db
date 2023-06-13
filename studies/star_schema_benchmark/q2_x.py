@@ -384,7 +384,7 @@ class SSBQuery2pX(GenericSSBQuery):
         if display_runtime_output:
             print(f"Total: {sum([r.runtime for r in runtimes]):,}ns")
 
-        return join_3_output,
+        return join_3_output, runtimes
 
 
 class SSBQuery2pXSupplierPartDate(SSBQuery2pX):

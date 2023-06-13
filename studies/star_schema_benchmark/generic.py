@@ -1,8 +1,9 @@
-from typing import Any
+from typing import Tuple, List
 
 from src.configurations.hardware import HardwareConfiguration
 from src.hardware import Bank
 from src.simulators.hardware import SimulatedBank
+from src.simulators.result import HitmapResult, RuntimeResult
 
 
 class GenericSSBQuery:
@@ -19,7 +20,7 @@ class GenericSSBQuery:
         "number_of_vFPUs": 0,
         "blimpv_sew_max_bytes": 8,
         "blimpv_sew_min_bytes": 1,
-        "blimp_frequency": 200000000,
+        "blimp_frequency": 400000000,
         "time_to_v0_transfer_ns": 5,
         "blimp_processor_bit_architecture": 64,
         "ambit_compute_register_rows": 6,
@@ -63,7 +64,7 @@ class GenericSSBQuery:
     def _setup(self, **kwargs):
         pass
 
-    def _perform_query(self, **kwargs) -> Any:
+    def _perform_query(self, **kwargs) -> Tuple[HitmapResult, List[RuntimeResult]]:
         pass
 
     def _validate(self, *args):
@@ -76,3 +77,4 @@ class GenericSSBQuery:
         results = self._perform_query(**kwargs)
         print('Validating...')
         self._validate(*results)
+        return results
