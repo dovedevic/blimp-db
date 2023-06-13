@@ -229,18 +229,3 @@ class SSBQuery4p1BlimpPartSupplierCustomerDate(SSBQuery4pXPartSupplierCustomerDa
     def _perform_emit_3_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
         return RuntimeResult(), MemoryArrayResult()
-
-
-SSBQuery4p1BlimpVCustomerPartSupplierDate().run_query()
-SSBQuery4p1BlimpVCustomerSupplierPartDate().run_query()
-SSBQuery4p1BlimpVSupplierCustomerPartDate().run_query()
-SSBQuery4p1BlimpVPartCustomerSupplierDate().run_query()
-SSBQuery4p1BlimpVSupplierPartCustomerDate().run_query()
-SSBQuery4p1BlimpVPartSupplierCustomerDate().run_query()
-
-SSBQuery4p1BlimpCustomerPartSupplierDate().run_query()
-SSBQuery4p1BlimpCustomerSupplierPartDate().run_query()
-SSBQuery4p1BlimpSupplierCustomerPartDate().run_query()
-SSBQuery4p1BlimpPartCustomerSupplierDate().run_query()
-SSBQuery4p1BlimpSupplierPartCustomerDate().run_query()
-SSBQuery4p1BlimpPartSupplierCustomerDate().run_query()

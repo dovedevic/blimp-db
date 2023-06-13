@@ -98,9 +98,3 @@ class SSBQuery3p4BlimpCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSBQ
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmitHashmapPayload
     emit_3_query_class = BlimpHitmapEmitHashmapPayload
-
-SSBQuery3p4BlimpVSupplierCustomerDate().run_query()
-SSBQuery3p4BlimpVCustomerSupplierDate().run_query()
-
-SSBQuery3p4BlimpSupplierCustomerDate().run_query()
-SSBQuery3p4BlimpCustomerSupplierDate().run_query()

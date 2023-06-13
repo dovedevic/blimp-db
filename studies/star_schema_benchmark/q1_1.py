@@ -95,7 +95,3 @@ class SSBQuery1p1BlimpQuantityDiscountDate(SSBQuery1p1QuantityDiscountDate):
     operation_3_query_class = BlimpHashmapEarlyPruningJoin
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmit
-
-
-SSBQuery1p1BlimpVQuantityDiscountDate().run_query()
-SSBQuery1p1BlimpQuantityDiscountDate().run_query()

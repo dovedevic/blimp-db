@@ -88,10 +88,3 @@ class SSBQuery2p3BlimpPartSupplierDate(SSBQuery2pXPartSupplierDate, SSBQuery2p3)
     join_3_query_class = BlimpHashmapEarlyPruningHitmapPayloadJoin
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmitHashmapPayload
-
-
-SSBQuery2p3BlimpVSupplierPartDate().run_query()
-SSBQuery2p3BlimpVPartSupplierDate().run_query()
-
-SSBQuery2p3BlimpSupplierPartDate().run_query()
-SSBQuery2p3BlimpPartSupplierDate().run_query()

@@ -209,18 +209,3 @@ class SSBQuery4p3BlimpSupplierPartCustomerDate(SSBQuery4pXSupplierPartCustomerDa
 
 class SSBQuery4p3BlimpPartSupplierCustomerDate(SSBQuery4pXPartSupplierCustomerDate, SSBQuery4p3BlimpXYZ):
     pass
-
-
-SSBQuery4p3BlimpVCustomerPartSupplierDate().run_query()
-SSBQuery4p3BlimpVCustomerSupplierPartDate().run_query()
-SSBQuery4p3BlimpVSupplierCustomerPartDate().run_query()
-SSBQuery4p3BlimpVPartCustomerSupplierDate().run_query()
-SSBQuery4p3BlimpVSupplierPartCustomerDate().run_query()
-SSBQuery4p3BlimpVPartSupplierCustomerDate().run_query()
-
-SSBQuery4p3BlimpCustomerPartSupplierDate().run_query()
-SSBQuery4p3BlimpCustomerSupplierPartDate().run_query()
-SSBQuery4p3BlimpSupplierCustomerPartDate().run_query()
-SSBQuery4p3BlimpPartCustomerSupplierDate().run_query()
-SSBQuery4p3BlimpSupplierPartCustomerDate().run_query()
-SSBQuery4p3BlimpPartSupplierCustomerDate().run_query()
