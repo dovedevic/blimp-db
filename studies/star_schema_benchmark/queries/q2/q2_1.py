@@ -8,37 +8,33 @@ from src.queries.join.hitmap.early_pruning import BlimpVHashmapEarlyPruningJoin,
 from src.queries.join.hitmap_payload.early_pruning import BlimpVHashmapEarlyPruningHitmapPayloadJoin, BlimpHashmapEarlyPruningHitmapPayloadJoin
 from src.queries.emit.hashmap_payload import BlimpHitmapEmitHashmapPayload, BlimpVHitmapEmitHashmapPayload
 
-from studies.star_schema_benchmark.ssb import SSBSupplierTable, SSBCustomerTable, SSBDateTable, SSBLineOrderTable
-from studies.star_schema_benchmark.ssb import SSBCityEncoding
+
+from studies.star_schema_benchmark.ssb import SSBSupplierTable, SSBPartTable, SSBDateTable, SSBLineOrderTable
+from studies.star_schema_benchmark.ssb import SSBRegionEncoding, SSBCategoryEncoding
 from studies.star_schema_benchmark.columns import GenericLineOrderColumn
-from studies.star_schema_benchmark.q3_x import SSBQuery3pX, SSBQuery3pXSupplierCustomerDate, SSBQuery3pXCustomerSupplierDate
+from studies.star_schema_benchmark.queries.q2.q2_x import SSBQuery2pX, SSBQuery2pXSupplierPartDate, SSBQuery2pXPartSupplierDate
 
 
-class SSBQuery3p4(SSBQuery3pX):
+class SSBQuery2p1(SSBQuery2pX):
     def _supplier_record_join_condition(self, record: SSBSupplierTable.TableRecord) -> bool:
-        return record.city == SSBCityEncoding.convert("UNITED KI1") or record.city == SSBCityEncoding.convert("UNITED KI5")
+        return record.region == SSBRegionEncoding.AMERICA
 
-    def _customer_record_join_condition(self, record: SSBCustomerTable.TableRecord) -> bool:
-        return record.city == SSBCityEncoding.convert("UNITED KI1") or record.city == SSBCityEncoding.convert("UNITED KI5")
+    def _part_record_join_condition(self, record: SSBPartTable.TableRecord) -> bool:
+        return record.category == SSBCategoryEncoding.convert('MFGR#12')
 
     def _date_record_join_condition(self, record: SSBDateTable.TableRecord) -> bool:
-        return record.year_month == "Dec1997"
+        return True
 
     def _validate(self, final_hitmap_result: HitmapResult, *args):
         supplier_fks = set()
         for idx, record in enumerate(SSBSupplierTable(scale_factor=self.scale_factor, no_storage=True).records):
-            if record.city == SSBCityEncoding.convert("UNITED KI1") or record.city == SSBCityEncoding.convert("UNITED KI5"):
+            if record.region == SSBRegionEncoding.AMERICA:
                 supplier_fks.add(record.supplier_key)
 
-        customer_fks = set()
-        for idx, record in enumerate(SSBCustomerTable(scale_factor=self.scale_factor, no_storage=True).records):
-            if record.city == SSBCityEncoding.convert("UNITED KI1") or record.city == SSBCityEncoding.convert("UNITED KI5"):
-                customer_fks.add(record.customer_key)
-
-        date_fks = set()
-        for idx, record in enumerate(SSBDateTable(scale_factor=self.scale_factor, no_storage=True).records):
-            if record.year_month == "Dec1997":
-                date_fks.add(record.date_key)
+        part_fks = set()
+        for idx, record in enumerate(SSBPartTable(scale_factor=self.scale_factor, no_storage=True).records):
+            if record.category == SSBCategoryEncoding.convert('MFGR#12'):
+                part_fks.add(record.part_key)
 
         join_fks = set()
         limit = GenericLineOrderColumn.scale(self.scale_factor) // self.parallelism_factor
@@ -46,13 +42,33 @@ class SSBQuery3p4(SSBQuery3pX):
             if index >= limit:
                 break
 
-            if record.customer_key in customer_fks and record.supplier_key in supplier_fks and record.order_date_key in date_fks:
+            if record.part_key in part_fks and record.supplier_key in supplier_fks:
                 join_fks.add(index)
 
         assert set(final_hitmap_result.result_record_indexes) == join_fks
 
 
-class SSBQuery3p4BlimpVSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSBQuery3p4):
+class SSBQuery2p1BlimpVSupplierPartDate(SSBQuery2pXSupplierPartDate, SSBQuery2p1):
+    hardware_configuration_class = BlimpVectorHardwareConfiguration
+    bank_object_class = BlimpVectorBank
+    simulator_class = SimulatedBlimpVBank
+    join_1_query_class = BlimpVHashmapJoin
+    join_2_query_class = BlimpVHashmapEarlyPruningHitmapPayloadJoin
+    join_3_query_class = BlimpVHashmapEarlyPruningHitmapPayloadJoin
+    emit_1_query_class = BlimpHitmapEmit
+
+
+class SSBQuery2p1BlimpSupplierPartDate(SSBQuery2pXSupplierPartDate, SSBQuery2p1):
+    hardware_configuration_class = BlimpHardwareConfiguration
+    bank_object_class = BlimpBank
+    simulator_class = SimulatedBlimpBank
+    join_1_query_class = BlimpHashmapJoin
+    join_2_query_class = BlimpHashmapEarlyPruningHitmapPayloadJoin
+    join_3_query_class = BlimpHashmapEarlyPruningHitmapPayloadJoin
+    emit_1_query_class = BlimpHitmapEmit
+
+
+class SSBQuery2p1BlimpVPartSupplierDate(SSBQuery2pXPartSupplierDate, SSBQuery2p1):
     hardware_configuration_class = BlimpVectorHardwareConfiguration
     bank_object_class = BlimpVectorBank
     simulator_class = SimulatedBlimpVBank
@@ -61,10 +77,9 @@ class SSBQuery3p4BlimpVSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSB
     join_3_query_class = BlimpVHashmapEarlyPruningHitmapPayloadJoin
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpVHitmapEmitHashmapPayload
-    emit_3_query_class = BlimpVHitmapEmitHashmapPayload
 
 
-class SSBQuery3p4BlimpSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSBQuery3p4):
+class SSBQuery2p1BlimpPartSupplierDate(SSBQuery2pXPartSupplierDate, SSBQuery2p1):
     hardware_configuration_class = BlimpHardwareConfiguration
     bank_object_class = BlimpBank
     simulator_class = SimulatedBlimpBank
@@ -73,28 +88,3 @@ class SSBQuery3p4BlimpSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSBQ
     join_3_query_class = BlimpHashmapEarlyPruningHitmapPayloadJoin
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmitHashmapPayload
-    emit_3_query_class = BlimpHitmapEmitHashmapPayload
-
-
-class SSBQuery3p4BlimpVCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSBQuery3p4):
-    hardware_configuration_class = BlimpVectorHardwareConfiguration
-    bank_object_class = BlimpVectorBank
-    simulator_class = SimulatedBlimpVBank
-    join_1_query_class = BlimpVHashmapJoin
-    join_2_query_class = BlimpVHashmapEarlyPruningJoin
-    join_3_query_class = BlimpVHashmapEarlyPruningHitmapPayloadJoin
-    emit_1_query_class = BlimpHitmapEmit
-    emit_2_query_class = BlimpVHitmapEmitHashmapPayload
-    emit_3_query_class = BlimpVHitmapEmitHashmapPayload
-
-
-class SSBQuery3p4BlimpCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSBQuery3p4):
-    hardware_configuration_class = BlimpHardwareConfiguration
-    bank_object_class = BlimpBank
-    simulator_class = SimulatedBlimpBank
-    join_1_query_class = BlimpHashmapJoin
-    join_2_query_class = BlimpHashmapEarlyPruningJoin
-    join_3_query_class = BlimpHashmapEarlyPruningHitmapPayloadJoin
-    emit_1_query_class = BlimpHitmapEmit
-    emit_2_query_class = BlimpHitmapEmitHashmapPayload
-    emit_3_query_class = BlimpHitmapEmitHashmapPayload

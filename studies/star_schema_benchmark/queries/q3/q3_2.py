@@ -9,23 +9,17 @@ from src.queries.join.hitmap_payload.early_pruning import BlimpVHashmapEarlyPrun
 from src.queries.emit.hashmap_payload import BlimpHitmapEmitHashmapPayload, BlimpVHitmapEmitHashmapPayload
 
 from studies.star_schema_benchmark.ssb import SSBSupplierTable, SSBCustomerTable, SSBDateTable, SSBLineOrderTable
-from studies.star_schema_benchmark.ssb import SSBRegionEncoding
+from studies.star_schema_benchmark.ssb import SSBNationEncoding
 from studies.star_schema_benchmark.columns import GenericLineOrderColumn
-from studies.star_schema_benchmark.q3_x import SSBQuery3pX, SSBQuery3pXSupplierCustomerDate, SSBQuery3pXCustomerSupplierDate
+from studies.star_schema_benchmark.queries.q3.q3_x import SSBQuery3pX, SSBQuery3pXSupplierCustomerDate, SSBQuery3pXCustomerSupplierDate
 
 
-class SSBQuery3p1(SSBQuery3pX):
-    def _supplier_record_joined_hashtable_object(self, record: SSBSupplierTable.TableRecord):
-        return self.Blimp32bk8bpHashMap.Blimp32bk8bpBucket.Hash32bitObject8bPayload(record.supplier_key, record.nation)
-
-    def _customer_record_joined_hashtable_object(self, record: SSBCustomerTable.TableRecord):
-        return self.Blimp32bk8bpHashMap.Blimp32bk8bpBucket.Hash32bitObject8bPayload(record.customer_key, record.nation)
-
+class SSBQuery3p2(SSBQuery3pX):
     def _supplier_record_join_condition(self, record: SSBSupplierTable.TableRecord) -> bool:
-        return record.region == SSBRegionEncoding.ASIA
+        return record.nation == SSBNationEncoding.UNITED_STATES
 
     def _customer_record_join_condition(self, record: SSBCustomerTable.TableRecord) -> bool:
-        return record.region == SSBRegionEncoding.ASIA
+        return record.nation == SSBNationEncoding.UNITED_STATES
 
     def _date_record_join_condition(self, record: SSBDateTable.TableRecord) -> bool:
         return 1992 <= record.year <= 1997
@@ -33,12 +27,12 @@ class SSBQuery3p1(SSBQuery3pX):
     def _validate(self, final_hitmap_result: HitmapResult, *args):
         supplier_fks = set()
         for idx, record in enumerate(SSBSupplierTable(scale_factor=self.scale_factor, no_storage=True).records):
-            if record.region == SSBRegionEncoding.ASIA:
+            if record.nation == SSBNationEncoding.UNITED_STATES:
                 supplier_fks.add(record.supplier_key)
 
         customer_fks = set()
         for idx, record in enumerate(SSBCustomerTable(scale_factor=self.scale_factor, no_storage=True).records):
-            if record.region == SSBRegionEncoding.ASIA:
+            if record.nation == SSBNationEncoding.UNITED_STATES:
                 customer_fks.add(record.customer_key)
 
         date_fks = set()
@@ -58,7 +52,7 @@ class SSBQuery3p1(SSBQuery3pX):
         assert set(final_hitmap_result.result_record_indexes) == join_fks
 
 
-class SSBQuery3p1BlimpVSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSBQuery3p1):
+class SSBQuery3p2BlimpVSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSBQuery3p2):
     hardware_configuration_class = BlimpVectorHardwareConfiguration
     bank_object_class = BlimpVectorBank
     simulator_class = SimulatedBlimpVBank
@@ -70,7 +64,7 @@ class SSBQuery3p1BlimpVSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSB
     emit_3_query_class = BlimpVHitmapEmitHashmapPayload
 
 
-class SSBQuery3p1BlimpSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSBQuery3p1):
+class SSBQuery3p2BlimpSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSBQuery3p2):
     hardware_configuration_class = BlimpHardwareConfiguration
     bank_object_class = BlimpBank
     simulator_class = SimulatedBlimpBank
@@ -82,7 +76,7 @@ class SSBQuery3p1BlimpSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSBQ
     emit_3_query_class = BlimpHitmapEmitHashmapPayload
 
 
-class SSBQuery3p1BlimpVCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSBQuery3p1):
+class SSBQuery3p2BlimpVCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSBQuery3p2):
     hardware_configuration_class = BlimpVectorHardwareConfiguration
     bank_object_class = BlimpVectorBank
     simulator_class = SimulatedBlimpVBank
@@ -94,7 +88,7 @@ class SSBQuery3p1BlimpVCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSB
     emit_3_query_class = BlimpVHitmapEmitHashmapPayload
 
 
-class SSBQuery3p1BlimpCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSBQuery3p1):
+class SSBQuery3p2BlimpCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSBQuery3p2):
     hardware_configuration_class = BlimpHardwareConfiguration
     bank_object_class = BlimpBank
     simulator_class = SimulatedBlimpBank

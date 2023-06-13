@@ -16,7 +16,7 @@ from src.queries.emit.hashmap_payload import BlimpHitmapEmitHashmapPayload, Blim
 from studies.star_schema_benchmark.ssb import SSBSupplierTable, SSBCustomerTable, SSBDateTable, SSBLineOrderTable, SSBPartTable
 from studies.star_schema_benchmark.ssb import SSBRegionEncoding, SSBMFGREncoding
 from studies.star_schema_benchmark.columns import GenericLineOrderColumn
-from studies.star_schema_benchmark.q4_x import SSBQuery4pX, \
+from studies.star_schema_benchmark.queries.q4.q4_x import SSBQuery4pX, \
     SSBQuery4pXCustomerPartSupplierDate, SSBQuery4pXCustomerSupplierPartDate, \
     SSBQuery4pXSupplierCustomerPartDate, SSBQuery4pXSupplierPartCustomerDate, \
     SSBQuery4pXPartCustomerSupplierDate, SSBQuery4pXPartSupplierCustomerDate

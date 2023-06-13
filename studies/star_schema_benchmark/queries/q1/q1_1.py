@@ -14,18 +14,18 @@ from src.queries.join.hitmap.early_pruning import BlimpVHashmapEarlyPruningJoin,
 
 from studies.star_schema_benchmark.ssb import SSBDateTable, SSBLineOrderTable
 from studies.star_schema_benchmark.columns import GenericLineOrderColumn
-from studies.star_schema_benchmark.q1_x import SSBQuery1pX, SSBQuery1pXQuantityDiscountDate
+from studies.star_schema_benchmark.queries.q1.q1_x import SSBQuery1pX, SSBQuery1pXQuantityDiscountDate
 
 
-class SSBQuery1p3(SSBQuery1pX):
+class SSBQuery1p1(SSBQuery1pX):
 
     def _date_record_join_condition(self, record: SSBDateTable.TableRecord) -> bool:
-        return record.week_num_in_year == 6 and record.year == 1994
+        return record.year == 1993
 
     def _validate(self, final_hitmap_result: HitmapResult, *args):
         date_fks = set()
         for idx, record in enumerate(SSBDateTable(scale_factor=self.scale_factor, no_storage=True).records):
-            if record.week_num_in_year == 6 and record.year == 1994:
+            if record.year == 1993:
                 date_fks.add(record.date_key)
 
         join_fks = set()
@@ -34,23 +34,22 @@ class SSBQuery1p3(SSBQuery1pX):
             if index >= limit:
                 break
 
-            if (26 <= record.quantity <= 35) and (5 <= record.discount <= 7) and (record.order_date_key in date_fks):
+            if (record.quantity < 25) and (1 <= record.discount <= 3) and (record.order_date_key in date_fks):
                 join_fks.add(index)
 
         assert set(final_hitmap_result.result_record_indexes) == join_fks
 
 
-class SSBQuery1p3QuantityDiscountDate(SSBQuery1p3, SSBQuery1pXQuantityDiscountDate):
+class SSBQuery1p1QuantityDiscountDate(SSBQuery1p1, SSBQuery1pXQuantityDiscountDate):
     def _get_operation_1_args(self):
         return {
-            "value_low": 26,
-            "value_high": 35,
+            "value": 25
         }
 
     def _get_operation_2_args(self):
         return {
-            "value_low": 5,
-            "value_high": 7,
+            "value_low": 1,
+            "value_high": 3,
         }
 
     def _perform_emit_2_layout(self, *args):
@@ -76,22 +75,22 @@ class SSBQuery1p3QuantityDiscountDate(SSBQuery1p3, SSBQuery1pXQuantityDiscountDa
         return kernel_runtime, kernel_memory_array
 
 
-class SSBQuery1p3BlimpVQuantityDiscountDate(SSBQuery1p3QuantityDiscountDate):
+class SSBQuery1p1BlimpVQuantityDiscountDate(SSBQuery1p1QuantityDiscountDate):
     hardware_configuration_class = BlimpVectorHardwareConfiguration
     bank_object_class = BlimpVectorBank
     simulator_class = SimulatedBlimpVBank
-    operation_1_query_class = BlimpVHitmapBetween
+    operation_1_query_class = BlimpVHitmapLessThan
     operation_2_query_class = BlimpVHitmapBetween
     operation_3_query_class = BlimpVHashmapEarlyPruningJoin
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmit
 
 
-class SSBQuery1p3BlimpQuantityDiscountDate(SSBQuery1p3QuantityDiscountDate):
+class SSBQuery1p1BlimpQuantityDiscountDate(SSBQuery1p1QuantityDiscountDate):
     hardware_configuration_class = BlimpHardwareConfiguration
     bank_object_class = BlimpBank
     simulator_class = SimulatedBlimpBank
-    operation_1_query_class = BlimpHitmapBetween
+    operation_1_query_class = BlimpHitmapLessThan
     operation_2_query_class = BlimpHitmapBetween
     operation_3_query_class = BlimpHashmapEarlyPruningJoin
     emit_1_query_class = BlimpHitmapEmit
