@@ -41,7 +41,6 @@ class SSBQuery2pX(GenericSSBQuery):
         return Hash32bitObjectNullPayload(record.supplier_key)
 
     def _build_supplier_hash_table(self):
-        self.supplier_join_hash_table.reset()
         for idx, record in enumerate(SSBSupplierTable(scale_factor=self.scale_factor, no_storage=True).records):
             if self._supplier_record_join_condition(record):
                 self.supplier_join_hash_table.insert(self._supplier_record_joined_hashtable_object(record))
@@ -54,7 +53,6 @@ class SSBQuery2pX(GenericSSBQuery):
         return self.Blimp32bk16bpHashMap.Blimp32bk16bpBucket.Hash32bitObject16bPayload(record.part_key, record.brand)
 
     def _build_part_hash_table(self):
-        self.part_join_hash_table.reset()
         for idx, record in enumerate(SSBPartTable(scale_factor=self.scale_factor, no_storage=True).records):
             if self._part_record_join_condition(record):
                 self.part_join_hash_table.insert(self._part_record_joined_hashtable_object(record))
@@ -67,7 +65,6 @@ class SSBQuery2pX(GenericSSBQuery):
         return self.Blimp32bk16bpHashMap.Blimp32bk16bpBucket.Hash32bitObject16bPayload(record.date_key, record.year)
 
     def _build_date_hash_table(self):
-        self.date_join_hash_table.reset()
         for idx, record in enumerate(SSBDateTable(scale_factor=self.scale_factor, no_storage=True).records):
             if self._date_record_join_condition(record):
                 self.date_join_hash_table.insert(self._date_record_joined_hashtable_object(record))

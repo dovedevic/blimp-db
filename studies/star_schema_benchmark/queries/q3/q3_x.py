@@ -54,7 +54,6 @@ class SSBQuery3pX(GenericSSBQuery):
         return self.Blimp32bk8bpHashMap.Blimp32bk8bpBucket.Hash32bitObject8bPayload(record.supplier_key, record.city)
 
     def _build_supplier_hash_table(self):
-        self.supplier_join_hash_table.reset()
         for idx, record in enumerate(SSBSupplierTable(scale_factor=self.scale_factor, no_storage=True).records):
             if self._supplier_record_join_condition(record):
                 self.supplier_join_hash_table.insert(self._supplier_record_joined_hashtable_object(record))
@@ -67,7 +66,6 @@ class SSBQuery3pX(GenericSSBQuery):
         return self.Blimp32bk8bpHashMap.Blimp32bk8bpBucket.Hash32bitObject8bPayload(record.customer_key, record.city)
 
     def _build_customer_hash_table(self):
-        self.customer_join_hash_table.reset()
         for idx, record in enumerate(SSBCustomerTable(scale_factor=self.scale_factor, no_storage=True).records):
             if self._customer_record_join_condition(record):
                 self.customer_join_hash_table.insert(self._customer_record_joined_hashtable_object(record))
@@ -80,7 +78,6 @@ class SSBQuery3pX(GenericSSBQuery):
         return self.Blimp32bk16bpHashMap.Blimp32bk16bpBucket.Hash32bitObject16bPayload(record.date_key, record.year)
 
     def _build_date_hash_table(self):
-        self.date_join_hash_table.reset()
         for idx, record in enumerate(SSBDateTable(scale_factor=self.scale_factor, no_storage=True).records):
             if self._date_record_join_condition(record):
                 self.date_join_hash_table.insert(self._date_record_joined_hashtable_object(record))

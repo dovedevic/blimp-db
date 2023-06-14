@@ -24,7 +24,6 @@ class SSBQuery1pX(GenericSSBQuery):
         return Hash32bitObjectNullPayload(record.date_key)
 
     def _build_date_hash_table(self):
-        self.date_join_hash_table.reset()
         for idx, record in enumerate(SSBDateTable(scale_factor=self.scale_factor, no_storage=True).records):
             if self._date_record_join_condition(record):
                 self.date_join_hash_table.insert(self._date_record_joined_hashtable_object(record))
