@@ -92,7 +92,6 @@ class SSBQuery4p1(SSBQuery4pX):
             ),
             hitmap_index=0,
             hash_map=self.customer_join_hash_table,
-            return_labels=False
         )
 
         if save_query_output:
@@ -110,7 +109,7 @@ class SSBQuery4p1(SSBQuery4pX):
 
     def _perform_emit_4_query(self, save_query_output: bool=False, save_runtime_output: bool=False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
-        return RuntimeResult(), MemoryArrayResult()
+        return self.runtime_class(), MemoryArrayResult()
 
 
 class SSBQuery4p1BlimpVXYZ(SSBQuery4p1):
@@ -167,7 +166,7 @@ class SSBQuery4p1BlimpVSupplierPartCustomerDate(SSBQuery4pXSupplierPartCustomerD
 
     def _perform_emit_3_query(self, save_query_output: bool=False, save_runtime_output: bool=False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
-        return RuntimeResult(), MemoryArrayResult()
+        return self.runtime_class(), MemoryArrayResult()
 
 
 class SSBQuery4p1BlimpVPartSupplierCustomerDate(SSBQuery4pXPartSupplierCustomerDate, SSBQuery4p1BlimpVXYZ):
@@ -182,7 +181,7 @@ class SSBQuery4p1BlimpVPartSupplierCustomerDate(SSBQuery4pXPartSupplierCustomerD
 
     def _perform_emit_3_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
-        return RuntimeResult(), MemoryArrayResult()
+        return self.runtime_class(), MemoryArrayResult()
 
 
 class SSBQuery4p1BlimpCustomerPartSupplierDate(SSBQuery4pXCustomerPartSupplierDate, SSBQuery4p1BlimpXYZ):
@@ -213,7 +212,7 @@ class SSBQuery4p1BlimpSupplierPartCustomerDate(SSBQuery4pXSupplierPartCustomerDa
 
     def _perform_emit_3_query(self, save_query_output: bool=False, save_runtime_output: bool=False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
-        return RuntimeResult(), MemoryArrayResult()
+        return self.runtime_class(), MemoryArrayResult()
 
 
 class SSBQuery4p1BlimpPartSupplierCustomerDate(SSBQuery4pXPartSupplierCustomerDate, SSBQuery4p1BlimpXYZ):
@@ -228,4 +227,4 @@ class SSBQuery4p1BlimpPartSupplierCustomerDate(SSBQuery4pXPartSupplierCustomerDa
 
     def _perform_emit_3_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
-        return RuntimeResult(), MemoryArrayResult()
+        return self.runtime_class(), MemoryArrayResult()

@@ -41,6 +41,7 @@ class SSBQuery2pX(GenericSSBQuery):
         return Hash32bitObjectNullPayload(record.supplier_key)
 
     def _build_supplier_hash_table(self):
+        self.supplier_join_hash_table.reset()
         for idx, record in enumerate(SSBSupplierTable(scale_factor=self.scale_factor, no_storage=True).records):
             if self._supplier_record_join_condition(record):
                 self.supplier_join_hash_table.insert(self._supplier_record_joined_hashtable_object(record))
@@ -53,6 +54,7 @@ class SSBQuery2pX(GenericSSBQuery):
         return self.Blimp32bk16bpHashMap.Blimp32bk16bpBucket.Hash32bitObject16bPayload(record.part_key, record.brand)
 
     def _build_part_hash_table(self):
+        self.part_join_hash_table.reset()
         for idx, record in enumerate(SSBPartTable(scale_factor=self.scale_factor, no_storage=True).records):
             if self._part_record_join_condition(record):
                 self.part_join_hash_table.insert(self._part_record_joined_hashtable_object(record))
@@ -65,6 +67,7 @@ class SSBQuery2pX(GenericSSBQuery):
         return self.Blimp32bk16bpHashMap.Blimp32bk16bpBucket.Hash32bitObject16bPayload(record.date_key, record.year)
 
     def _build_date_hash_table(self):
+        self.date_join_hash_table.reset()
         for idx, record in enumerate(SSBDateTable(scale_factor=self.scale_factor, no_storage=True).records):
             if self._date_record_join_condition(record):
                 self.date_join_hash_table.insert(self._date_record_joined_hashtable_object(record))
@@ -286,7 +289,6 @@ class SSBQuery2pX(GenericSSBQuery):
         kernel_runtime, kernel_memory_array = kernel.perform_operation(
             output_array_start_row=self._get_revenue_layout_configuration().row_mapping.blimp_temp_region[0],
             hitmap_index=0,
-            return_labels=False
         )
 
         if save_query_output:
@@ -403,7 +405,6 @@ class SSBQuery2pXSupplierPartDate(SSBQuery2pX):
             ),
             output_index_size_bytes=2,
             hitmap_index=0,
-            return_labels=False
         )
 
         if save_query_output:
@@ -430,7 +431,6 @@ class SSBQuery2pXSupplierPartDate(SSBQuery2pX):
             ),
             output_index_size_bytes=2,
             hitmap_index=0,
-            return_labels=False
         )
 
         if save_query_output:
@@ -457,7 +457,6 @@ class SSBQuery2pXSupplierPartDate(SSBQuery2pX):
             ),
             output_index_size_bytes=2,
             hitmap_index=0,
-            return_labels=False
         )
 
         if save_query_output:
@@ -475,7 +474,7 @@ class SSBQuery2pXSupplierPartDate(SSBQuery2pX):
 
     def _perform_emit_2_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
-        return RuntimeResult(), MemoryArrayResult()
+        return self.runtime_class(), MemoryArrayResult()
 
     def _perform_emit_3_layout(self, *args):
         pass
@@ -485,7 +484,7 @@ class SSBQuery2pXSupplierPartDate(SSBQuery2pX):
 
     def _perform_emit_3_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
-        return RuntimeResult(), MemoryArrayResult()
+        return self.runtime_class(), MemoryArrayResult()
 
 
 class SSBQuery2pXPartSupplierDate(SSBQuery2pX):
@@ -507,7 +506,6 @@ class SSBQuery2pXPartSupplierDate(SSBQuery2pX):
             ),
             output_index_size_bytes=2,
             hitmap_index=0,
-            return_labels=False
         )
 
         if save_query_output:
@@ -534,7 +532,6 @@ class SSBQuery2pXPartSupplierDate(SSBQuery2pX):
             ),
             output_index_size_bytes=2,
             hitmap_index=0,
-            return_labels=False
         )
 
         if save_query_output:
@@ -561,7 +558,6 @@ class SSBQuery2pXPartSupplierDate(SSBQuery2pX):
             ),
             output_index_size_bytes=2,
             hitmap_index=0,
-            return_labels=False
         )
 
         if save_query_output:
@@ -587,7 +583,6 @@ class SSBQuery2pXPartSupplierDate(SSBQuery2pX):
             ),
             hitmap_index=0,
             hash_map=self.part_join_hash_table,
-            return_labels=False
         )
 
         if save_query_output:
@@ -605,4 +600,4 @@ class SSBQuery2pXPartSupplierDate(SSBQuery2pX):
 
     def _perform_emit_3_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
-        return RuntimeResult(), MemoryArrayResult()
+        return self.runtime_class(), MemoryArrayResult()

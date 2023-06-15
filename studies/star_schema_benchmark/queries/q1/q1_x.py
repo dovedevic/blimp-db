@@ -24,6 +24,7 @@ class SSBQuery1pX(GenericSSBQuery):
         return Hash32bitObjectNullPayload(record.date_key)
 
     def _build_date_hash_table(self):
+        self.date_join_hash_table.reset()
         for idx, record in enumerate(SSBDateTable(scale_factor=self.scale_factor, no_storage=True).records):
             if self._date_record_join_condition(record):
                 self.date_join_hash_table.insert(self._date_record_joined_hashtable_object(record))
@@ -247,7 +248,6 @@ class SSBQuery1pX(GenericSSBQuery):
         kernel_runtime, kernel_memory_array = kernel.perform_operation(
             output_array_start_row=self._get_extended_price_layout_configuration().row_mapping.blimp_temp_region[0],
             hitmap_index=0,
-            return_labels=False
         )
 
         if save_query_output:
@@ -344,7 +344,6 @@ class SSBQuery1pXQuantityDiscountDate(SSBQuery1pX):
         kernel_runtime, kernel_hitmap = kernel.perform_operation(
             pi_element_size_bytes=LineOrderQuantity.column_size,
             hitmap_index=0,
-            return_labels=False,
             **self._get_operation_1_args()
         )
 
@@ -370,7 +369,6 @@ class SSBQuery1pXQuantityDiscountDate(SSBQuery1pX):
         kernel_runtime, kernel_hitmap = kernel.perform_operation(
             pi_element_size_bytes=LineOrderDiscount.column_size,
             hitmap_index=0,
-            return_labels=False,
             **self._get_operation_2_args()
         )
 
@@ -393,7 +391,6 @@ class SSBQuery1pXQuantityDiscountDate(SSBQuery1pX):
         kernel_runtime, kernel_hitmap = kernel.perform_operation(
             hash_map=self.date_join_hash_table,
             hitmap_index=0,
-            return_labels=False
         )
 
         if save_query_output:
@@ -411,7 +408,7 @@ class SSBQuery1pXQuantityDiscountDate(SSBQuery1pX):
 
     def _perform_emit_2_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
-        return RuntimeResult(), MemoryArrayResult()
+        return self.runtime_class(), MemoryArrayResult()
 
 
 class SSBQuery1pXDiscountQuantityDate(SSBQuery1pX):
@@ -431,7 +428,6 @@ class SSBQuery1pXDiscountQuantityDate(SSBQuery1pX):
         kernel_runtime, kernel_hitmap = kernel.perform_operation(
             pi_element_size_bytes=LineOrderDiscount.column_size,
             hitmap_index=0,
-            return_labels=False,
             **self._get_operation_1_args()
         )
 
@@ -457,7 +453,6 @@ class SSBQuery1pXDiscountQuantityDate(SSBQuery1pX):
         kernel_runtime, kernel_hitmap = kernel.perform_operation(
             pi_element_size_bytes=LineOrderQuantity.column_size,
             hitmap_index=0,
-            return_labels=False,
             **self._get_operation_2_args()
         )
 
@@ -480,7 +475,6 @@ class SSBQuery1pXDiscountQuantityDate(SSBQuery1pX):
         kernel_runtime, kernel_hitmap = kernel.perform_operation(
             hash_map=self.date_join_hash_table,
             hitmap_index=0,
-            return_labels=False
         )
 
         if save_query_output:
@@ -498,4 +492,4 @@ class SSBQuery1pXDiscountQuantityDate(SSBQuery1pX):
 
     def _perform_emit_2_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:
-        return RuntimeResult(), MemoryArrayResult()
+        return self.runtime_class(), MemoryArrayResult()

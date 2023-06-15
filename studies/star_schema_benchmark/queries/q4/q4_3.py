@@ -97,7 +97,6 @@ class SSBQuery4p3(SSBQuery4pX):
             ),
             hitmap_index=0,
             hash_map=self.supplier_join_hash_table,
-            return_labels=False
         )
 
         if save_query_output:
@@ -124,7 +123,6 @@ class SSBQuery4p3(SSBQuery4pX):
             ),
             hitmap_index=0,
             hash_map=self.part_join_hash_table,
-            return_labels=False
         )
 
         if save_query_output:
