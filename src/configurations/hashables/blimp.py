@@ -22,6 +22,16 @@ class Object32bit(GenericHashTableValue):
     _SIZE_BYTES = 4
 
 
+# Define 48bit numbers
+class Object48bit(GenericHashTableValue):
+    _SIZE_BYTES = 6
+
+
+# Define 64bit numbers
+class Object64bit(GenericHashTableValue):
+    _SIZE_BYTES = 8
+
+
 # Define 24bit numbers with 2^24-1 null values
 class Object24bitNullMax(Object24bit):
     _NULL_VALUE = 2 ** 24 - 1
