@@ -5,9 +5,28 @@ from src.utils import bitmanip
 
 class RuntimeResult:
     """Defines a list of simulation steps, runtimes (in ns), and actions"""
-    def __init__(self, runtime: float=0, label: str=None):
-        self.history = list() if runtime == 0 and label is None else [(runtime, label)]
-        self.runtime = runtime
+    def __init__(self, runtime: float=0, n: int=1, *args, **kwargs):
+        self.runtime = runtime * n
+
+    def __add__(self, other):
+        if isinstance(other, self.__class__):
+            self.runtime += other.runtime
+            del other
+            return self
+        raise NotImplemented()
+
+    def save(self, path: str):
+        """Save the runtime result"""
+        with open(path, 'w') as fp:
+            fp.write(f"runtime: {self.runtime}ns\n")
+
+
+class HistoryRuntimeResult(RuntimeResult):
+    """Defines a list of simulation steps, runtimes (in ns), and actions"""
+
+    def __init__(self, runtime: float=0, n: int=1):
+        super().__init__(runtime=runtime, n=n)
+        self.history = [runtime] * n
 
     def __add__(self, other):
         if isinstance(other, self.__class__):
@@ -17,11 +36,29 @@ class RuntimeResult:
             return self
         raise NotImplemented()
 
-    def step(self, runtime: float, label: str=None):
-        """Perform a simulation step, similar to adding two results"""
-        self.history.append((runtime, label))
-        self.runtime += runtime
-        return self
+    def save(self, path: str):
+        """Save the runtime result"""
+        with open(path, 'w') as fp:
+            fp.write(f"runtime: {self.runtime}ns\n")
+            fp.write(f"history: \n")
+            for runtime, label in self.history:
+                fp.write(f"\t{runtime}\t{label or ''}\n")
+
+
+class LabeledHistoryRuntimeResult(RuntimeResult):
+    """Defines a list of simulation steps, runtimes (in ns), and actions"""
+
+    def __init__(self, runtime: float=0, n: int=1, label: str=""):
+        super().__init__(runtime=runtime, n=n)
+        self.history = [(runtime, label)] * n
+
+    def __add__(self, other):
+        if isinstance(other, self.__class__):
+            self.runtime += other.runtime
+            self.history += other.history
+            del other
+            return self
+        raise NotImplemented()
 
     def save(self, path: str):
         """Save the runtime result"""

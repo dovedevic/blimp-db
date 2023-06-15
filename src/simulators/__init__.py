@@ -1,1 +1,1 @@
-from .result import RuntimeResult, HitmapResult
+from .result import RuntimeResult, HistoryRuntimeResult, LabeledHistoryRuntimeResult, HitmapResult
