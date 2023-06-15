@@ -37,6 +37,11 @@ class Object24bitNullMax(Object24bit):
     _NULL_VALUE = 2 ** 24 - 1
 
 
+# Define 32bit numbers with 2^32-1 null values
+class Object32bitNullMax(Object32bit):
+    _NULL_VALUE = 2 ** 32 - 1
+
+
 # Define a null payload
 class NullPayload(GenericHashTableValuePayload):
     _PAYLOAD_OBJECTS = []
@@ -46,6 +51,12 @@ class NullPayload(GenericHashTableValuePayload):
 class Hash32bitObjectNullPayload(GenericHashTableObject[Object32bit, NullPayload]):
     _KEY_OBJECT = Object32bit
     _PAYLOAD_OBJECT = NullPayload
+
+
+# Define 32bit key, 16b int payload objects
+class Hash32bitObject16bPayload(GenericHashTableObject[Object32bit, Object16bit]):
+    _KEY_OBJECT = Object32bit
+    _PAYLOAD_OBJECT = Object16bit
 
 
 # Define a bucket as a collection of 31 Hash32bitObjectNullPayload, with 16bit metadata
