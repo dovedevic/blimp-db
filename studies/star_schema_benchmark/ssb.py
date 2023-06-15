@@ -73,8 +73,8 @@ class SSBEncoding:
     _encoding = {}
 
     @classmethod
-    def convert(cls, region: str) -> int:
-        return cls._encoding[region]
+    def convert(cls, raw: str) -> int:
+        return cls._encoding[raw]
 
 
 class SSBRegionEncoding(SSBEncoding):
