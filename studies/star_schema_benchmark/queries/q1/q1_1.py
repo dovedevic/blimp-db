@@ -15,6 +15,7 @@ from src.queries.join.hitmap.early_pruning import BlimpVHashmapEarlyPruningJoin,
 from studies.star_schema_benchmark.ssb import SSBDateTable, SSBLineOrderTable
 from studies.star_schema_benchmark.columns import GenericLineOrderColumn
 from studies.star_schema_benchmark.queries.q1.q1_x import SSBQuery1pX, SSBQuery1pXQuantityDiscountDate
+from studies.star_schema_benchmark.queries.q1.q1_x import BlimpDateHashSet, BlimpVDateHashSet
 
 
 class SSBQuery1p1(SSBQuery1pX):
@@ -83,6 +84,7 @@ class SSBQuery1p1BlimpVQuantityDiscountDate(SSBQuery1p1QuantityDiscountDate):
     operation_3_query_class = BlimpVHashmapEarlyPruningJoin
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmit
+    date_join_hash_table = BlimpVDateHashSet(256, 256)
 
 
 class SSBQuery1p1BlimpQuantityDiscountDate(SSBQuery1p1QuantityDiscountDate):
@@ -94,3 +96,4 @@ class SSBQuery1p1BlimpQuantityDiscountDate(SSBQuery1p1QuantityDiscountDate):
     operation_3_query_class = BlimpHashmapEarlyPruningJoin
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmit
+    date_join_hash_table = BlimpDateHashSet(256, 256)

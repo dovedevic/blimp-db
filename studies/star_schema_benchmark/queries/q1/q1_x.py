@@ -6,7 +6,8 @@ from src.utils.generic import ceil_to_multiple
 from src.queries import Query
 from src.configurations.database.blimp import BlimpHitmapDatabaseConfiguration
 from src.data_layout_mappings.architectures import BlimpIndexHitmapBankLayoutConfiguration
-from src.configurations.hashables.blimp import BlimpSimpleHashSet, Hash32bitObjectNullPayload
+from src.configurations.hashables.blimp import GenericHashMap, BlimpSimpleHashSet, Hash32bitObjectNullPayload, \
+    BlimpBucket, Hash32bitObjectNullPayload, Object8bit, Object24bitNullMax
 
 from studies.star_schema_benchmark.generic import GenericSSBQuery
 from studies.star_schema_benchmark.ssb import SSBDateTable
@@ -14,8 +15,26 @@ from studies.star_schema_benchmark.columns import LineOrderOrderDate, LineOrderD
     LineOrderExtendedPrice
 
 
+class BlimpDateHashSet(BlimpSimpleHashSet):
+    class Blimp32bk3cBucket(BlimpBucket):
+        _KEY_PAYLOAD_OBJECT = Hash32bitObjectNullPayload
+        _BUCKET_OBJECT_CAPACITY = 3
+        _META_NEXT_BUCKET_OBJECT = Object24bitNullMax
+        _META_ACTIVE_COUNT_OBJECT = Object8bit
+    _BUCKET_OBJECT = Blimp32bk3cBucket
+
+
+class BlimpVDateHashSet(BlimpSimpleHashSet):
+    class Blimp32bk31cBucket(BlimpBucket):
+        _KEY_PAYLOAD_OBJECT = Hash32bitObjectNullPayload
+        _BUCKET_OBJECT_CAPACITY = 31
+        _META_NEXT_BUCKET_OBJECT = Object24bitNullMax
+        _META_ACTIVE_COUNT_OBJECT = Object8bit
+    _BUCKET_OBJECT = Blimp32bk31cBucket
+
+
 class SSBQuery1pX(GenericSSBQuery):
-    date_join_hash_table = BlimpSimpleHashSet(256, 512)
+    date_join_hash_table = GenericHashMap(0, 0)
 
     def _date_record_join_condition(self, record: SSBDateTable.TableRecord) -> bool:
         raise NotImplemented
