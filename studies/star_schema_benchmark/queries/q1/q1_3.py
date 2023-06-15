@@ -63,7 +63,6 @@ class SSBQuery1p3QuantityDiscountDate(SSBQuery1p3, SSBQuery1pXQuantityDiscountDa
         kernel_runtime, kernel_memory_array = kernel.perform_operation(
             output_array_start_row=self._get_discount_layout_configuration().row_mapping.blimp_temp_region[0],
             hitmap_index=0,
-            return_labels=False
         )
 
         if save_query_output:
