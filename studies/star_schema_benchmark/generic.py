@@ -36,9 +36,10 @@ class GenericSSBQuery:
     simulator_class = SimulatedBank
     scale_factor = 100
     parallelism_factor = 512
+    runtime_class = RuntimeResult
 
-    def __init__(self):
-        self.logger = logging.getLogger(self.__class__.__name__)
+    def __init__(self, logger=None):
+        self.logger = logger or logging.getLogger(self.__class__.__name__)
 
     __hardware_config = None
 
@@ -62,7 +63,8 @@ class GenericSSBQuery:
     def _get_simulator(self):
         if self.__simulator is None:
             self.__simulator = self.simulator_class(
-                bank_hardware=self._get_bank_object()
+                bank_hardware=self._get_bank_object(),
+                runtime_class=self.runtime_class
             )
         return self.__simulator
 
