@@ -8,10 +8,10 @@ class SimulatedAmbitBank(SimulatedBank[AmbitBank]):
     def __init__(
             self,
             bank_hardware: AmbitBank,
-            logger=None
+            logger=None,
+            runtime_class=RuntimeResult
             ):
-        super(SimulatedAmbitBank, self).__init__(bank_hardware, logger)
-        self.bank_hardware = bank_hardware
+        super().__init__(bank_hardware, logger, runtime_class)
 
         # Define ambit common-used values
         self._ambit_one = (2**(self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1
@@ -168,7 +168,7 @@ class SimulatedAmbitBank(SimulatedBank[AmbitBank]):
             row_nice_name = f"mem[{row}]"
         return row_nice_name
 
-    def ambit_copy(self, src_row: int, dst_row: int, return_labels=True) -> RuntimeResult:
+    def ambit_copy(self, src_row: int, dst_row: int) -> RuntimeResult:
         """Perform an AAP sequence from the src to dst row"""
         # Ensure we are not overwriting C-group rows
         if dst_row == self.ambit_control_one_row or dst_row == self.ambit_control_zero_row:
@@ -186,26 +186,26 @@ class SimulatedAmbitBank(SimulatedBank[AmbitBank]):
             self.bank_hardware.set_raw_row(self._ambit_dcc_map[dst_row][0], inverted_value)
 
         # Return the result of the operation
-        return RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_for_AAP_rowclone_ns,
-            f"AAP {self._get_row_nice_name(src_row)} -> {self._get_row_nice_name(dst_row)}" if return_labels else ""
+        return self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_for_AAP_rowclone_ns,
+            label=f"AAP {self._get_row_nice_name(src_row)} -> {self._get_row_nice_name(dst_row)}"
         )
 
-    def ambit_invert(self, src_row: int, dcc_row: int, dst_row: int, return_labels=True) -> RuntimeResult:
+    def ambit_invert(self, src_row: int, dcc_row: int, dst_row: int) -> RuntimeResult:
         """Perform a row inversion from src to dst row using AAP with a specified DCC row"""
         # Ensure the DCC row specified is a DCC row
         if dcc_row not in self._ambit_dcc_map:
             raise RuntimeError(f"dcc_row {dcc_row} is not a DCC row in this configuration")
 
         # Copy data from src to one half of the DCC
-        result_from = self.ambit_copy(src_row, dcc_row, return_labels)
+        result_from = self.ambit_copy(src_row, dcc_row)
         # Use the other tethered part of the DCC for the inversion, and copy it to the dst
-        result_to = self.ambit_copy(self._ambit_dcc_map[dcc_row][0], dst_row, return_labels)
+        result_to = self.ambit_copy(self._ambit_dcc_map[dcc_row][0], dst_row)
 
         # Return the runtime results of these two AAPs
         return result_from + result_to
 
-    def ambit_tra(self, a_row: int, b_row: int, c_row: int, return_labels=True) -> RuntimeResult:
+    def ambit_tra(self, a_row: int, b_row: int, c_row: int) -> RuntimeResult:
         """Perform a TRA sequence on rows A, B, and C"""
         # Ensure a-b, b-c, and a-c are not DCC paired rows
         if a_row in self._ambit_dcc_map and self._ambit_dcc_map[a_row][0] == b_row:
@@ -245,16 +245,15 @@ class SimulatedAmbitBank(SimulatedBank[AmbitBank]):
             inverted_value = self.bank_hardware.get_inverted_raw_row(c_row)
             self.bank_hardware.set_raw_row(self._ambit_dcc_map[c_row][0], inverted_value)
 
-        return RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_for_TRA_MAJ_ns,
-            f"TRA {self._get_row_nice_name(a_row)} {self._get_row_nice_name(b_row)} {self._get_row_nice_name(c_row)}"
-            if return_labels else ""
+        return self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_for_TRA_MAJ_ns,
+            label=f"TRA {self._get_row_nice_name(a_row)} {self._get_row_nice_name(b_row)} {self._get_row_nice_name(c_row)}"
         )
 
-    def ambit_and(self, a_row: int, b_row: int, control_dst: int, return_labels=True) -> RuntimeResult:
+    def ambit_and(self, a_row: int, b_row: int, control_dst: int) -> RuntimeResult:
         """Perform a bitwise ambit AND operation on B-group A, B using the control_dst as a control register"""
         # Initialize the control register to 0 to initialize ambit AND
-        ambit_setup = self.ambit_copy(self._ambit_control_0_row, control_dst, return_labels)
+        ambit_setup = self.ambit_copy(self._ambit_control_0_row, control_dst)
 
         # Perform the TRA result
         tra_runtime = self.ambit_tra(a_row, b_row, control_dst)
@@ -262,10 +261,10 @@ class SimulatedAmbitBank(SimulatedBank[AmbitBank]):
         # Return the result
         return ambit_setup + tra_runtime
 
-    def ambit_or(self, a_row: int, b_row: int, control_dst: int, return_labels=True) -> RuntimeResult:
+    def ambit_or(self, a_row: int, b_row: int, control_dst: int) -> RuntimeResult:
         """Perform a bitwise ambit OR operation on B-group A, B using the control_dst as a control register"""
         # Initialize the control register to 1 to initialize ambit OR
-        ambit_setup = self.ambit_copy(self._ambit_control_1_row, control_dst, return_labels)
+        ambit_setup = self.ambit_copy(self._ambit_control_1_row, control_dst)
 
         # Perform the TRA result
         tra_runtime = self.ambit_tra(a_row, b_row, control_dst)
@@ -273,9 +272,9 @@ class SimulatedAmbitBank(SimulatedBank[AmbitBank]):
         # Return the result
         return ambit_setup + tra_runtime
 
-    def cpu_ambit_dispatch(self, return_labels=True) -> RuntimeResult:
+    def cpu_ambit_dispatch(self) -> RuntimeResult:
         """Have the CPU send an AMBIT command sequence"""
-        return RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_to_bank_communicate_ns,
-            'bbop[ambit]  ; cpu dispatch' if return_labels else ""
+        return self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_to_bank_communicate_ns,
+            label='bbop[ambit]  ; cpu dispatch'
         )

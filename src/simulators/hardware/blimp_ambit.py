@@ -8,16 +8,18 @@ class SimulatedBlimpAmbitBank(SimulatedBlimpBank, SimulatedAmbitBank):
     def __init__(
             self,
             bank_hardware: BlimpAmbitBank,
-            logger=None
+            logger=None,
+            runtime_class=RuntimeResult
             ):
-        super(SimulatedBlimpAmbitBank, self).__init__(bank_hardware, logger)
-        self.bank_hardware = bank_hardware
+        super(SimulatedBlimpAmbitBank, self).__init__(bank_hardware, logger, runtime_class)
 
         self._logger.info(f"blimp-ambit simulator loaded")
 
-    def blimp_ambit_dispatch(self, return_labels=True) -> RuntimeResult:
+    def blimp_ambit_dispatch(self, **runtime_kwargs) -> RuntimeResult:
         """Have the CPU send an AMBIT command sequence"""
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = 'bbop[ambit]  ; blimp dispatch'
         return self.blimp_cycle(
-            cycles=1, 
-            label='bbop[ambit]  ; blimp dispatch' if return_labels else ""
+            cycles=1,
+            **runtime_kwargs
         )

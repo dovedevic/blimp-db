@@ -13,10 +13,10 @@ class SimulatedBlimpBank(
     def __init__(
             self,
             bank_hardware: BlimpBank,
-            logger=None
+            logger=None,
+            runtime_class=RuntimeResult
             ):
-        super(SimulatedBlimpBank, self).__init__(bank_hardware, logger)
-        self.bank_hardware = bank_hardware
+        super(SimulatedBlimpBank, self).__init__(bank_hardware, logger, runtime_class)
 
         self.registers = {
             self._v0(): [],
@@ -111,42 +111,43 @@ class SimulatedBlimpBank(
         """BLIMP Data Scratchpad register"""
         return self._data_pad()
 
-    def blimp_cycle(self, cycles=1, label="", return_labels=True) -> RuntimeResult:
+    def blimp_cycle(self, cycles=1, **runtime_kwargs) -> RuntimeResult:
         """Perform a specified number of BLIMP cycles"""
         if cycles <= 0:
             raise ValueError("argument 'cycles' cannot be less than one")
-        runtime = RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_per_blimp_cycle_ns,
-            label if return_labels else ""
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = 'blimp_cycle'
+        return self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_per_blimp_cycle_ns,
+            n=cycles,
+            **runtime_kwargs
         )
-        for c in range(cycles - 1):
-            runtime.step(self.bank_hardware.hardware_configuration.time_per_blimp_cycle_ns)
-        return runtime
 
-    def blimp_begin(self, return_labels=True) -> RuntimeResult:
+    def blimp_begin(self) -> RuntimeResult:
         """Set the BLIMP-enable signal high to begin BLIMP bank operation"""
 
         # Initialize the BLIMP instruction buffer register to the first row, others are garbage (but loaded here)
         for r in self.registers:
             self.blimp_load_register(r, 0)
 
-        return RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_to_bank_communicate_ns,
-            "BLIMP ENABLE" if return_labels else ""
-        ) + RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_to_row_activate_ns +
+        return self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_to_bank_communicate_ns,
+            label="BLIMP ENABLE"
+        ) + self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_to_row_activate_ns +
             self.bank_hardware.hardware_configuration.time_to_precharge_ns,
-            "BLIMP CODE FETCH" if return_labels else ""
+            label="BLIMP CODE FETCH"
         ) + self.blimp_cycle(
-            cycles=5, label="; setup", return_labels=return_labels
+            cycles=5,
+            label="; setup"
         )
 
-    def blimp_end(self, return_labels=True) -> RuntimeResult:
+    def blimp_end(self) -> RuntimeResult:
         """Set the BLIMP-enable signal low to complete BLIMP bank operation"""
         # All we are simulating is a row access and read to the BLIMP transfer mux
-        return RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_to_bank_communicate_ns,
-            "BLIMP DISABLE" if return_labels else ""
+        return self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_to_bank_communicate_ns,
+            label="BLIMP DISABLE"
         )
 
     def _ensure_register_exists(self, *registers):
@@ -178,20 +179,21 @@ class SimulatedBlimpBank(
         assert stride % element_width == 0, \
             f"Stride of {stride} must be a direct multiple of the element size {element_width}"
 
-    def blimp_load_register(self, register, row: int, return_labels=True) -> RuntimeResult:
+    def blimp_load_register(self, register, row: int) -> RuntimeResult:
         """Fetch data into a specified internal register, via v0"""
         # Sanity checking
         self._ensure_register_exists(register)
 
-        result = self.blimp_cycle(return_labels=return_labels)
+        result = self.blimp_cycle(
+            label=f"fetch mem[{hex(row * self.bank_hardware.hardware_configuration.row_buffer_size_bytes)}]"
+        )
 
         # Fetch the row via the row buffer
         self.registers[self.blimp_v0] = self.bank_hardware.get_row_bytes(row)
-        result += RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_to_row_activate_ns +
+        result += self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_to_row_activate_ns +
             self.bank_hardware.hardware_configuration.time_to_precharge_ns,
-            f"mem[{hex(row * self.bank_hardware.hardware_configuration.row_buffer_size_bytes)}] -> {self.blimp_v0}"
-            if return_labels else ""
+            label=f"\tmem[{hex(row * self.bank_hardware.hardware_configuration.row_buffer_size_bytes)}] -> {self.blimp_v0}"
         )
 
         # The row buffer (and now v0) is loaded with data, transfer it via the mux if necessary
@@ -199,26 +201,28 @@ class SimulatedBlimpBank(
             self.registers[register] = self.registers[self.blimp_v0]
 
             # Add time to transfer the row buffer/v0 to the specified mux destination
-            result += RuntimeResult(
-                self.bank_hardware.hardware_configuration.time_to_v0_transfer_ns,
-                f"\t{self.blimp_v0} -> {register}" if return_labels else ""
+            result += self.runtime_class(
+                runtime=self.bank_hardware.hardware_configuration.time_to_v0_transfer_ns,
+                label=f"\t{self.blimp_v0} -> {register}"
             )
 
         # Return the result of the operation
         return result
 
-    def blimp_transfer_register(self, register_a, register_b, return_labels=True) -> RuntimeResult:
+    def blimp_transfer_register(self, register_a, register_b) -> RuntimeResult:
         """Transfer data from a specified internal register, to another specified register (not v0)"""
         # Sanity checking
         self._ensure_writable_register(register_a, register_b)
 
-        result = self.blimp_cycle(return_labels=return_labels)
+        result = self.blimp_cycle(
+            label="tx_mux switch"
+        )
         self.registers[register_b] = [b for b in self.registers[register_a]]
 
         # Add time to transfer the row buffer/v0 to the specified mux destination
-        result += RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_to_v0_transfer_ns,
-            f"\t{register_a} -> {register_b}" if return_labels else ""
+        result += self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_to_v0_transfer_ns,
+            label=f"\t{register_a} -> {register_b}"
         )
 
         # Return the result of the operation
@@ -241,8 +245,7 @@ class SimulatedBlimpBank(
             )
         return data
 
-    def blimp_set_register_data_at_index(self, register, element_width, index, value, return_labels=True,
-                                         assume_one_cycle=False):
+    def blimp_set_register_data_at_index(self, register, element_width, index, value, assume_one_cycle=False):
         """Set an element in a BLIMP or BLIMP-V register in python/segmented form"""
         self._ensure_register_exists(register)
         assert 0 <= index < (self.bank_hardware.hardware_configuration.row_buffer_size_bytes // element_width), \
@@ -258,53 +261,54 @@ class SimulatedBlimpBank(
                 cycles=math.ceil(
                     element_width / (self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture // 8)
                 ),
-                return_labels=return_labels
+                label=f"{register}{{{element_width}}}[{index}] = {value}"
             )
         else:
-            result = self.blimp_cycle(return_labels=return_labels)
+            result = self.blimp_cycle(
+                label=f"{register}{{{element_width}}}[{index}] = {value}"
+            )
 
         # Return the result of the operation
         return result
 
-    def blimp_save_register(self, register, row: int, return_labels=True) -> RuntimeResult:
+    def blimp_save_register(self, register, row: int) -> RuntimeResult:
         """Save a specified internal register into a row, via v0"""
         # Sanity checking
         self._ensure_register_exists(register)
 
-        result = self.blimp_cycle(return_labels=return_labels)
+        result = self.blimp_cycle(
+            label="tx_mux switch"
+        )
 
         # Transfer data to v0 only when we aren't already operating on it
         if register != self.blimp_v0:
             # Transfer the register via the mux to v0/row buffer
             self.registers[self.blimp_v0] = self.registers[register]
-            result += RuntimeResult(
-                self.bank_hardware.hardware_configuration.time_to_v0_transfer_ns,
-                f"\t{register} -> {self.blimp_v0}" if return_labels else ""
+            result += self.runtime_class(
+                runtime=self.bank_hardware.hardware_configuration.time_to_v0_transfer_ns,
+                label=f"\t{register} -> {self.blimp_v0}"
             )
 
         # Save v0 into the bank memory
         self.bank_hardware.set_row_bytes(row, self.registers[self.blimp_v0])
-        result += RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_to_row_activate_ns +
+        result += self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_to_row_activate_ns +
             self.bank_hardware.hardware_configuration.time_to_precharge_ns,
-            f"{self.blimp_v0} -> mem[{hex(row * self.bank_hardware.hardware_configuration.row_buffer_size_bytes)}]"
-            if return_labels else ""
+            label=f"\t{self.blimp_v0} -> mem[{hex(row * self.bank_hardware.hardware_configuration.row_buffer_size_bytes)}]"
         )
 
         # Return the result of the operation
         return result
 
-    def _blimp_set_register_to_(self, ones: bool, register, return_labels=True) -> RuntimeResult:
+    def _blimp_set_register_to_(self, ones: bool, register) -> RuntimeResult:
         """Set the data scratchpad to all zeros or ones"""
         total_bits = self.bank_hardware.hardware_configuration.row_buffer_size_bytes * 8
         processor_bits = self.bank_hardware.hardware_configuration.blimp_processor_bit_architecture
         operations = int(math.ceil(total_bits / processor_bits))
         cycles_per_operation = 2  # mov x <- ones | jne i
 
-        result = self.blimp_cycle(label="; loop start", return_labels=return_labels)
-        result += self.blimp_cycle(
-            cycles=operations * cycles_per_operation
-        )
+        result = self.blimp_cycle(label="; loop start, mov x <- ones | jne i")
+        result += self.blimp_cycle(cycles=operations * cycles_per_operation)
 
         self.registers[register] = \
             int_to_byte_array(
@@ -314,15 +318,15 @@ class SimulatedBlimpBank(
 
         return result
 
-    def blimp_set_register_to_zero(self, register, return_labels=True) -> RuntimeResult:
+    def blimp_set_register_to_zero(self, register) -> RuntimeResult:
         """Set an arbitrary register to all zeros"""
         self._ensure_writable_register(register)
-        return self._blimp_set_register_to_(False, register, return_labels)
+        return self._blimp_set_register_to_(False, register)
 
-    def blimp_set_register_to_one(self, register, return_labels=True) -> RuntimeResult:
+    def blimp_set_register_to_one(self, register) -> RuntimeResult:
         """Set an arbitrary register to all ones"""
         self._ensure_writable_register(register)
-        return self._blimp_set_register_to_(True, register, return_labels)
+        return self._blimp_set_register_to_(True, register)
 
     def blimp_is_register_zero(self, register) -> bool:
         self._ensure_register_exists(register)
@@ -397,7 +401,7 @@ class SimulatedBlimpBank(
                 self.registers[register_b][element * element_width + start_index + byte] = c[byte]
 
     def _blimp_alu_int_un_op(self, register_a, start_index, end_index, element_width, stride, operation, invert,
-                             op_name, mask=-1, cpi=1, return_labels=True) -> RuntimeResult:
+                             op_name, mask=-1, cpi=1, **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP unary operation on register a starting at a specified byte index and ending on a specified
         byte index then store the result in register a
@@ -435,14 +439,16 @@ class SimulatedBlimpBank(
         cycles += alu_rounds * cpi * 2
 
         # Return the runtime result
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = \
+                f"\t{register_a}[{start_index}:{end_index}] <- {op_name} {register_a}[{start_index}:{end_index}]"
         return self.blimp_cycle(
             cycles=cycles,
-            label=f"\t{register_a}[{start_index}:{end_index}] <- {op_name} {register_a}[{start_index}:{end_index}]",
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def _blimp_alu_int_bin_op(self, register_a, register_b, start_index, end_index, element_width, stride, operation,
-                              invert, op_name, mask=-1, cpi=1, return_labels=True) -> RuntimeResult:
+                              invert, op_name, mask=-1, cpi=1, **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP binary operation on register a and b starting at a specified byte index and ending on a
         specified byte index then store the result in register b
@@ -481,15 +487,17 @@ class SimulatedBlimpBank(
         cycles += alu_rounds * cpi * 2
 
         # Return the runtime result
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = \
+                f"\t{register_b}[{start_index}:{end_index}] <- " \
+                f"{register_a}[{start_index}:{end_index}] {op_name} {register_b}[{start_index}:{end_index}]"
         return self.blimp_cycle(
             cycles=cycles,
-            label=f"\t{register_b}[{start_index}:{end_index}] <- "
-                  f"{register_a}[{start_index}:{end_index}] {op_name} {register_b}[{start_index}:{end_index}]",
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_and(self, register_a, register_b, start_index, end_index, element_width, stride, mask=-1,
-                          return_labels=True) -> RuntimeResult:
+                          **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP AND operation on register a and b starting at a specified byte index and ending on a specified
         byte index then store the result in register b
@@ -506,11 +514,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="AND",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_or(self, register_a, register_b, start_index, end_index, element_width, stride, mask=-1,
-                         return_labels=True) -> RuntimeResult:
+                         **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP OR operation on register a and b starting at a specified byte index and ending on a specified
         byte index then store the result in register b
@@ -527,11 +535,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="OR",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_xor(self, register_a, register_b, start_index, end_index, element_width, stride, mask=-1,
-                          return_labels=True) -> RuntimeResult:
+                          **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP XOR operation on register a and b starting at a specified byte index and ending on a specified
         byte index then store the result in register b
@@ -548,11 +556,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="XOR",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_nand(self, register_a, register_b, start_index, end_index, element_width, stride, mask=-1,
-                           return_labels=True) -> RuntimeResult:
+                           **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP NAND operation on register a and b starting at a specified byte index and ending on a specified
         byte index then store the result in register b
@@ -569,11 +577,11 @@ class SimulatedBlimpBank(
             invert=True,
             op_name="NAND",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_nor(self, register_a, register_b, start_index, end_index, element_width, stride, mask=-1,
-                          return_labels=True) -> RuntimeResult:
+                          **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP NOR operation on register a and b starting at a specified byte index and ending on a specified
         byte index then store the result in register b
@@ -590,11 +598,11 @@ class SimulatedBlimpBank(
             invert=True,
             op_name="NOR",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_xnor(self, register_a, register_b, start_index, end_index, element_width, stride, mask=-1,
-                           return_labels=True) -> RuntimeResult:
+                           **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP XNOR operation on register a and b starting at a specified byte index and ending on a specified
         byte index then store the result in register b
@@ -611,11 +619,11 @@ class SimulatedBlimpBank(
             invert=True,
             op_name="XNOR",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_add(self, register_a, register_b, start_index, end_index, element_width, stride, mask=-1,
-                          return_labels=True) -> RuntimeResult:
+                          **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP ADD operation on register a and b starting at a specified byte index and ending on a specified
         byte index then store the result in register b
@@ -632,11 +640,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="ADD",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_sub(self, register_a, register_b, start_index, end_index, element_width, stride, mask=-1,
-                          return_labels=True) -> RuntimeResult:
+                          **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP SUB operation on register a and b starting at a specified byte index and ending on a specified
         byte index then store the result in register b
@@ -653,11 +661,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="SUB",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimp_alu_int_not(self, register_a, start_index, end_index, element_width, stride, mask=-1, return_labels=True
-                          ) -> RuntimeResult:
+    def blimp_alu_int_not(self, register_a, start_index, end_index, element_width, stride, mask=-1,
+                          **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP NOT operation on register a starting at a specified byte index and ending on a specified
         byte index then store the result in register a
@@ -673,11 +681,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="NOT",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimp_alu_int_acc(self, register_a, start_index, end_index, element_width, stride, mask=-1, return_labels=True
-                          ) -> RuntimeResult:
+    def blimp_alu_int_acc(self, register_a, start_index, end_index, element_width, stride, mask=-1,
+                          **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP ACC operation on register a starting at a specified byte index and ending on a specified
         byte index then store the result in register a
@@ -693,11 +701,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="ACC",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimp_alu_int_zero(self, register_a, start_index, end_index, element_width, stride, mask=-1, return_labels=True
-                           ) -> RuntimeResult:
+    def blimp_alu_int_zero(self, register_a, start_index, end_index, element_width, stride, mask=-1,
+                           **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP ISZERO operation on register a starting at a specified byte index and ending on a specified
         byte index then store the result in register a
@@ -713,11 +721,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="ZERO",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_xnor_val(self, register_a, start_index, end_index, element_width, stride, value, mask=-1,
-                               return_labels=True) -> RuntimeResult:
+                               **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP scalar XNOR operation on register a starting at a specified byte index and ending on a specified
         byte index then store the result in register a
@@ -735,11 +743,11 @@ class SimulatedBlimpBank(
             invert=True,
             op_name="XNOR",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_and_val(self, register_a, start_index, end_index, element_width, stride, value, mask=-1,
-                              return_labels=True) -> RuntimeResult:
+                              **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP scalar AND operation on register a starting at a specified byte index and ending on a specified
         byte index then store the result in register a
@@ -757,11 +765,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="AND",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_eq_val(self, register_a, start_index, end_index, element_width, stride, value, mask=-1,
-                             return_labels=True) -> RuntimeResult:
+                             **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP EQUAL operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimp_alu_int_un_op(
@@ -774,11 +782,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="EQ",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_neq_val(self, register_a, start_index, end_index, element_width, stride, value, mask=-1,
-                              return_labels=True) -> RuntimeResult:
+                              **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP NOT EQUAL operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimp_alu_int_un_op(
@@ -791,11 +799,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="NEQ",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_lt_val(self, register_a, start_index, end_index, element_width, stride, value, mask=-1,
-                             return_labels=True) -> RuntimeResult:
+                             **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP LESS THAN operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimp_alu_int_un_op(
@@ -808,11 +816,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="LT",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_gt_val(self, register_a, start_index, end_index, element_width, stride, value, mask=-1,
-                             return_labels=True) -> RuntimeResult:
+                             **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP GREATER THAN operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimp_alu_int_un_op(
@@ -825,11 +833,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="GT",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_lte_val(self, register_a, start_index, end_index, element_width, stride, value, mask=-1,
-                              return_labels=True) -> RuntimeResult:
+                              **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP LESS THAN OR EQUAL operation on a register on SEW bytes and store the result in register a
         """
@@ -844,11 +852,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="LTE",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_gte_val(self, register_a, start_index, end_index, element_width, stride, value, mask=-1,
-                              return_labels=True) -> RuntimeResult:
+                              **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP GREATER THAN OR EQUAL operation on a register on SEW bytes and store the result in register a
         """
@@ -863,11 +871,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="GTE",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_add_val(self, register_a, start_index, end_index, element_width, stride, value, mask=-1,
-                              return_labels=True) -> RuntimeResult:
+                              **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP scalar ADD operation on register a starting at a specified byte index and ending on a specified
         byte index then store the result in register a
@@ -883,11 +891,11 @@ class SimulatedBlimpBank(
             invert=False,
             op_name="ADD",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_mul_val(self, register_a, start_index, end_index, element_width, stride, value, mask=-1,
-                              return_labels=True) -> RuntimeResult:
+                              **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP scalar MULTIPLY operation on register a starting at a specified byte index and ending on a
         specified byte index then store the result in register a
@@ -904,11 +912,11 @@ class SimulatedBlimpBank(
             op_name="MUL",
             cpi=3,
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_alu_int_hash(self, register_a, start_index, end_index, element_width, stride, hash_mask, mask=-1,
-                           return_labels=True) -> RuntimeResult:
+                           **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP scalar HASH(val) operation on register a starting at a specified byte index and ending on a
         specified byte index then store the result in register a
@@ -925,11 +933,11 @@ class SimulatedBlimpBank(
             op_name="HASH",
             cpi=3+1+1,
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def blimp_coalesce_register_hitmap(self, register_a, start_index, end_index, element_width, stride, bit_offset,
-                                       return_labels=True) -> RuntimeResult:
+                                       **runtime_kwargs) -> RuntimeResult:
         """
         Coalesce a bitmap in register a starting offset bits away from the MSB of register element 1
         """
@@ -966,13 +974,14 @@ class SimulatedBlimpBank(
         # it takes result_bits / 8 memory stores
         cycles += result_bits // 8
 
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = f"\t{register_a} <- BITMAP[{register_a}]"
         return self.blimp_cycle(
             cycles=cycles,
-            label=f"\t{register_a} <- BITMAP[{register_a}]",
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimp_bit_count(self, register, start_index, end_index, element_width, return_labels=True) -> RuntimeResult:
+    def blimp_bit_count(self, register, start_index, end_index, element_width, **runtime_kwargs) -> RuntimeResult:
         """
         Count the number of set bits in a register and save it in the primary slot
         """
@@ -1000,13 +1009,14 @@ class SimulatedBlimpBank(
             self.bank_hardware.hardware_configuration.row_buffer_size_bytes
         )
 
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = f"\t{register} <- COUNT[{register}]"
         return self.blimp_cycle(
             cycles=blimp_cycles,
-            label=f"\t{register} <- COUNT[{register}]",
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimp_bit_popcount(self, register, start_index, end_index, element_width, return_labels=True) -> RuntimeResult:
+    def blimp_bit_popcount(self, register, start_index, end_index, element_width, **runtime_kwargs) -> RuntimeResult:
         """
         Pop-count the number of set bits in a register and save it in the primary slot
         """
@@ -1032,10 +1042,11 @@ class SimulatedBlimpBank(
             self.bank_hardware.hardware_configuration.row_buffer_size_bytes
         )
 
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = f"\t{register} <- POPCOUNT[{register}]"
         return self.blimp_cycle(
             cycles=blimp_cycles,
-            label=f"\t{register} <- POPCOUNT[{register}]",
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
 
@@ -1044,14 +1055,14 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
     def __init__(
             self,
             bank_hardware: BlimpVectorBank,
-            logger=None
-            ):
-        super(SimulatedBlimpVBank, self).__init__(bank_hardware, logger)
-        self.bank_hardware = bank_hardware
+            logger=None,
+            runtime_class=RuntimeResult
+    ):
+        super(SimulatedBlimpVBank, self).__init__(bank_hardware, logger, runtime_class)
 
         self._logger.info(f"blimpv simulator loaded")
 
-    def _blimpv_set_register_to_(self, ones: bool, register, return_labels=True) -> RuntimeResult:
+    def _blimpv_set_register_to_(self, ones: bool, register, ) -> RuntimeResult:
         """Set the specified register to all zeros or ones"""
 
         # Calculate the number of cycles this operation takes
@@ -1069,7 +1080,6 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         result = self.blimp_cycle(
             label=f"\t{register} <- {int(ones)}",
             cycles=cycles,
-            return_labels=return_labels
         )
 
         self.registers[register] = \
@@ -1080,15 +1090,15 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
 
         return result
 
-    def blimpv_set_register_to_zero(self, register, return_labels=True) -> RuntimeResult:
+    def blimpv_set_register_to_zero(self, register) -> RuntimeResult:
         """Set an arbitrary register to all zeros"""
         self._ensure_writable_register(register)
-        return self._blimpv_set_register_to_(False, register, return_labels)
+        return self._blimpv_set_register_to_(False, register)
 
-    def blimpv_set_register_to_one(self, register, return_labels=True) -> RuntimeResult:
+    def blimpv_set_register_to_one(self, register) -> RuntimeResult:
         """Set an arbitrary register to all ones"""
         self._ensure_writable_register(register)
-        return self._blimpv_set_register_to_(True, register, return_labels)
+        return self._blimpv_set_register_to_(True, register)
 
     def _ensure_valid_v_nary_operation(self, sew, stride, *registers):
         self._ensure_writable_register(*registers)
@@ -1161,7 +1171,7 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             result, self.bank_hardware.hardware_configuration.row_buffer_size_bytes)
 
     def _blimpv_alu_int_un_op(self, register_a, sew, stride, operation, invert, op_name, mask, cpi=1,
-                              return_labels=True) -> RuntimeResult:
+                              **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V unary operation on register 'a' on SEW bytes and store the result in register a"""
         # Perform the operation
         self._blimpv_alu_unary_operation(
@@ -1193,14 +1203,15 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         cycles += alu_rounds * cpi
 
         # Return the runtime result
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = f"\t{register_a} <- {op_name} {register_a}"
         return self.blimp_cycle(
             cycles=cycles,
-            label=f"\t{register_a} <- {op_name} {register_a}",
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
     def _blimpv_alu_int_bin_op(self, register_a, register_b, sew, stride, operation, invert, op_name, mask, cpi=1,
-                               return_labels=True) -> RuntimeResult:
+                               **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V binary operation on register a and b on SEW bytes and store the result in register b"""
         # Perform the operation
         self._blimpv_alu_binary_operation(
@@ -1233,13 +1244,14 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         cycles += alu_rounds * cpi
 
         # Return the runtime result
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = f"\t{register_b} <- {register_a} {op_name} {register_b}"
         return self.blimp_cycle(
             cycles=cycles,
-            label=f"\t{register_b} <- {register_a} {op_name} {register_b}",
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_and(self, register_a, register_b, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_and(self, register_a, register_b, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V AND operation on register a and b on SEW bytes and store the result in register b"""
         # Perform the operation
         return self._blimpv_alu_int_bin_op(
@@ -1251,10 +1263,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="AND",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_or(self, register_a, register_b, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_or(self, register_a, register_b, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V OR operation on register a and b on SEW bytes and store the result in register b"""
         # Perform the operation
         return self._blimpv_alu_int_bin_op(
@@ -1266,10 +1278,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="OR",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_xor(self, register_a, register_b, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_xor(self, register_a, register_b, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V XOR operation on register a and b on SEW bytes and store the result in register b"""
         # Perform the operation
         return self._blimpv_alu_int_bin_op(
@@ -1281,10 +1293,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="XOR",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_nand(self, register_a, register_b, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_nand(self, register_a, register_b, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V NAND operation on register a and b on SEW bytes and store the result in register b"""
         # Perform the operation
         return self._blimpv_alu_int_bin_op(
@@ -1296,10 +1308,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=True,
             op_name="NAND",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_nor(self, register_a, register_b, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_nor(self, register_a, register_b, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V NOR operation on register a and b on SEW bytes and store the result in register b"""
         # Perform the operation
         return self._blimpv_alu_int_bin_op(
@@ -1311,10 +1323,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=True,
             op_name="NOR",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_xnor(self, register_a, register_b, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_xnor(self, register_a, register_b, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V XNOR operation on register a and b on SEW bytes and store the result in register b"""
         # Perform the operation
         return self._blimpv_alu_int_bin_op(
@@ -1326,10 +1338,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=True,
             op_name="XNOR",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_add(self, register_a, register_b, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_add(self, register_a, register_b, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V ADD operation on register a and b on SEW bytes and store the result in register b"""
         # Perform the operation
         return self._blimpv_alu_int_bin_op(
@@ -1341,10 +1353,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="ADD",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_sub(self, register_a, register_b, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_sub(self, register_a, register_b, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V SUB operation on register a and b on SEW bytes and store the result in register b"""
         # Perform the operation
         return self._blimpv_alu_int_bin_op(
@@ -1356,10 +1368,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="SUB",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_not(self, register_a, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_not(self, register_a, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V NOT operation on register 'a' on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1370,10 +1382,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="NOT",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_acc(self, register_a, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_acc(self, register_a, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V ACC operation on register 'a' on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1384,10 +1396,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="ACC",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_zero(self, register_a, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_zero(self, register_a, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V ISZERO operation on register 'a' on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1398,10 +1410,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="ZERO",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_one(self, register_a, sew, stride, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_one(self, register_a, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V ISONE operation on register 'a' on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1412,10 +1424,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="ONE",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_xnor_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_xnor_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP-V scalar XNOR operation on register 'a' on SEW bytes against constant 'value' and store the
         result in register a
@@ -1430,10 +1442,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=True,
             op_name="XNOR",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_and_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_and_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP-V scalar AND operation on register 'a' on SEW bytes against constant 'value' and store the
         result in register a
@@ -1448,10 +1460,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="AND",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_srl_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_srl_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V SRL operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1462,10 +1474,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="SRL",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_sll_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_sll_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V SLL operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1476,10 +1488,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="SLL",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_add_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_add_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V ADD operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1490,10 +1502,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="ADD",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_mul_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_mul_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V MULTIPLY operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1505,10 +1517,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             op_name="MUL",
             cpi=3,
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_eq_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_eq_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V EQUAL operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1519,10 +1531,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="EQ",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_neq_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_neq_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V NOT EQUAL operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1533,10 +1545,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="NEQ",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_lt_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_lt_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V LESS THAN operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1547,10 +1559,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="LT",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_gt_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_gt_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """Perform a BLIMP-V GREATER THAN operation on a register on SEW bytes and store the result in register a"""
         # Perform the operation
         return self._blimpv_alu_int_un_op(
@@ -1561,10 +1573,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="GT",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_lte_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_lte_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP-V LESS THAN OR EQUAL operation on a register on SEW bytes and store the result in register a
         """
@@ -1577,10 +1589,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="LTE",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_gte_val(self, register_a, sew, stride, value, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_gte_val(self, register_a, sew, stride, value, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP-V GREATER THAN OR EQUAL operation on a register on SEW bytes and store the result in register a
         """
@@ -1593,10 +1605,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             invert=False,
             op_name="GTE",
             mask=mask,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_alu_int_hash(self, register_a, sew, stride, hash_mask, mask=-1, return_labels=True) -> RuntimeResult:
+    def blimpv_alu_int_hash(self, register_a, sew, stride, hash_mask, mask=-1, **runtime_kwargs) -> RuntimeResult:
         """
         Perform a BLIMP-V HASH operation on a register on SEW bytes and store the result in register a
         """
@@ -1610,10 +1622,10 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             op_name="HASH",
             mask=mask,
             cpi=3+1+1,
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_coalesce_register_hitmap(self, register_a, sew, stride, bit_offset, return_labels=True) -> RuntimeResult:
+    def blimpv_coalesce_register_hitmap(self, register_a, sew, stride, bit_offset, **runtime_kwargs) -> RuntimeResult:
         """
         Coalesce a bitmap in a register starting offset bits away from the MSB of register element 1
         """
@@ -1646,13 +1658,14 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
         # it takes result_bits / 8 memory stores
         cycles += result_bits // 8
 
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = f"\t{register_a} <- BITMAP[{register_a}]"
         return self.blimp_cycle(
             cycles=cycles,
-            label=f"\t{register_a} <- BITMAP[{register_a}]",
-            return_labels=return_labels
+            **runtime_kwargs
         )
 
-    def blimpv_bit_popcount(self, register_a, sew, stride, return_labels=True) -> RuntimeResult:
+    def blimpv_bit_popcount(self, register_a, sew, stride, **runtime_kwargs) -> RuntimeResult:
         """
         Pop-count the number of set bits in a register and save it in the primary slot
         """
@@ -1682,8 +1695,9 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
             self.bank_hardware.hardware_configuration.row_buffer_size_bytes
         )
 
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = f"\t{register_a} <- POPCOUNT[{register_a}]"
         return self.blimp_cycle(
             cycles=cycles,
-            label=f"\t{register_a} <- POPCOUNT[{register_a}]",
-            return_labels=return_labels
+            **runtime_kwargs
         )

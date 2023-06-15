@@ -14,28 +14,32 @@ class SimulatedBank(Generic[BankHardware]):
     def __init__(
             self,
             bank_hardware: BankHardware,
-            logger=None
+            logger=None,
+            runtime_class=RuntimeResult
             ):
         self._logger = logger or logging.getLogger(self.__class__.__name__)
         self.bank_hardware = bank_hardware
+        self.runtime_class = runtime_class
 
-    def cpu_cycle(self, cycles=1, label="", return_labels=True) -> RuntimeResult:
+    def cpu_cycle(self, cycles=1, **runtime_kwargs) -> RuntimeResult:
         """Perform a specified number of CPU cycles"""
         if cycles <= 0:
             raise ValueError("argument 'cycles' cannot be less than one")
-        runtime = RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_per_cpu_cycle_ns,
-            label if return_labels else ""
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = "cpu_cycle"
+        return self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_per_cpu_cycle_ns,
+            n=cycles,
+            **runtime_kwargs
         )
-        for c in range(cycles - 1):
-            runtime.step(self.bank_hardware.hardware_configuration.time_per_cpu_cycle_ns)
-        return runtime
 
-    def cpu_fetch_cache_block(self, label="", return_labels=True) -> RuntimeResult:
+    def cpu_fetch_cache_block(self, **runtime_kwargs) -> RuntimeResult:
         """Fetch a cache block from memory"""
-        return RuntimeResult(
-            self.bank_hardware.hardware_configuration.time_to_row_activate_ns +
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = "cpu_fetch_cache_block"
+        return self.runtime_class(
+            runtime=self.bank_hardware.hardware_configuration.time_to_row_activate_ns +
             self.bank_hardware.hardware_configuration.time_to_column_activate_ns +
             self.bank_hardware.hardware_configuration.time_to_precharge_ns,
-            label if return_labels else ""
+            **runtime_kwargs
         )
