@@ -7,7 +7,7 @@ from src.queries import Query
 from src.configurations.database.blimp import BlimpHitmapDatabaseConfiguration
 from src.data_layout_mappings.architectures import BlimpIndexHitmapBankLayoutConfiguration
 from src.configurations.hashables.blimp import GenericHashMap, BlimpSimpleHashSet, Hash32bitObjectNullPayload, \
-    BlimpBucket, Hash32bitObjectNullPayload, Object8bit, Object24bitNullMax
+    BlimpBucket, Object8bit, Object24bitNullMax
 
 from studies.star_schema_benchmark.generic import GenericSSBQuery
 from studies.star_schema_benchmark.ssb import SSBDateTable
