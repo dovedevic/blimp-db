@@ -110,7 +110,7 @@ def perform_study(study_path, hitmap_bit_array):
     query.hardware.hardware_configuration.blimp_extension_popcount = False
     print("\trunning vpopcount query...", end='')
     start_performance_tracking()
-    runtime, result = query.perform_operation(hitmap_index=0, return_labels=False)
+    runtime, result = query.perform_operation(hitmap_index=0)
     time = end_performance_tracking()
     print(f' completed in {time}s')
 
@@ -133,7 +133,7 @@ def perform_study(study_path, hitmap_bit_array):
     query.hardware.hardware_configuration.blimp_extension_popcount = True
     print("\trunning popcount query...", end='')
     start_performance_tracking()
-    runtime, result = query.perform_operation(hitmap_index=0, return_labels=False)
+    runtime, result = query.perform_operation(hitmap_index=0)
     time = end_performance_tracking()
     print(f' completed in {time}s')
 
@@ -156,7 +156,7 @@ def perform_study(study_path, hitmap_bit_array):
     query.hardware.hardware_configuration.blimp_extension_popcount = False
     print("\trunning bit count query...", end='')
     start_performance_tracking()
-    runtime, result = query.perform_operation(hitmap_index=0, return_labels=False)
+    runtime, result = query.perform_operation(hitmap_index=0)
     time = end_performance_tracking()
     print(f' completed in {time}s')
 

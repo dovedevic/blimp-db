@@ -137,7 +137,7 @@ def perform_study_sweep(studies: [QueryStudy], hitmap_size_bytes: int, save_dir)
         # Perform the simulation
         print(f"\tPerforming simulation...", end=' ')
         start_performance_tracking()
-        runtime, result = query.perform_operation(0, 1, return_labels=True)
+        runtime, result = query.perform_operation(0, 1)
         time = end_performance_tracking()
         print(f'done in {time}s.')
 

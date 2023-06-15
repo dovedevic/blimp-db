@@ -84,7 +84,6 @@ generic_query_params = {
     "hitmap_index": 0,
     "output_array_start_row": 3,
     "hash_map": hash_map,
-    "return_labels": True,
 }
 
 generic_database_configuration = {

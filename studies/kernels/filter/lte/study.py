@@ -55,7 +55,6 @@ generic_query_params = {
     "pi_subindex_offset_bytes": 0,
     "pi_element_size_bytes": KEY_SIZE_BYTES,
     "value": 1995,
-    "return_labels": True,
     "hitmap_index": 0
 }
 

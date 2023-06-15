@@ -62,7 +62,6 @@ generic_hardware_configuration = {
 generic_query_params = {
     "hitmap_index": 0,
     "output_array_start_row": 3,
-    "return_labels": True,
 }
 
 generic_database_configuration = {
