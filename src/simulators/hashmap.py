@@ -334,7 +334,7 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
     """Defines a generic collection of buckets for a defined hash-set/map/table"""
     _BUCKET_OBJECT = GenericHashTableBucket
 
-    def __init__(self, initial_buckets: int, maximum_buckets: int, buckets: List[BUCKET_TYPE] = None):
+    def __init__(self, initial_buckets: int, maximum_buckets: int, buckets: List[Optional[BUCKET_TYPE]] = None):
         """
         Defines the pythonic structure of an in-memory hash table using buckets.
 
@@ -349,14 +349,13 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
 
         if buckets:
             assert len(buckets) <= maximum_buckets, "Provided number of buckets is larger than the maximum capacity"
-            assert len(buckets) >= initial_buckets, "Provided number of buckets is less than the initial capacity"
-            self.buckets = buckets
+            self.buckets = buckets + [None for _ in range(initial_buckets - len(buckets))]
         else:
-            self.buckets = [self._BUCKET_OBJECT() for _ in range(initial_buckets)]
+            self.buckets = [None for _ in range(initial_buckets)]
 
     def reset(self):
         del self.buckets
-        self.buckets = [self._BUCKET_OBJECT() for _ in range(self._initial_buckets)]
+        self.buckets = [None for _ in range(self._initial_buckets)]
 
     @classmethod
     def bucket_type(cls) -> Type[BUCKET_TYPE]:
@@ -390,6 +389,8 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
     def insert(self, obj: GenericHashTableObject):
         """Insert a key/value into a bucket via a hash, creates new buckets as necessary"""
         bucket_hash_index = self._hash(obj.key.value)
+        if self.buckets[bucket_hash_index] is None:
+            self.buckets[bucket_hash_index] = self._BUCKET_OBJECT()
         bucket = self.buckets[bucket_hash_index]
         while bucket.is_next_bucket_valid():
             bucket = self.buckets[bucket.next_bucket]
@@ -410,6 +411,9 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
         """
         bucket = self.buckets[self._hash(key)]
         while True:  # poor man's python do-while
+            if bucket is None:
+                return None
+
             index_in, index_obj = bucket.get_hit_index(key)
             if index_obj is not None:
                 return index_obj
@@ -429,6 +433,10 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
         while True:  # poor man's python do-while
             bucket = self.buckets[bucket_index]  # noqa:: mixin for GenericHashMap
             bucket_indices.append(bucket_index)
+            if bucket is None:
+                bucket_iterations.append(1)
+                break
+
             index, hit_object = bucket.get_hit_index(key)
             if hit_object is not None:
                 bucket_iterations.append(index + 1)
@@ -450,6 +458,9 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
         @param path: The path and filename to save the configuration
         @param compact: Whether the JSON saved should be compact or indented
         """
+        for idx in range(len(self.buckets)):
+            if self.buckets[idx] is None:
+                self.buckets[idx] = self._BUCKET_OBJECT()
 
         save_dict = {
             'initial_buckets': self._initial_buckets,
@@ -501,13 +512,14 @@ class GenericHashMap(Generic[BUCKET_TYPE]):
         total_records = 0
         chain_histo = {}
         for idx, b in enumerate(self.buckets):
-            total_records += b.count
+            bucket_count = 0 if b is None else b.count
+            total_records += bucket_count
 
             if idx >= self.initial_buckets:
                 continue
-            chain_length = 1
-            record_length = b.count
-            while b.is_next_bucket_valid():
+            chain_length = 0 if b is None else 1
+            record_length = bucket_count
+            while b is not None and b.is_next_bucket_valid():
                 b = self.buckets[b.next_bucket]
                 chain_length += 1
                 record_length += b.count
