@@ -8,7 +8,6 @@ class BlimpHitmapEqual(_BlimpHitmapGenericScalarALO):
             self,
             pi_element_size_bytes: int,
             value: int,
-            return_labels: bool=False,
             hitmap_index: int=0,
             **kwargs
     ) -> (RuntimeResult, HitmapResult):
@@ -19,14 +18,12 @@ class BlimpHitmapEqual(_BlimpHitmapGenericScalarALO):
 
         @param pi_element_size_bytes: The PI/Key field size in bytes.
         @param value: The value to check all targeted PI/Keys against. This must be less than 2^pi_element_size
-        @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
         return self._perform_operation(
             pi_element_size_bytes=pi_element_size_bytes,
             value=value,
             operation=GenericArithmeticLogicalOperation.EQ,
-            return_labels=return_labels,
             hitmap_index=hitmap_index
         )
 
@@ -36,7 +33,6 @@ class BlimpHitmapNotEqual(_BlimpHitmapGenericScalarALO):
             self,
             pi_element_size_bytes: int,
             value: int,
-            return_labels: bool=False,
             hitmap_index: int=0,
             **kwargs
     ) -> (RuntimeResult, HitmapResult):
@@ -47,13 +43,11 @@ class BlimpHitmapNotEqual(_BlimpHitmapGenericScalarALO):
 
         @param pi_element_size_bytes: The PI/Key field size in bytes.
         @param value: The value to check all targeted PI/Keys against. This must be less than 2^pi_element_size
-        @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
         return self._perform_operation(
             pi_element_size_bytes=pi_element_size_bytes,
             value=value,
             operation=GenericArithmeticLogicalOperation.NEQ,
-            return_labels=return_labels,
             hitmap_index=hitmap_index
         )

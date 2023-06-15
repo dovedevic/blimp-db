@@ -24,7 +24,6 @@ class _AmbitHitmapEquality(
             pi_element_size_bytes: int,
             value: int,
             negate: bool,
-            return_labels: bool=False,
             hitmap_index: int=0
     ) -> (RuntimeResult, HitmapResult):
         """
@@ -36,7 +35,6 @@ class _AmbitHitmapEquality(
         @param pi_element_size_bytes: The PI/Key field size in bytes.
         @param value: The value to check all targeted PI/Keys against. This must be less than 2^pi_element_size
         @param negate: Whether this is an EQUAL or NOTEQUAL operation
-        @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
         # Ensure the value is at least valid
@@ -60,20 +58,17 @@ class _AmbitHitmapEquality(
         runtime = self.simulator.cpu_cycle(
             cycles=1,
             label="; prog start",
-            return_labels=return_labels
         )  # Just send a dummy command
 
         # Iterate over all hitmap rows
         runtime += self.simulator.cpu_cycle(
             cycles=3,
             label="; loop start",
-            return_labels=return_labels
         )
         for h in range(rows_per_hitmap):
             runtime += self.simulator.cpu_cycle(
                 cycles=1,
                 label="; hitmap row calculation",
-                return_labels=return_labels
             )
             # Calculate the hitmap we are targeting: Base Hitmap address + hitmap index + sub-hitmap index
             hitmap_row = hitmap_base + h
@@ -84,7 +79,6 @@ class _AmbitHitmapEquality(
             runtime += self.simulator.cpu_cycle(
                 cycles=8,
                 label="; pre-row calculation",
-                return_labels=return_labels
             )
             base_row_to_check = self.layout_configuration.row_mapping.data[0] + \
                 h * self.layout_configuration.database_configuration.total_index_size_bytes * 8 + \
@@ -93,13 +87,11 @@ class _AmbitHitmapEquality(
             runtime += self.simulator.cpu_cycle(
                 cycles=3,
                 label="; inner loop start",
-                return_labels=return_labels
             )
             for b in range(pi_element_size_bytes * 8):
                 runtime += self.simulator.cpu_cycle(
                     cycles=2,
                     label="; bit calculation",
-                    return_labels=return_labels
                 )
                 bit_at_value = bitmanip.msb_bit(value, b, 8 * pi_element_size_bytes)
 
@@ -108,7 +100,6 @@ class _AmbitHitmapEquality(
                 runtime += self.simulator.cpu_cycle(
                     cycles=1,
                     label="; row calculation",
-                    return_labels=return_labels
                 )
                 row_to_check = base_row_to_check + b
 
@@ -118,40 +109,35 @@ class _AmbitHitmapEquality(
                 ###################
                 # Performing the AND Operation
                 # move PI[bit] into ambit compute region
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
                 runtime += self.simulator.ambit_copy(
                     src_row=row_to_check,
                     dst_row=self.simulator.ambit_t1,
-                    return_labels=return_labels
                 )
 
                 # depending on the bit of the value for this ambit row, copy a 0 or 1
                 runtime += self.simulator.cpu_cycle(
                     cycles=2,
                     label="cmp bit",
-                    return_labels=return_labels
                 )
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
                 if bit_at_value:
                     runtime += self.simulator.ambit_copy(
                         src_row=self.simulator.ambit_c1,
                         dst_row=self.simulator.ambit_t2,
-                        return_labels=return_labels
                     )
                 else:
                     runtime += self.simulator.ambit_copy(
                         src_row=self.simulator.ambit_c0,
                         dst_row=self.simulator.ambit_t2,
-                        return_labels=return_labels
                     )
 
                 # perform PI[bit] AND value[bit]
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
                 runtime += self.simulator.ambit_and(
                     a_row=self.simulator.ambit_t1,
                     b_row=self.simulator.ambit_t2,
                     control_dst=self.simulator.ambit_t0,
-                    return_labels=return_labels
                 )
                 # T2 has PI[bit] AND value[bit]
                 ###################
@@ -159,40 +145,35 @@ class _AmbitHitmapEquality(
                 ###################
                 # Performing the NOR Operation
                 # move PI[bit] into ambit compute region
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
                 runtime += self.simulator.ambit_copy(
                     src_row=row_to_check,
                     dst_row=self.simulator.ambit_t1,
-                    return_labels=return_labels
                 )
 
                 # dup a control row for this bit
                 runtime += self.simulator.cpu_cycle(
                     cycles=2,
                     label="cmp bit",
-                    return_labels=return_labels
                 )
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
                 if bit_at_value:
                     runtime += self.simulator.ambit_copy(
                         src_row=self.simulator.ambit_c1,
                         dst_row=self.simulator.ambit_t3,
-                        return_labels=return_labels
                     )
                 else:
                     runtime += self.simulator.ambit_copy(
                         src_row=self.simulator.ambit_c0,
                         dst_row=self.simulator.ambit_t3,
-                        return_labels=return_labels
                     )
 
                 # perform PI[bit] OR value[bit]
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
                 runtime += self.simulator.ambit_or(
                     a_row=self.simulator.ambit_t1,
                     b_row=self.simulator.ambit_t3,
                     control_dst=self.simulator.ambit_dcc0,
-                    return_labels=return_labels
                 )
                 # NDCC0 has PI[bit] NOR value[bit]
                 ###################
@@ -200,12 +181,11 @@ class _AmbitHitmapEquality(
                 ###################
                 # Performing the final OR Operation
                 # perform (PI[bit] AND value[bit]) OR (PI[bit] NOR value[bit])
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
                 runtime += self.simulator.ambit_or(
                     a_row=self.simulator.ambit_t2,
                     b_row=self.simulator.ambit_ndcc0,
                     control_dst=self.simulator.ambit_t0,
-                    return_labels=return_labels
                 )
                 # t2 has PI[bit] XNOR value[bit]
                 ###################
@@ -213,34 +193,30 @@ class _AmbitHitmapEquality(
                 # With the equality (XNOR) complete, AND the result into the existing hitmap
 
                 # Copy the hitmap values into temporary register T1
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
                 runtime += self.simulator.ambit_copy(
                     src_row=hitmap_row,
                     dst_row=self.simulator.ambit_t1,
-                    return_labels=return_labels
                 )
 
                 # perform hitmap[h] AND (PI[bit] XNOR value[bit])
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
                 runtime += self.simulator.ambit_and(
                     a_row=self.simulator.ambit_t1,
                     b_row=self.simulator.ambit_t2,
                     control_dst=self.simulator.ambit_t0,
-                    return_labels=return_labels
                 )
 
                 # move the AND'd result back to the hitmap
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
                 runtime += self.simulator.ambit_copy(
                     src_row=self.simulator.ambit_t1,
                     dst_row=hitmap_row,
-                    return_labels=return_labels
                 )
 
                 runtime += self.simulator.cpu_cycle(
                     cycles=2,
                     label="; inner loop return",
-                    return_labels=return_labels
                 )
 
             # At this point, all bits for this chunk of records is operated on, thus completing a hitmap row calculation
@@ -248,29 +224,25 @@ class _AmbitHitmapEquality(
             runtime += self.simulator.cpu_cycle(
                 cycles=1,
                 label="cmp negate",
-                return_labels=return_labels
             )
             if negate:
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
                 runtime += self.simulator.ambit_invert(
                     src_row=hitmap_row,
                     dcc_row=self.simulator.ambit_dcc0,
                     dst_row=hitmap_row,
-                    return_labels=return_labels
                 )
                 # Add another faux dispatch since invert does 2 copies
-                runtime += self.simulator.cpu_ambit_dispatch(return_labels=return_labels)
+                runtime += self.simulator.cpu_ambit_dispatch()
 
             runtime += self.simulator.cpu_cycle(
                 cycles=2,
                 label="; outer loop return",
-                return_labels=return_labels
             )
 
         runtime += self.simulator.cpu_cycle(
             cycles=1,
             label="; end",
-            return_labels=return_labels
         )
 
         # We have finished the query, fetch the hitmap to one single hitmap row
@@ -295,7 +267,6 @@ class AmbitHitmapEqual(_AmbitHitmapEquality):
             pi_subindex_offset_bytes: int,
             pi_element_size_bytes: int,
             value: int,
-            return_labels: bool=False,
             hitmap_index: int=0
     ) -> (RuntimeResult, HitmapResult):
         """
@@ -308,7 +279,6 @@ class AmbitHitmapEqual(_AmbitHitmapEquality):
             the second index
         @param pi_element_size_bytes: The PI/Key field size in bytes.
         @param value: The value to check all targeted PI/Keys against. This must be less than 2^pi_element_size
-        @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
         return self._perform_operation(
@@ -316,7 +286,6 @@ class AmbitHitmapEqual(_AmbitHitmapEquality):
             pi_element_size_bytes=pi_element_size_bytes,
             value=value,
             negate=False,
-            return_labels=return_labels,
             hitmap_index=hitmap_index
         )
 
@@ -327,7 +296,6 @@ class AmbitHitmapNotEqual(_AmbitHitmapEquality):
             pi_subindex_offset_bytes: int,
             pi_element_size_bytes: int,
             value: int,
-            return_labels: bool=False,
             hitmap_index: int=0
     ) -> (RuntimeResult, HitmapResult):
         """
@@ -340,7 +308,6 @@ class AmbitHitmapNotEqual(_AmbitHitmapEquality):
             the second index
         @param pi_element_size_bytes: The PI/Key field size in bytes.
         @param value: The value to check all targeted PI/Keys against. This must be less than 2^pi_element_size
-        @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
         return self._perform_operation(
@@ -348,6 +315,5 @@ class AmbitHitmapNotEqual(_AmbitHitmapEquality):
             pi_element_size_bytes=pi_element_size_bytes,
             value=value,
             negate=True,
-            return_labels=return_labels,
             hitmap_index=hitmap_index
         )

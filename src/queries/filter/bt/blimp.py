@@ -20,7 +20,6 @@ class _BlimpHitmapBetween(
             value_low: int,
             value_high: int,
             negate: bool,
-            return_labels: bool=False,
             hitmap_index: int=0
     ) -> (RuntimeResult, HitmapResult):
         """
@@ -30,7 +29,6 @@ class _BlimpHitmapBetween(
         @param value_low: The low value to check all targeted PI/Keys against. Must be less than 2^pi_element_size
         @param value_high: The high value to check all targeted PI/Keys against. Must be less than 2^pi_element_size
         @param negate: Whether this is an BT or !BT operation
-        @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
         # Ensure the values are at least valid
@@ -57,33 +55,29 @@ class _BlimpHitmapBetween(
         base_data_row = self.layout_configuration.row_mapping.data[0]
 
         # Begin by enabling BLIMP
-        runtime = self.simulator.blimp_begin(return_labels=return_labels)
+        runtime = self.simulator.blimp_begin()
 
         # Calculate the above metadata
         runtime += self.simulator.blimp_cycle(
             cycles=5,
             label="; meta start",
-            return_labels=return_labels
         )
 
         # Clear a register for temporary hitmaps
         runtime += self.simulator.blimp_set_register_to_zero(
             register=self.simulator.blimp_v1,
-            return_labels=return_labels
         )
 
         # Iterate over all data rows
         runtime += self.simulator.blimp_cycle(
             cycles=3,
             label="; loop start",
-            return_labels=return_labels
         )
         for d in range(self.layout_configuration.row_mapping.data[1]):
 
             runtime += self.simulator.blimp_cycle(
                 cycles=1,
                 label="; data row calculation",
-                return_labels=return_labels
             )
             data_row = base_data_row + d
 
@@ -91,14 +85,12 @@ class _BlimpHitmapBetween(
             runtime += self.simulator.blimp_load_register(
                 register=self.simulator.blimp_v2,
                 row=data_row,
-                return_labels=return_labels
             )
 
             # Dupe the register so we can do two operations
             runtime += self.simulator.blimp_transfer_register(
                 register_a=self.simulator.blimp_v2,
                 register_b=self.simulator.blimp_v3,
-                return_labels=return_labels
             )
 
             # Perform the operation
@@ -110,7 +102,6 @@ class _BlimpHitmapBetween(
                     element_width=pi_element_size_bytes,
                     stride=pi_element_size_bytes,
                     value=value_high,
-                    return_labels=return_labels
                 )
 
                 runtime += self.simulator.blimp_alu_int_gte_val(
@@ -120,7 +111,6 @@ class _BlimpHitmapBetween(
                     element_width=pi_element_size_bytes,
                     stride=pi_element_size_bytes,
                     value=value_low,
-                    return_labels=return_labels
                 )
 
                 # Combine the results
@@ -131,7 +121,6 @@ class _BlimpHitmapBetween(
                     end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
                     element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
                     stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                    return_labels=return_labels
                 )
             else:
                 runtime += self.simulator.blimp_alu_int_gt_val(
@@ -141,7 +130,6 @@ class _BlimpHitmapBetween(
                     element_width=pi_element_size_bytes,
                     stride=pi_element_size_bytes,
                     value=value_high,
-                    return_labels=return_labels
                 )
 
                 runtime += self.simulator.blimp_alu_int_lt_val(
@@ -151,7 +139,6 @@ class _BlimpHitmapBetween(
                     element_width=pi_element_size_bytes,
                     stride=pi_element_size_bytes,
                     value=value_low,
-                    return_labels=return_labels
                 )
 
                 # Combine the results
@@ -162,7 +149,6 @@ class _BlimpHitmapBetween(
                     end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
                     element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
                     stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                    return_labels=return_labels
                 )
 
             # Coalesce the bitmap, no need to save the runtime since ideally we would do this while looping when we
@@ -174,7 +160,6 @@ class _BlimpHitmapBetween(
                 element_width=pi_element_size_bytes,
                 stride=pi_element_size_bytes,
                 bit_offset=elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8),
-                return_labels=return_labels
             )
 
             # Or the bitmap into the temporary one, no runtime for the same reason as above
@@ -185,13 +170,11 @@ class _BlimpHitmapBetween(
                 end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
                 element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
                 stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                return_labels=return_labels
             )
 
             runtime += self.simulator.blimp_cycle(
                 cycles=1,
                 label="; metadata calculation",
-                return_labels=return_labels
             )
             elements_processed = min(
                 elements_processed + elements_per_row,
@@ -202,7 +185,6 @@ class _BlimpHitmapBetween(
             runtime += self.simulator.blimp_cycle(
                 cycles=2,
                 label="; cmp elements processed",
-                return_labels=return_labels
             )
             if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) == 0:
                 # load the existing hitmap
@@ -210,7 +192,6 @@ class _BlimpHitmapBetween(
                     register=self.simulator.blimp_data_scratchpad,
                     row=hitmap_base +
                     (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1,
-                    return_labels=return_labels
                 )
 
                 # and the results
@@ -221,7 +202,6 @@ class _BlimpHitmapBetween(
                     end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
                     element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
                     stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                    return_labels=return_labels
                 )
 
                 # Save the hitmap
@@ -229,26 +209,22 @@ class _BlimpHitmapBetween(
                     register=self.simulator.blimp_v1,
                     row=hitmap_base +
                     (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1,
-                    return_labels=return_labels
                 )
 
                 # Reset to save a new one
                 runtime += self.simulator.blimp_set_register_to_zero(
                     register=self.simulator.blimp_v1,
-                    return_labels=return_labels
                 )
 
             runtime += self.simulator.blimp_cycle(
                 cycles=2,
                 label="; loop return",
-                return_labels=return_labels
             )
 
         # were done with records processing, but we need to save one last time possibly
         runtime += self.simulator.blimp_cycle(
             cycles=2,
             label="; cmp save",
-            return_labels=return_labels
         )
         if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) != 0:
             # load the hitmap
@@ -256,7 +232,6 @@ class _BlimpHitmapBetween(
                 register=self.simulator.blimp_data_scratchpad,
                 row=hitmap_base +
                 (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)),
-                return_labels=return_labels
             )
 
             # and the results
@@ -267,17 +242,15 @@ class _BlimpHitmapBetween(
                 end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
                 element_width=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
                 stride=self.layout_configuration.hardware_configuration.blimp_processor_bit_architecture // 8,
-                return_labels=return_labels
             )
 
             runtime += self.simulator.blimp_save_register(
                 register=self.simulator.blimp_v1,
                 row=hitmap_base +
                 (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)),
-                return_labels=return_labels
             )
 
-        runtime += self.simulator.blimp_end(return_labels=return_labels)
+        runtime += self.simulator.blimp_end()
 
         # Do we need to pad off remaining hits? This will be handled already by us with V-ASM but we need to do it here
         remainder = elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)
@@ -316,7 +289,6 @@ class BlimpHitmapBetween(_BlimpHitmapBetween):
             pi_element_size_bytes: int,
             value_low: int,
             value_high: int,
-            return_labels: bool=False,
             hitmap_index: int=0,
             **kwargs
     ) -> (RuntimeResult, HitmapResult):
@@ -328,7 +300,6 @@ class BlimpHitmapBetween(_BlimpHitmapBetween):
         @param pi_element_size_bytes: The PI/Key field size in bytes.
         @param value_low: The low value to check all targeted PI/Keys against. Must be less than 2^pi_element_size
         @param value_high: The high value to check all targeted PI/Keys against. Must be less than 2^pi_element_size
-        @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
         return self._perform_operation(
@@ -336,7 +307,6 @@ class BlimpHitmapBetween(_BlimpHitmapBetween):
             value_low=value_low,
             value_high=value_high,
             negate=False,
-            return_labels=return_labels,
             hitmap_index=hitmap_index
         )
 
@@ -347,7 +317,6 @@ class BlimpHitmapInverseBetween(_BlimpHitmapBetween):
             pi_element_size_bytes: int,
             value_low: int,
             value_high: int,
-            return_labels: bool=False,
             hitmap_index: int=0,
             **kwargs
     ) -> (RuntimeResult, HitmapResult):
@@ -359,7 +328,6 @@ class BlimpHitmapInverseBetween(_BlimpHitmapBetween):
         @param pi_element_size_bytes: The PI/Key field size in bytes.
         @param value_low: The low value to check all targeted PI/Keys against. Must be less than 2^pi_element_size
         @param value_high: The high value to check all targeted PI/Keys against. Must be less than 2^pi_element_size
-        @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
         return self._perform_operation(
@@ -367,6 +335,5 @@ class BlimpHitmapInverseBetween(_BlimpHitmapBetween):
             value_low=value_low,
             value_high=value_high,
             negate=True,
-            return_labels=return_labels,
             hitmap_index=hitmap_index
         )

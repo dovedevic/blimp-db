@@ -18,7 +18,6 @@ class BlimpVHashmapIndexJoin(
             hash_map: BlimpSimpleHashSet,
             output_array_start_row: int,
             output_index_size_bytes: int,
-            return_labels: bool=False,
             **kwargs
     ) -> (RuntimeResult, MemoryArrayResult):
         """
@@ -30,7 +29,6 @@ class BlimpVHashmapIndexJoin(
         @param hash_map: The hash set to be used for probing
         @param output_array_start_row: The row number where the output array begins
         @param output_index_size_bytes: The number of bytes to use for index hit values in the output array
-        @param return_labels: Whether to return debug labels with the RuntimeResult history
         """
         key_size = self.layout_configuration.database_configuration.total_index_size_bytes
         assert key_size == 4, "This implementation of Hash Probe expects keys to be 4 bytes / 32 bits"
@@ -65,34 +63,29 @@ class BlimpVHashmapIndexJoin(
 
         # Begin by enabling BLIMP-V
         runtime = self.simulator.blimp_begin(
-            return_labels=return_labels
         )
 
         # Calculate the above metadata
         runtime += self.simulator.blimp_cycle(
             cycles=10,
             label="; meta start",
-            return_labels=return_labels
         )
 
         # Clear a register for temporary output in V2
         runtime += self.simulator.blimpv_set_register_to_zero(
             register=self.simulator.blimp_v2,
-            return_labels=return_labels
         )
 
         # Iterate over all data rows
         runtime += self.simulator.blimp_cycle(
             cycles=3,
             label="; loop start",
-            return_labels=return_labels
         )
         for d in range(self.layout_configuration.row_mapping.data[1]):
 
             runtime += self.simulator.blimp_cycle(
                 cycles=1,
                 label="; data row calculation",
-                return_labels=return_labels
             )
             data_row = base_data_row + d
 
@@ -100,12 +93,10 @@ class BlimpVHashmapIndexJoin(
             runtime += self.simulator.blimp_load_register(
                 register=self.simulator.blimp_data_scratchpad,
                 row=data_row,
-                return_labels=return_labels
             )
             runtime += self.simulator.blimp_transfer_register(
                 register_a=self.simulator.blimp_data_scratchpad,
                 register_b=self.simulator.blimp_v1,
-                return_labels=return_labels
             )
 
             # Hash and mask the keys
@@ -114,7 +105,6 @@ class BlimpVHashmapIndexJoin(
                 sew=key_size,
                 stride=key_size,
                 hash_mask=hash_map.mask,
-                return_labels=return_labels
             )
 
             # Loop through them searching for hits
@@ -123,7 +113,6 @@ class BlimpVHashmapIndexJoin(
             runtime += self.simulator.blimp_cycle(
                 cycles=3,
                 label="; row loop start",
-                return_labels=return_labels
             )
             for index, key in enumerate(self.simulator.blimp_get_register_data(
                     register=self.simulator.blimp_data_scratchpad,
@@ -142,14 +131,12 @@ class BlimpVHashmapIndexJoin(
                     runtime += self.simulator.blimp_cycle(
                         cycles=1,
                         label="; register address check",
-                        return_labels=return_labels
                     )
                     if current_row_index != traced_row_index:
                         current_row_index = traced_row_index
                         runtime += self.simulator.blimp_load_register(
                             register=self.simulator.blimp_v3,
                             row=base_hashmap_row + current_row_index,
-                            return_labels=return_labels
                         )
 
                     # Use the vector register to perform several equality checks at once in the bucket
@@ -163,20 +150,17 @@ class BlimpVHashmapIndexJoin(
 
                     runtime += self.simulator.blimp_cycle(
                         cycles=cycles,
-                        return_labels=return_labels
                     )
 
                 # set the hit
                 runtime += self.simulator.blimp_cycle(
                     cycles=1,
                     label="; hit check",
-                    return_labels=return_labels
                 )
                 if hit:
                     runtime += self.simulator.blimp_cycle(
                         cycles=10,
                         label="; hit meta calculation",
-                        return_labels=return_labels
                     )
                     hit_value = (index + elements_per_row * d) & (2 ** (output_index_size_bytes * 8) - 1)
                     hit_size = output_index_size_bytes
@@ -201,7 +185,6 @@ class BlimpVHashmapIndexJoin(
                             element_width=placeable_bytes,
                             index=output_byte_index // output_index_size_bytes,
                             value=inserted_value,
-                            return_labels=return_labels
                         )
                         output_byte_index += placeable_bytes
 
@@ -211,7 +194,6 @@ class BlimpVHashmapIndexJoin(
                         runtime += self.simulator.blimp_cycle(
                             cycles=2,
                             label="; hit state check",
-                            return_labels=return_labels
                         )
                         if output_byte_index >= self.hardware.hardware_configuration.row_buffer_size_bytes:
                             if current_output_row >= max_output_row:
@@ -221,11 +203,9 @@ class BlimpVHashmapIndexJoin(
                             runtime += self.simulator.blimp_save_register(
                                 register=self.simulator.blimp_v2,
                                 row=current_output_row,
-                                return_labels=return_labels
                             )
                             runtime += self.simulator.blimpv_set_register_to_zero(
                                 register=self.simulator.blimp_v2,
-                                return_labels=return_labels
                             )
                             current_output_row += 1
                             output_byte_index = 0
@@ -233,7 +213,6 @@ class BlimpVHashmapIndexJoin(
             runtime += self.simulator.blimp_cycle(
                 cycles=1,
                 label="; metadata calculation",
-                return_labels=return_labels
             )
             elements_processed = min(
                 elements_processed + elements_per_row,
@@ -243,14 +222,12 @@ class BlimpVHashmapIndexJoin(
             runtime += self.simulator.blimp_cycle(
                 cycles=2,
                 label="; loop return",
-                return_labels=return_labels
             )
 
         # were done with records processing, but we need to save one last time possibly
         runtime += self.simulator.blimp_cycle(
             cycles=3,
             label="; cmp save",
-            return_labels=return_labels
         )
         if output_byte_index != 0:
             if current_output_row >= max_output_row:
@@ -260,11 +237,10 @@ class BlimpVHashmapIndexJoin(
             runtime += self.simulator.blimp_save_register(
                 register=self.simulator.blimp_v2,
                 row=current_output_row,
-                return_labels=return_labels
             )
             current_output_row += 1
 
-        runtime += self.simulator.blimp_end(return_labels=return_labels)
+        runtime += self.simulator.blimp_end()
 
         # We have finished the query, fetch the memory array to one single array
         memory_byte_array = []

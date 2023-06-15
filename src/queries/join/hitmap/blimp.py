@@ -14,7 +14,6 @@ class BlimpHashmapJoin(
     def perform_operation(
             self,
             hash_map: BlimpSimpleHashSet,
-            return_labels: bool=False,
             hitmap_index: int = 0,
             **kwargs
     ) -> (RuntimeResult, HitmapResult):
@@ -24,7 +23,6 @@ class BlimpHashmapJoin(
         bits, or 4 bytes.
 
         @param hash_map: The hash map to be used for probing
-        @param return_labels: Whether to return debug labels with the RuntimeResult history
         @param hitmap_index: Which hitmap to target results into
         """
         key_size = self.layout_configuration.database_configuration.total_index_size_bytes
@@ -53,35 +51,29 @@ class BlimpHashmapJoin(
         assert elements_per_row > 0, "Total element size must be at least less than one row buffer"
 
         # Begin by enabling BLIMP
-        runtime = self.simulator.blimp_begin(
-            return_labels=return_labels
-        )
+        runtime = self.simulator.blimp_begin()
 
         # Calculate the above metadata
         runtime += self.simulator.blimp_cycle(
             cycles=5,
             label="; meta start",
-            return_labels=return_labels
         )
 
         # Clear a register for temporary hitmaps in V2
         runtime += self.simulator.blimp_set_register_to_zero(
             register=self.simulator.blimp_v2,
-            return_labels=return_labels
         )
 
         # Iterate over all data rows
         runtime += self.simulator.blimp_cycle(
             cycles=3,
             label="; loop start",
-            return_labels=return_labels
         )
         for d in range(self.layout_configuration.row_mapping.data[1]):
 
             runtime += self.simulator.blimp_cycle(
                 cycles=1,
                 label="; data row calculation",
-                return_labels=return_labels
             )
             data_row = base_data_row + d
 
@@ -89,12 +81,10 @@ class BlimpHashmapJoin(
             runtime += self.simulator.blimp_load_register(
                 register=self.simulator.blimp_data_scratchpad,
                 row=data_row,
-                return_labels=return_labels
             )
             runtime += self.simulator.blimp_transfer_register(
                 register_a=self.simulator.blimp_data_scratchpad,
                 register_b=self.simulator.blimp_v1,
-                return_labels=return_labels
             )
 
             # Hash and mask the keys
@@ -105,7 +95,6 @@ class BlimpHashmapJoin(
                 element_width=key_size,
                 stride=key_size,
                 hash_mask=hash_map.mask,
-                return_labels=return_labels
             )
 
             # Loop through them searching for hits
@@ -114,7 +103,6 @@ class BlimpHashmapJoin(
             runtime += self.simulator.blimp_cycle(
                 cycles=3,
                 label="; row loop start",
-                return_labels=return_labels
             )
             for index, key in enumerate(self.simulator.blimp_get_register_data(
                     register=self.simulator.blimp_data_scratchpad,
@@ -128,7 +116,6 @@ class BlimpHashmapJoin(
                             element_width=self.layout_configuration.database_configuration.total_index_size_bytes,
                             index=i,
                             value=0,
-                            return_labels=return_labels
                         )
                     break
 
@@ -142,19 +129,16 @@ class BlimpHashmapJoin(
                     runtime += self.simulator.blimp_cycle(
                         cycles=1,
                         label="; register address check",
-                        return_labels=return_labels
                     )
                     if current_row_index != traced_row_index:
                         current_row_index = traced_row_index
                         runtime += self.simulator.blimp_load_register(
                             register=self.simulator.blimp_v3,
                             row=base_hashmap_row + current_row_index,
-                            return_labels=return_labels
                         )
                     # add iterations * 2 for cmp/jmp on keys
                     runtime += self.simulator.blimp_cycle(
                         cycles=max(1, traced_iteration * 2),
-                        return_labels=return_labels
                     )
 
                 # set the hit
@@ -163,7 +147,6 @@ class BlimpHashmapJoin(
                     element_width=self.layout_configuration.database_configuration.total_index_size_bytes,
                     index=index,
                     value=+(hit is not None),
-                    return_labels=return_labels
                 )
 
             # Coalesce the bitmap, no need to save the runtime since ideally we would do this while looping when we
@@ -175,7 +158,6 @@ class BlimpHashmapJoin(
                 element_width=key_size,
                 stride=key_size,
                 bit_offset=(d * elements_per_row) % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8),
-                return_labels=return_labels
             )
 
             # Or the bitmap into the temporary one, no runtime for the same reason as above
@@ -186,13 +168,11 @@ class BlimpHashmapJoin(
                 end_index=self.hardware.hardware_configuration.row_buffer_size_bytes,
                 element_width=self.hardware.hardware_configuration.blimp_processor_bit_architecture // 8,
                 stride=self.hardware.hardware_configuration.blimp_processor_bit_architecture // 8,
-                return_labels=return_labels
             )
 
             runtime += self.simulator.blimp_cycle(
                 cycles=1,
                 label="; metadata calculation",
-                return_labels=return_labels
             )
             elements_processed = min(
                 elements_processed + elements_per_row,
@@ -203,7 +183,6 @@ class BlimpHashmapJoin(
             runtime += self.simulator.blimp_cycle(
                 cycles=3,
                 label="; cmp elements processed",
-                return_labels=return_labels
             )
             if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) == 0:
 
@@ -212,36 +191,31 @@ class BlimpHashmapJoin(
                     register=self.simulator.blimp_v2,
                     row=hitmap_base +
                     (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)) - 1,
-                    return_labels=return_labels
                 )
 
                 # Reset to save a new one
                 runtime += self.simulator.blimp_set_register_to_zero(
                     register=self.simulator.blimp_v2,
-                    return_labels=return_labels
                 )
 
             runtime += self.simulator.blimp_cycle(
                 cycles=2,
                 label="; loop return",
-                return_labels=return_labels
             )
 
         # were done with records processing, but we need to save one last time possibly
         runtime += self.simulator.blimp_cycle(
             cycles=3,
             label="; cmp save",
-            return_labels=return_labels
         )
         if elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8) != 0:
             runtime += self.simulator.blimp_save_register(
                 register=self.simulator.blimp_v2,
                 row=hitmap_base +
                 (elements_processed // (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)),
-                return_labels=return_labels
             )
 
-        runtime += self.simulator.blimp_end(return_labels=return_labels)
+        runtime += self.simulator.blimp_end()
 
         # Do we need to pad off remaining hits? This will be handled already by us with V-ASM but we need to do it here
         remainder = elements_processed % (self.hardware.hardware_configuration.row_buffer_size_bytes * 8)

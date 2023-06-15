@@ -20,14 +20,12 @@ class BlimpHitmapEmit(
             self,
             hitmap_index: int,
             output_array_start_row: int,
-            return_labels: bool=False,
     ) -> (RuntimeResult, HitmapResult):
         """
         Perform a BLIMP hitmap emit operation on a provided hitmap index.
 
         @param hitmap_index: Which hitmap to target for index emission
         @param output_array_start_row: The row number where the output array begins
-        @param return_labels: Whether to return debug labels with the RuntimeResult history
         """
 
         # Ensure we are operating on valid hitmap indices
@@ -55,34 +53,28 @@ class BlimpHitmapEmit(
         assert elements_per_row > 0, "Total element size must be at least less than one row buffer"
 
         # Begin by enabling BLIMP
-        runtime = self.simulator.blimp_begin(
-            return_labels=return_labels
-        )
+        runtime = self.simulator.blimp_begin()
 
         # Calculate the above metadata
         runtime += self.simulator.blimp_cycle(
             cycles=10,
             label="; meta start",
-            return_labels=return_labels
         )
 
         # Clear a register for temporary output in V2
         runtime += self.simulator.blimp_set_register_to_zero(
             register=self.simulator.blimp_v2,
-            return_labels=return_labels
         )
 
         # Iterate over all hitmap rows
         runtime += self.simulator.blimp_cycle(
             cycles=3,
             label="; loop start",
-            return_labels=return_labels
         )
         for h in range(rows_per_hitmap):
             runtime += self.simulator.blimp_cycle(
                 cycles=1,
                 label="; hitmap row calculation",
-                return_labels=return_labels
             )
             # Calculate the hitmap we are targeting
             hitmap_row = hitmap_base + h
@@ -91,14 +83,12 @@ class BlimpHitmapEmit(
             runtime += self.simulator.blimp_load_register(
                 register=self.simulator.blimp_v1,
                 row=hitmap_row,
-                return_labels=return_labels
             )
 
             # iterate over all the bytes
             runtime += self.simulator.blimp_cycle(
                 cycles=3,
                 label="; inner loop start",
-                return_labels=return_labels
             )
             for byte_index, hitmap_byte in enumerate(self.simulator.blimp_get_register_data(
                     register=self.simulator.blimp_v1, element_width=1)):
@@ -110,7 +100,6 @@ class BlimpHitmapEmit(
                 runtime += self.simulator.blimp_cycle(
                     cycles=1,
                     label="; early stop",
-                    return_labels=return_labels
                 )
                 if hitmap_byte == 0:
                     elements_processed += 8
@@ -125,7 +114,6 @@ class BlimpHitmapEmit(
                     runtime += self.simulator.blimp_cycle(
                         cycles=2,
                         label="; hit check",
-                        return_labels=return_labels
                     )
                     if hitmap_byte & (1 << (7 - i)):
                         hit_elements += 1
@@ -134,7 +122,6 @@ class BlimpHitmapEmit(
                         runtime += self.simulator.blimp_cycle(
                             cycles=3,
                             label="; record index calculation",
-                            return_labels=return_labels
                         )
                         record_index = \
                             h * self.layout_configuration.hardware_configuration.row_buffer_size_bytes * 8 + \
@@ -151,14 +138,12 @@ class BlimpHitmapEmit(
                         runtime += self.simulator.blimp_cycle(
                             cycles=1,
                             label="; register address check",
-                            return_labels=return_labels
                         )
                         if record_row != current_data_row:
                             # load the row
                             runtime += self.simulator.blimp_load_register(
                                 register=self.simulator.blimp_v3,
                                 row=record_row,
-                                return_labels=return_labels
                             )
                             current_data_row = record_row
 
@@ -166,7 +151,6 @@ class BlimpHitmapEmit(
                         runtime += self.simulator.blimp_cycle(
                             cycles=10,
                             label="; emit meta calculation",
-                            return_labels=return_labels
                         )
                         emit_value = self.simulator.blimp_get_register_data(
                             register=self.simulator.blimp_v3,
@@ -194,7 +178,6 @@ class BlimpHitmapEmit(
                                 index=output_byte_index //
                                 self.layout_configuration.database_configuration.total_index_size_bytes,
                                 value=inserted_value,
-                                return_labels=return_labels
                             )
                             output_byte_index += placeable_bytes
 
@@ -204,7 +187,6 @@ class BlimpHitmapEmit(
                             runtime += self.simulator.blimp_cycle(
                                 cycles=2,
                                 label="; emit state check",
-                                return_labels=return_labels
                             )
                             if output_byte_index >= self.hardware.hardware_configuration.row_buffer_size_bytes:
                                 if current_output_row >= max_output_row:
@@ -214,11 +196,9 @@ class BlimpHitmapEmit(
                                 runtime += self.simulator.blimp_save_register(
                                     register=self.simulator.blimp_v2,
                                     row=current_output_row,
-                                    return_labels=return_labels
                                 )
                                 runtime += self.simulator.blimp_set_register_to_zero(
                                     register=self.simulator.blimp_v2,
-                                    return_labels=return_labels
                                 )
                                 current_output_row += 1
                                 output_byte_index = 0
@@ -226,19 +206,16 @@ class BlimpHitmapEmit(
                 runtime += self.simulator.blimp_cycle(
                     cycles=2,
                     label="; inner loop return",
-                    return_labels=return_labels
                 )
             runtime += self.simulator.blimp_cycle(
                 cycles=2,
                 label="; loop return",
-                return_labels=return_labels
             )
 
         # were done with records processing, but we need to save one last time possibly
         runtime += self.simulator.blimp_cycle(
             cycles=3,
             label="; cmp save",
-            return_labels=return_labels
         )
         if output_byte_index != 0:
             if current_output_row >= max_output_row:
@@ -248,11 +225,10 @@ class BlimpHitmapEmit(
             runtime += self.simulator.blimp_save_register(
                 register=self.simulator.blimp_v2,
                 row=current_output_row,
-                return_labels=return_labels
             )
             current_output_row += 1
 
-        runtime += self.simulator.blimp_end(return_labels=return_labels)
+        runtime += self.simulator.blimp_end()
 
         # We have finished the query, fetch the memory array to one single array
         memory_byte_array = []
