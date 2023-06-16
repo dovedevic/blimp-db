@@ -8,8 +8,8 @@ from src.utils.generic import ceil_to_multiple
 from src.queries import Query
 from src.configurations.database.blimp import BlimpHitmapDatabaseConfiguration
 from src.data_layout_mappings.architectures import BlimpIndexHitmapBankLayoutConfiguration
-from src.configurations.hashables.blimp import BlimpSimpleHashSet, Hash32bitObjectNullPayload, BlimpBucket, \
-        Object32bit, Object16bit
+from src.configurations.hashables.blimp import GenericHashMap, BlimpSimpleHashSet, Hash32bitObjectNullPayload, \
+    BlimpBucket, Object32bit, Object8bit, Object24bitNullMax, Object32bitNullMax, Hash32bitObject16bPayload
 
 from studies.star_schema_benchmark.generic import GenericSSBQuery
 from studies.star_schema_benchmark.ssb import SSBSupplierTable, SSBPartTable, SSBDateTable
@@ -17,22 +17,55 @@ from studies.star_schema_benchmark.columns import LineOrderOrderDate, LineOrderP
     LineOrderRevenue
 
 
-class SSBQuery2pX(GenericSSBQuery):
-    # Define a hash map that uses 32b keys, 16b payloads
-    class Blimp32bk16bpHashMap(BlimpSimpleHashSet):
-        class Blimp32bk16bpBucket(BlimpBucket):
-            class Hash32bitObject16bPayload(GenericHashTableObject[Object32bit, Object16bit]):
-                _KEY_OBJECT = Object32bit
-                _PAYLOAD_OBJECT = Object16bit
-            _KEY_PAYLOAD_OBJECT = Hash32bitObject16bPayload
-            _BUCKET_OBJECT_CAPACITY = 20
-            _META_NEXT_BUCKET_OBJECT = Object32bit
-            _META_ACTIVE_COUNT_OBJECT = Object32bit
-        _BUCKET_OBJECT = Blimp32bk16bpBucket
+class BlimpSupplierHashSet(BlimpSimpleHashSet):
+    class Blimp32bk3cBucket(BlimpBucket):
+        _KEY_PAYLOAD_OBJECT = Hash32bitObjectNullPayload
+        _BUCKET_OBJECT_CAPACITY = 3
+        _META_NEXT_BUCKET_OBJECT = Object24bitNullMax
+        _META_ACTIVE_COUNT_OBJECT = Object8bit
+    _BUCKET_OBJECT = Blimp32bk3cBucket
 
-    supplier_join_hash_table = BlimpSimpleHashSet(2048, 4096)
-    part_join_hash_table = Blimp32bk16bpHashMap(8192, 8192*2)
-    date_join_hash_table = Blimp32bk16bpHashMap(256, 512)
+
+class BlimpVSupplierHashSet(BlimpSimpleHashSet):
+    class Blimp32bk31cBucket(BlimpBucket):
+        _KEY_PAYLOAD_OBJECT = Hash32bitObjectNullPayload
+        _BUCKET_OBJECT_CAPACITY = 31
+        _META_NEXT_BUCKET_OBJECT = Object24bitNullMax
+        _META_ACTIVE_COUNT_OBJECT = Object8bit
+    _BUCKET_OBJECT = Blimp32bk31cBucket
+
+
+class BlimpPartHashMap(BlimpSimpleHashSet):
+    class Blimp32bk16bp2cBucket(BlimpBucket):
+        _KEY_PAYLOAD_OBJECT = Hash32bitObject16bPayload
+        _BUCKET_OBJECT_CAPACITY = 2
+        _META_NEXT_BUCKET_OBJECT = Object24bitNullMax
+        _META_ACTIVE_COUNT_OBJECT = Object8bit
+    _BUCKET_OBJECT = Blimp32bk16bp2cBucket
+
+
+class BlimpVPartHashMap(BlimpSimpleHashSet):
+    class Blimp32bk20cBucket(BlimpBucket):
+        _KEY_PAYLOAD_OBJECT = Hash32bitObject16bPayload
+        _BUCKET_OBJECT_CAPACITY = 20
+        _META_NEXT_BUCKET_OBJECT = Object32bitNullMax
+        _META_ACTIVE_COUNT_OBJECT = Object32bit
+    _BUCKET_OBJECT = Blimp32bk20cBucket
+
+
+class BlimpDateHashMap(BlimpPartHashMap):
+    pass
+
+
+class BlimpVDateHashMap(BlimpVPartHashMap):
+    pass
+
+
+class SSBQuery2pX(GenericSSBQuery):
+
+    supplier_join_hash_table = GenericHashMap(0, 0)
+    part_join_hash_table = GenericHashMap(0, 0)
+    date_join_hash_table = GenericHashMap(0, 0)
 
     def _supplier_record_join_condition(self, record: SSBSupplierTable.TableRecord) -> bool:
         raise NotImplemented
@@ -51,7 +84,7 @@ class SSBQuery2pX(GenericSSBQuery):
         raise NotImplemented
 
     def _part_record_joined_hashtable_object(self, record: SSBPartTable.TableRecord) -> GenericHashTableObject:
-        return self.Blimp32bk16bpHashMap.Blimp32bk16bpBucket.Hash32bitObject16bPayload(record.part_key, record.brand)
+        return Hash32bitObject16bPayload(record.part_key, record.brand)
 
     def _build_part_hash_table(self):
         self.part_join_hash_table.reset()
@@ -64,7 +97,7 @@ class SSBQuery2pX(GenericSSBQuery):
         raise NotImplemented
 
     def _date_record_joined_hashtable_object(self, record: SSBDateTable.TableRecord) -> GenericHashTableObject:
-        return self.Blimp32bk16bpHashMap.Blimp32bk16bpBucket.Hash32bitObject16bPayload(record.date_key, record.year)
+        return Hash32bitObject16bPayload(record.date_key, record.year)
 
     def _build_date_hash_table(self):
         self.date_join_hash_table.reset()
