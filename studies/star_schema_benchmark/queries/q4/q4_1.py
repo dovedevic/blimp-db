@@ -20,30 +20,30 @@ from studies.star_schema_benchmark.queries.q4.q4_x import SSBQuery4pX, \
     SSBQuery4pXCustomerPartSupplierDate, SSBQuery4pXCustomerSupplierPartDate, \
     SSBQuery4pXSupplierCustomerPartDate, SSBQuery4pXSupplierPartCustomerDate, \
     SSBQuery4pXPartCustomerSupplierDate, SSBQuery4pXPartSupplierCustomerDate
+from studies.star_schema_benchmark.queries.q4.q4_x import BlimpDateHashMap, BlimpVDateHashMap, \
+    BlimpCustomerNationHashMap, BlimpVCustomerNationHashMap, BlimpSupplierHashSet, BlimpVSupplierHashSet, \
+    BlimpPartHashSet, BlimpVPartHashSet, Hash32bitObject8bPayload
 
 
 class SSBQuery4p1(SSBQuery4pX):
-    supplier_join_hash_table = BlimpSimpleHashSet(2048, 4096)
-    part_join_hash_table = BlimpSimpleHashSet(32768, 32768*2)
-    customer_join_hash_table = SSBQuery4pX.Blimp32bk8bpHashMap(32768, 32768 * 2)
-
-    def _supplier_record_joined_hashtable_object(self, record: SSBSupplierTable.TableRecord):
-        return Hash32bitObjectNullPayload(record.supplier_key)
-
-    def _part_record_joined_hashtable_object(self, record: SSBPartTable.TableRecord):
-        return Hash32bitObjectNullPayload(record.part_key)
-
-    def _customer_record_joined_hashtable_object(self, record: SSBCustomerTable.TableRecord):
-        return self.Blimp32bk8bpHashMap.Blimp32bk8bpBucket.Hash32bitObject8bPayload(record.customer_key, record.nation)
 
     def _supplier_record_join_condition(self, record: SSBSupplierTable.TableRecord) -> bool:
         return record.region == SSBRegionEncoding.AMERICA
 
+    def _supplier_record_joined_hashtable_object(self, record: SSBSupplierTable.TableRecord):
+        return Hash32bitObjectNullPayload(record.supplier_key)
+
     def _part_record_join_condition(self, record: SSBPartTable.TableRecord) -> bool:
         return record.mfgr == SSBMFGREncoding.MFGR_1 or record.mfgr == SSBMFGREncoding.MFGR_2
 
+    def _part_record_joined_hashtable_object(self, record: SSBPartTable.TableRecord):
+        return Hash32bitObjectNullPayload(record.part_key)
+
     def _customer_record_join_condition(self, record: SSBCustomerTable.TableRecord) -> bool:
         return record.region == SSBRegionEncoding.AMERICA
+
+    def _customer_record_joined_hashtable_object(self, record: SSBCustomerTable.TableRecord):
+        return Hash32bitObject8bPayload(record.customer_key, record.nation)
 
     def _date_record_join_condition(self, record: SSBDateTable.TableRecord) -> bool:
         return True
@@ -123,6 +123,10 @@ class SSBQuery4p1BlimpVXYZ(SSBQuery4p1):
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmit
     emit_3_query_class = BlimpVHitmapEmitHashmapPayload
+    supplier_join_hash_table = BlimpVSupplierHashSet(4096, 8192)
+    part_join_hash_table = BlimpVPartHashSet(32768, 65536)
+    customer_join_hash_table = BlimpVCustomerNationHashMap(65536, 131072)
+    date_join_hash_table = BlimpVDateHashMap(256, 256)
 
 
 class SSBQuery4p1BlimpXYZ(SSBQuery4p1):
@@ -136,6 +140,10 @@ class SSBQuery4p1BlimpXYZ(SSBQuery4p1):
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmit
     emit_3_query_class = BlimpHitmapEmitHashmapPayload
+    supplier_join_hash_table = BlimpSupplierHashSet(65536, 131072)
+    part_join_hash_table = BlimpPartHashSet(524288, 1048576)
+    customer_join_hash_table = BlimpCustomerNationHashMap(524288, 1048576)
+    date_join_hash_table = BlimpDateHashMap(4096, 4096)
 
 
 class SSBQuery4p1BlimpVCustomerPartSupplierDate(SSBQuery4pXCustomerPartSupplierDate, SSBQuery4p1BlimpVXYZ):
