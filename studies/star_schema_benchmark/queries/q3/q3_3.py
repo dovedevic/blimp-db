@@ -5,13 +5,17 @@ from src.simulators.result import HitmapResult
 from queries.emit.index.blimp import BlimpHitmapEmit
 from src.queries.join.hitmap import BlimpVHashmapJoin, BlimpHashmapJoin
 from src.queries.join.hitmap.early_pruning import BlimpVHashmapEarlyPruningJoin, BlimpHashmapEarlyPruningJoin
-from src.queries.join.hitmap_payload.early_pruning import BlimpVHashmapEarlyPruningHitmapPayloadJoin, BlimpHashmapEarlyPruningHitmapPayloadJoin
+from src.queries.join.hitmap_payload.early_pruning import BlimpVHashmapEarlyPruningHitmapPayloadJoin, \
+    BlimpHashmapEarlyPruningHitmapPayloadJoin
 from src.queries.emit.hashmap_payload import BlimpHitmapEmitHashmapPayload, BlimpVHitmapEmitHashmapPayload
 
 from studies.star_schema_benchmark.ssb import SSBSupplierTable, SSBCustomerTable, SSBDateTable, SSBLineOrderTable
 from studies.star_schema_benchmark.ssb import SSBCityEncoding
 from studies.star_schema_benchmark.columns import GenericLineOrderColumn
-from studies.star_schema_benchmark.queries.q3.q3_x import SSBQuery3pX, SSBQuery3pXSupplierCustomerDate, SSBQuery3pXCustomerSupplierDate
+from studies.star_schema_benchmark.queries.q3.q3_x import SSBQuery3pX, SSBQuery3pXSupplierCustomerDate, \
+    SSBQuery3pXCustomerSupplierDate
+from studies.star_schema_benchmark.queries.q3.q3_x import BlimpSupplierHashMap, BlimpVSupplierHashMap, \
+    BlimpCustomerHashMap, BlimpVCustomerHashMap, BlimpDateHashMap, BlimpVDateHashMap
 
 
 class SSBQuery3p3(SSBQuery3pX):
@@ -62,6 +66,9 @@ class SSBQuery3p3BlimpVSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSB
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpVHitmapEmitHashmapPayload
     emit_3_query_class = BlimpVHitmapEmitHashmapPayload
+    supplier_join_hash_table = BlimpVSupplierHashMap(1024, 2048)
+    customer_join_hash_table = BlimpVCustomerHashMap(16384, 32768)
+    date_join_hash_table = BlimpVDateHashMap(256, 256)
 
 
 class SSBQuery3p3BlimpSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSBQuery3p3):
@@ -74,6 +81,9 @@ class SSBQuery3p3BlimpSupplierCustomerDate(SSBQuery3pXSupplierCustomerDate, SSBQ
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmitHashmapPayload
     emit_3_query_class = BlimpHitmapEmitHashmapPayload
+    supplier_join_hash_table = BlimpSupplierHashMap(32768, 65536)
+    customer_join_hash_table = BlimpCustomerHashMap(131072, 262144)
+    date_join_hash_table = BlimpDateHashMap(4096, 4096)
 
 
 class SSBQuery3p3BlimpVCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSBQuery3p3):
@@ -86,6 +96,9 @@ class SSBQuery3p3BlimpVCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSB
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpVHitmapEmitHashmapPayload
     emit_3_query_class = BlimpVHitmapEmitHashmapPayload
+    supplier_join_hash_table = BlimpVSupplierHashMap(1024, 2048)
+    customer_join_hash_table = BlimpVCustomerHashMap(16384, 32768)
+    date_join_hash_table = BlimpVDateHashMap(256, 256)
 
 
 class SSBQuery3p3BlimpCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSBQuery3p3):
@@ -98,3 +111,6 @@ class SSBQuery3p3BlimpCustomerSupplierDate(SSBQuery3pXCustomerSupplierDate, SSBQ
     emit_1_query_class = BlimpHitmapEmit
     emit_2_query_class = BlimpHitmapEmitHashmapPayload
     emit_3_query_class = BlimpHitmapEmitHashmapPayload
+    supplier_join_hash_table = BlimpSupplierHashMap(32768, 65536)
+    customer_join_hash_table = BlimpCustomerHashMap(131072, 262144)
+    date_join_hash_table = BlimpDateHashMap(4096, 4096)
