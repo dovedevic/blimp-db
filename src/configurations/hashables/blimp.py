@@ -59,6 +59,12 @@ class Hash32bitObject16bPayload(GenericHashTableObject[Object32bit, Object16bit]
     _PAYLOAD_OBJECT = Object16bit
 
 
+# Define 32bit key, 8b int payload objects
+class Hash32bitObject8bPayload(GenericHashTableObject[Object32bit, Object8bit]):
+    _KEY_OBJECT = Object32bit
+    _PAYLOAD_OBJECT = Object8bit
+
+
 # Define a bucket as a collection of 31 Hash32bitObjectNullPayload, with 16bit metadata
 class BlimpBucket(GenericHashTableBucket[Hash32bitObjectNullPayload, Object24bitNullMax, Object8bit]):
     _KEY_PAYLOAD_OBJECT = Hash32bitObjectNullPayload
