@@ -127,7 +127,7 @@ class SSBQuery3pX(GenericSSBQuery):
 
     def _calculate_supplier_inout_size(self):
         return ceil_to_multiple(self.supplier_join_hash_table.size, self._get_hardware_config().row_buffer_size_bytes) \
-            + ceil_to_multiple(4 * 65536, self._get_hardware_config().row_buffer_size_bytes)
+            + ceil_to_multiple(4 * 131072, self._get_hardware_config().row_buffer_size_bytes)
 
     def _supplier_database_configuration_json(self):
         base = self.__generic_db_config()
@@ -164,7 +164,7 @@ class SSBQuery3pX(GenericSSBQuery):
 
     def _calculate_customer_inout_size(self):
         return ceil_to_multiple(self.customer_join_hash_table.size, self._get_hardware_config().row_buffer_size_bytes) \
-            + ceil_to_multiple(4 * 65536, self._get_hardware_config().row_buffer_size_bytes)
+            + ceil_to_multiple(4 * 131072, self._get_hardware_config().row_buffer_size_bytes)
 
     def _customer_database_configuration_json(self):
         base = self.__generic_db_config()
@@ -201,7 +201,7 @@ class SSBQuery3pX(GenericSSBQuery):
 
     def _calculate_date_inout_size(self):
         return ceil_to_multiple(self.date_join_hash_table.size, self._get_hardware_config().row_buffer_size_bytes) \
-            + ceil_to_multiple(4 * 65536, self._get_hardware_config().row_buffer_size_bytes)
+            + ceil_to_multiple(4 * 131072, self._get_hardware_config().row_buffer_size_bytes)
 
     def _date_database_configuration_json(self):
         base = self.__generic_db_config()
@@ -237,7 +237,7 @@ class SSBQuery3pX(GenericSSBQuery):
     __revenue_database_configuration = None
 
     def _calculate_revenue_inout_size(self):
-        return ceil_to_multiple(4 * 65536, self._get_hardware_config().row_buffer_size_bytes)
+        return ceil_to_multiple(4 * 131072, self._get_hardware_config().row_buffer_size_bytes)
 
     def _revenue_database_configuration_json(self):
         base = self.__generic_db_config()
