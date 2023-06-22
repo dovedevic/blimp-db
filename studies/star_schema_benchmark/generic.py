@@ -9,7 +9,7 @@ from src.simulators.result import HitmapResult, RuntimeResult
 
 
 class GenericSSBQuery:
-    hardware_json = {
+    default_hardware_json = {
         "bank_size_bytes": 33554432,
         "row_buffer_size_bytes": 1024,
         "time_to_row_activate_ns": 21,
@@ -30,25 +30,28 @@ class GenericSSBQuery:
         "blimp_extension_popcount": True,
         "blimpv_extension_vpopcount": True,
     }
+    default_scale_factor = 100
+    default_parallelism_factor = 512
+    bank_default_byte = 0x00
+
     hardware_configuration_class = HardwareConfiguration
     bank_object_class = Bank
-    bank_default_byte = 0x00
     simulator_class = SimulatedBank
-    scale_factor = 100
-    parallelism_factor = 512
     runtime_class = RuntimeResult
 
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, scale_factor=None, parallelism_factor=None, hardware_json=None):
         self.logger = logger or logging.getLogger(self.__class__.__name__)
-
-    __hardware_config = None
+        self.__hardware_config = None
+        self.__bank_object = None
+        self.__simulator = None
+        self.hardware_json = hardware_json or self.default_hardware_json
+        self.scale_factor = scale_factor or self.default_scale_factor
+        self.parallelism_factor = parallelism_factor or self.default_parallelism_factor
 
     def _get_hardware_config(self):
         if self.__hardware_config is None:
             self.__hardware_config = self.hardware_configuration_class(**self.hardware_json)
         return self.__hardware_config
-
-    __bank_object = None
 
     def _get_bank_object(self):
         if self.__bank_object is None:
@@ -57,8 +60,6 @@ class GenericSSBQuery:
                 default_byte_value=self.bank_default_byte
             )
         return self.__bank_object
-
-    __simulator = None
 
     def _get_simulator(self):
         if self.__simulator is None:
