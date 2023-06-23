@@ -37,17 +37,12 @@ def run_sq3(
     db = SQBDatabase(n_a, n_b)
 
     # Build the hash table. SQ3 is a semijoin, so we need only the keys from B in the hash table, none of the values.
-    # Eventually, we can optimize this by building a hash set, rather than a hash table. For now, we insert an arbitrary
-    # integer (0) into the hash table as the value.
     for (b_k, _, b_100) in db.b:
         if b_100 < selectivity:
             ht.insert(Hash32bitObjectNullPayload(b_k))
 
     # Display some metrics
-    print("hash table initial size", ht.initial_buckets * ht.bucket_type().size())  # initial size
-    print("hash table current size", ht.size)
-    print("hash table added buckets", (ht.size - ht.initial_buckets * ht.bucket_type().size()) // ht.bucket_type().size())
-    print("hash table maximum size", ht.maximum_size)
+    ht.get_statistics(display=True)
 
     # Save the hash table.
     if save_hash_table:
