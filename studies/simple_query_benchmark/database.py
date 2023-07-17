@@ -46,6 +46,7 @@ class SQBDatabase:
                 )
 
         self.a_k_generator = SQBDatabaseRecordGenerator(self._a, 0, index_size_bytes, len(self._a))
+        self.a_b_k_generator = SQBDatabaseRecordGenerator(self._a, 1, index_size_bytes, len(self._a))
         self.a_10_generator = SQBDatabaseRecordGenerator(self._a, 2, index_size_bytes, len(self._a))
         self.a_100_generator = SQBDatabaseRecordGenerator(self._a, 3, index_size_bytes, len(self._a))
 
