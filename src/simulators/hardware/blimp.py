@@ -1049,6 +1049,59 @@ class SimulatedBlimpBank(
             **runtime_kwargs
         )
 
+    def blimp_alu_int_redsum(self, register_a, start_index, end_index, element_width, stride, mask=-1,
+                             **runtime_kwargs) -> RuntimeResult:
+        """
+        Perform a reduction sum on the register, saving the result on a[0]
+        """
+        self._ensure_valid_nary_operation(start_index, end_index, element_width, stride, register_a)
+
+        elements = math.ceil((end_index - start_index) // element_width)
+        max_maskable_bits = elements // (stride // element_width)
+        max_maskable_value = (2 ** max_maskable_bits) - 1
+        mask = mask if mask != -1 else max_maskable_value
+        assert 0 <= mask <= max_maskable_value, f"the mask does not equally represent {max_maskable_bits} elements"
+
+        # Calculate the number of cycles this operation takes
+        cycles = 1  # Start with one cycle to dispatch to the vector engine
+        # Calculate how many elements we are processing
+        elements = math.ceil((end_index - start_index) / element_width)
+        # Calculate how many source operands there are
+        operands = elements // (stride // element_width)
+
+        if mask != -1:  # if the mask was not set, we are assuming this is a for loop, otherwise it's a masked loop
+            # Calculate how many operands are operated on
+            operands = bin(mask).count("1")
+
+        cycles += operands * 2
+
+        result = 0
+        for element in range(elements):
+            a = byte_array_to_int(
+                self.registers
+                [register_a]
+                [element * element_width + start_index: element * element_width + start_index + element_width]
+            )
+
+            # is this sew chunk to be operated on due to the stride? If it is, has it been masked out?
+            if element % (stride // element_width) == 0 and msb_bit(mask, element, max_maskable_bits):
+                result += a
+
+        self.blimp_set_register_data_at_index(
+            register=register_a,
+            element_width=element_width,
+            index=0,
+            value=result & ((2 ** (element_width * 8)) - 1)
+        )
+
+        # Return the runtime result
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = f"\t{register_a}[0] <- REDSUM {register_a}"
+        return self.blimp_cycle(
+            cycles=cycles,
+            **runtime_kwargs
+        )
+
 
 class SimulatedBlimpVBank(SimulatedBlimpBank):
     """Defines simulation parameters for a BLIMP-V-capable DRAM Bank"""
@@ -1697,6 +1750,62 @@ class SimulatedBlimpVBank(SimulatedBlimpBank):
 
         if 'label' not in runtime_kwargs:
             runtime_kwargs['label'] = f"\t{register_a} <- POPCOUNT[{register_a}]"
+        return self.blimp_cycle(
+            cycles=cycles,
+            **runtime_kwargs
+        )
+
+    def blimpv_alu_int_redsum(self, register_a, sew, stride, mask=-1, **runtime_kwargs) -> RuntimeResult:
+        """
+        Perform a reduction sum on the register, saving the result on a[0]
+        """
+        self._ensure_valid_v_nary_operation(sew, stride, register_a)
+
+        elements = self.bank_hardware.hardware_configuration.row_buffer_size_bytes // sew
+        max_maskable_bits = elements // (stride // sew)
+        max_maskable_value = (2 ** max_maskable_bits) - 1
+        mask = mask if mask != -1 else max_maskable_value
+        assert 0 <= mask <= max_maskable_value, f"the mask does not equally represent {max_maskable_bits} elements"
+
+        # Calculate the number of cycles this operation takes
+        cycles = 1  # Start with one cycle to dispatch to the vector engine
+        # Calculate how many sew_chunks there are
+        sew_chunks = self.bank_hardware.hardware_configuration.row_buffer_size_bytes // sew
+        # Calculate how many source operands there are
+        operands = sew_chunks // (stride // sew)
+
+        if mask != -1:  # if the mask was not set, we are assuming this is a for loop, otherwise it's a masked loop
+            # Calculate how many operands are operated on
+            operands = bin(mask).count("1")
+
+        # logarithmically reduce
+        while operands > 1:
+            reduction = math.ceil(operands / 2)
+            cycles += 1
+            if reduction > self.bank_hardware.hardware_configuration.number_of_vALUs:
+                # only reduce my number_of_vALUs
+                operands -= self.bank_hardware.hardware_configuration.number_of_vALUs // 2
+            else:
+                operands -= reduction
+
+        result = 0
+        for sew_chunk in range(elements):
+            a = byte_array_to_int(self.registers[register_a][sew_chunk * sew:sew_chunk * sew + sew])
+
+            # is this sew chunk to be operated on due to the stride? If it is, has it been masked out?
+            if sew_chunk % (stride // sew) == 0 and msb_bit(mask, sew_chunk, max_maskable_bits):
+                result += a
+
+        self.blimp_set_register_data_at_index(
+            register=register_a,
+            element_width=sew,
+            index=0,
+            value=result & ((2 ** (sew * 8)) - 1)
+        )
+
+        # Return the runtime result
+        if 'label' not in runtime_kwargs:
+            runtime_kwargs['label'] = f"\t{register_a}[0] <- VREDSUM {register_a}"
         return self.blimp_cycle(
             cycles=cycles,
             **runtime_kwargs
