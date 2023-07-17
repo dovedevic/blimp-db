@@ -50,7 +50,7 @@ class SQBSelectIndexLT(SQBCommonFilter):
         pass
 
     def _perform_emit_1_placement(self, final_hitmap, *args):
-       pass
+        pass
 
     def _perform_emit_1_query(self, save_query_output: bool = False, save_runtime_output: bool = False) -> \
             Tuple[RuntimeResult, MemoryArrayResult]:

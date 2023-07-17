@@ -1,15 +1,10 @@
-from typing import Tuple
-
 from src.configurations.hardware.blimp import BlimpVectorHardwareConfiguration, BlimpHardwareConfiguration
 from src.hardware.architectures import BlimpVectorBank, BlimpBank
 from src.simulators.hardware import SimulatedBlimpVBank, SimulatedBlimpBank
-from src.simulators.result import HitmapResult, RuntimeResult, MemoryArrayResult
+from src.simulators.result import HitmapResult
 from queries.emit.index.blimp import BlimpHitmapEmit
-from src.queries.filter.bt.blimp import BlimpHitmapBetween
-from src.queries.filter.bt.blimpv import BlimpVHitmapBetween
 from src.queries.filter.lt.blimp import BlimpHitmapLessThan
 from src.queries.filter.lt.blimpv import BlimpVHitmapLessThan
-from src.queries.join.hitmap.early_pruning import BlimpVHashmapEarlyPruningJoin, BlimpHashmapEarlyPruningJoin
 
 
 from studies.simple_query_benchmark.queries.selection.common_filter import SQBCommonFilter
