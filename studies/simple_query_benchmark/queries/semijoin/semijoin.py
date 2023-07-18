@@ -1,9 +1,7 @@
-from typing import Tuple
-
 from src.configurations.hardware.blimp import BlimpVectorHardwareConfiguration, BlimpHardwareConfiguration
 from src.hardware.architectures import BlimpVectorBank, BlimpBank
 from src.simulators.hardware import SimulatedBlimpVBank, SimulatedBlimpBank
-from src.simulators.result import HitmapResult, RuntimeResult, MemoryArrayResult
+from src.simulators.result import HitmapResult
 from queries.emit.index.blimp import BlimpHitmapEmit
 from src.queries.join.hitmap import BlimpVHashmapJoin, BlimpHashmapJoin
 
