@@ -1,0 +1,19 @@
+{
+  "name": "blimp-db-cpu",
+  "version": "0.1.0",
+  "dependencies": [
+    {
+      "name": "abseil",
+      "version>=": "20230125.0"
+    },
+    {
+      "name": "cxxopts",
+      "version>=": "3.0.0"
+    },
+    {
+      "name": "tbb",
+      "version>=": "2021.9.0"
+    }
+  ],
+  "builtin-baseline": "b8d272a463101415ab4f57545c4e1a1d2c24aafe"
+}
