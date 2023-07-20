@@ -1,4 +1,4 @@
-from studies.star_schema_benchmark.query_flight.query_flight import QueryFlights, BestQueryFlights, TestQueryFlights
+from studies.star_schema_benchmark.query_flight.query_flight import QueryFlights, BestQueryFlights
 
 
 def baseline_sweep():
@@ -6,7 +6,7 @@ def baseline_sweep():
 
 
 def _best_run_all(blimp_frequency: 200000000, blimp_parallelism: 512):
-    return TestQueryFlights.run_all(
+    return BestQueryFlights.run_all(
         hardware_json={
             "bank_size_bytes": 33554432,
             "row_buffer_size_bytes": 1024,
@@ -58,7 +58,7 @@ def best_400mhz_256par():
 
 # uncomment the study to be performed
 baseline_sweep()
-# best_baseline()()
+# best_baseline()
 # best_400mhz_512par()
 # best_200mhz_512par()
 # best_400mhz_1024par()
