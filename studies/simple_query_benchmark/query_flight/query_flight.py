@@ -25,6 +25,9 @@ from studies.simple_query_benchmark.queries.join.join import \
 from studies.simple_query_benchmark.queries.aggregate.aggregate import \
     SQBAggregateBlimpV, SQBAggregateBlimp
 
+from studies.simple_query_benchmark.queries.group_by_aggregate.group_by_aggregate import \
+    SQBGroupByAggregateBlimp
+
 
 class QueryFlights:
     """Defines all the SQB Query flights"""
@@ -76,6 +79,10 @@ class QueryFlights:
     aggregate = [
         SQBAggregateBlimpV,
         SQBAggregateBlimp,
+    ]
+
+    group_by_aggregate = [
+        SQBGroupByAggregateBlimp
     ]
 
     @staticmethod
@@ -136,6 +143,12 @@ class QueryFlights:
         cls.run_query_flight(cls.aggregate, display_runtime_output=display_runtime_output, **query_kwargs)
 
     @classmethod
+    def run_group_by_aggregate(cls, display_runtime_output=False, **query_kwargs):
+        """Run all queries defined by group by aggregate"""
+        print("Group By Aggregate")
+        cls.run_query_flight(cls.group_by_aggregate, display_runtime_output=display_runtime_output, **query_kwargs)
+
+    @classmethod
     def run_all(cls, display_runtime_output=False, **query_kwargs):
         """Run all queries defined in this query flight"""
         cls.run_select(display_runtime_output=display_runtime_output, **query_kwargs)
@@ -144,3 +157,4 @@ class QueryFlights:
         cls.run_semijoin_index(display_runtime_output=display_runtime_output, **query_kwargs)
         cls.run_join(display_runtime_output=display_runtime_output, **query_kwargs)
         cls.run_aggregate(display_runtime_output=display_runtime_output, **query_kwargs)
+        cls.run_group_by_aggregate(display_runtime_output=display_runtime_output, **query_kwargs)
