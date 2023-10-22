@@ -68,8 +68,10 @@ int main(int argc, char* argv[]) {
     // Book keeping for trials
     std::vector<float> bench_times(trials);
 
-    // words that are extracted at the rank level, chip wide, bank serially
-    uint64_t relay_words[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    // We'll store some meaningless computed data in here to prevent the
+    // compiler from optimizing away the operations that follow.
+    uint64_t results_a[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    uint64_t results_b[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
     // perform [trials] benchmarks...
 	for (uint64_t t = 0; t < trials; t++) {
@@ -94,37 +96,37 @@ int main(int argc, char* argv[]) {
 			// chip_byte_word_7 = (byte 0 word 0) (byte 0 word 1) ... (byte 0 word 7)
 
 			// fetched striped words
-			uint64_t &chip_byte_word_0 = memory_region[i*8 + 0];
-			uint64_t &chip_byte_word_1 = memory_region[i*8 + 1];
-			uint64_t &chip_byte_word_2 = memory_region[i*8 + 2];
-			uint64_t &chip_byte_word_3 = memory_region[i*8 + 3];
-			uint64_t &chip_byte_word_4 = memory_region[i*8 + 4];
-			uint64_t &chip_byte_word_5 = memory_region[i*8 + 5];
-			uint64_t &chip_byte_word_6 = memory_region[i*8 + 6];
-			uint64_t &chip_byte_word_7 = memory_region[i*8 + 7];
+			uint64_t chip_byte_word_0 = memory_region[i*8 + 0];
+			uint64_t chip_byte_word_1 = memory_region[i*8 + 1];
+			uint64_t chip_byte_word_2 = memory_region[i*8 + 2];
+			uint64_t chip_byte_word_3 = memory_region[i*8 + 3];
+			uint64_t chip_byte_word_4 = memory_region[i*8 + 4];
+			uint64_t chip_byte_word_5 = memory_region[i*8 + 5];
+			uint64_t chip_byte_word_6 = memory_region[i*8 + 6];
+			uint64_t chip_byte_word_7 = memory_region[i*8 + 7];
 
             // initialize our relayout words
             // relay_words = bank_0_word_i, bank_1_word_i, ..., bank_7_word_i
 
 			for (uint8_t j = 0; j < 8; j++) {
 
-			    relay_words[7-j] = ((uint64_t)((uint8_t)chip_byte_word_0) << 56) +
-			                       ((uint64_t)((uint8_t)chip_byte_word_1) << 48) +
-			                       ((uint64_t)((uint8_t)chip_byte_word_2) << 40) +
-			                       ((uint64_t)((uint8_t)chip_byte_word_3) << 32) +
-			                       ((uint64_t)((uint8_t)chip_byte_word_4) << 24) +
-			                       ((uint64_t)((uint8_t)chip_byte_word_5) << 16) +
-			                       ((uint64_t)((uint8_t)chip_byte_word_6) << 8) +
-			                       ((uint64_t)((uint8_t)chip_byte_word_7) << 0);
+			    results_a[7-j] ^= ((uint64_t)((uint8_t)chip_byte_word_0) << 56) +
+			                      ((uint64_t)((uint8_t)chip_byte_word_1) << 48) +
+			                      ((uint64_t)((uint8_t)chip_byte_word_2) << 40) +
+			                      ((uint64_t)((uint8_t)chip_byte_word_3) << 32) +
+			                      ((uint64_t)((uint8_t)chip_byte_word_4) << 24) +
+			                      ((uint64_t)((uint8_t)chip_byte_word_5) << 16) +
+			                      ((uint64_t)((uint8_t)chip_byte_word_6) << 8) +
+			                      ((uint64_t)((uint8_t)chip_byte_word_7) << 0);
 
-			    chip_byte_word_0 >>= 8;
-                chip_byte_word_1 >>= 8;
-                chip_byte_word_2 >>= 8;
-                chip_byte_word_3 >>= 8;
-                chip_byte_word_4 >>= 8;
-                chip_byte_word_5 >>= 8;
-                chip_byte_word_6 >>= 8;
-                chip_byte_word_7 >>= 8;
+			    results_b[0] ^= chip_byte_word_0 >> 8;
+			    results_b[1] ^= chip_byte_word_1 >> 8;
+			    results_b[2] ^= chip_byte_word_2 >> 8;
+			    results_b[3] ^= chip_byte_word_3 >> 8;
+			    results_b[4] ^= chip_byte_word_4 >> 8;
+			    results_b[5] ^= chip_byte_word_5 >> 8;
+			    results_b[6] ^= chip_byte_word_6 >> 8;
+			    results_b[7] ^= chip_byte_word_7 >> 8;
 			}
 
 			// assert(chip_byte_word_0 == 0);
@@ -155,6 +157,14 @@ int main(int argc, char* argv[]) {
 		auto end = std::chrono::steady_clock::now();
 		std::chrono::duration<double, std::milli> elapsed = end - start;
         bench_times[t] = elapsed.count();
+
+        // Print the results.
+        for (int i = 0; i < 8; ++i) {
+        	std::cout << results_a[i] << (i == 7 ? "\n" : " ");
+        }
+        for (int i = 0; i < 8; ++i) {
+        	std::cout << results_b[i] << (i == 7 ? "\n" : " ");
+        }
 	}
 
 	// Evaluate the results
@@ -175,3 +185,4 @@ int main(int argc, char* argv[]) {
 
 	return 0;
 }
+
