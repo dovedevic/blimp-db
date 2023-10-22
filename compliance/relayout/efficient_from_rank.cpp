@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
 	for (uint64_t t = 0; t < trials; t++) {
 
         // Do some perf-timing
-        std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
+        auto start = std::chrono::high_resolution_clock::now();
 
 	    /// Begin Rank-level Data Relayout from the banks
 	    // Bytes of a 64b word are striped across the chips of a rank, then serially in the banks
@@ -94,14 +94,14 @@ int main(int argc, char* argv[]) {
 			// chip_byte_word_7 = (byte 0 word 0) (byte 0 word 1) ... (byte 0 word 7)
 
 			// fetched striped words
-			uint64_t chip_byte_word_0 = memory_region[i*8 + 0];
-			uint64_t chip_byte_word_1 = memory_region[i*8 + 1];
-			uint64_t chip_byte_word_2 = memory_region[i*8 + 2];
-			uint64_t chip_byte_word_3 = memory_region[i*8 + 3];
-			uint64_t chip_byte_word_4 = memory_region[i*8 + 4];
-			uint64_t chip_byte_word_5 = memory_region[i*8 + 5];
-			uint64_t chip_byte_word_6 = memory_region[i*8 + 6];
-			uint64_t chip_byte_word_7 = memory_region[i*8 + 7];
+			uint64_t &chip_byte_word_0 = memory_region[i*8 + 0];
+			uint64_t &chip_byte_word_1 = memory_region[i*8 + 1];
+			uint64_t &chip_byte_word_2 = memory_region[i*8 + 2];
+			uint64_t &chip_byte_word_3 = memory_region[i*8 + 3];
+			uint64_t &chip_byte_word_4 = memory_region[i*8 + 4];
+			uint64_t &chip_byte_word_5 = memory_region[i*8 + 5];
+			uint64_t &chip_byte_word_6 = memory_region[i*8 + 6];
+			uint64_t &chip_byte_word_7 = memory_region[i*8 + 7];
 
             // initialize our relayout words
             // relay_words = bank_0_word_i, bank_1_word_i, ..., bank_7_word_i
@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
 		/// End Horizontal Data Layout
 
 		// Do some book-keeping
-		std::chrono::time_point<std::chrono::system_clock> end = std::chrono::system_clock::now();
+		auto end = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double, std::milli> elapsed = end - start;
         bench_times[t] = elapsed.count();
 	}
