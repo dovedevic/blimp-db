@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
 	for (uint64_t t = 0; t < trials; t++) {
 
         // Do some perf-timing
-        auto start = std::chrono::high_resolution_clock::now();
+        auto start = std::chrono::steady_clock::now();
 
 	    /// Begin Rank-level Data Relayout from the banks
 	    // Bytes of a 64b word are striped across the chips of a rank, then serially in the banks
@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
 		/// End Horizontal Data Layout
 
 		// Do some book-keeping
-		auto end = std::chrono::high_resolution_clock::now();
+		auto end = std::chrono::steady_clock::now();
 		std::chrono::duration<double, std::milli> elapsed = end - start;
         bench_times[t] = elapsed.count();
 	}
