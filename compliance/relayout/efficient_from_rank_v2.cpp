@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
 
     auto t0 = std::chrono::steady_clock::now();
 
-    __m128 shuffle_mask =
+    __m128i shuffle_mask =
         _mm_setr_epi8(0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15);
 
     // Transpose blocks of 8x8 bytes.
@@ -83,4 +83,19 @@ int main(int argc, char *argv[]) {
 
     bench_times[trial] = std::chrono::duration<float>(t1 - t0).count();
   }
+
+  // Print the results.
+  float min = std::numeric_limits<float>::max();
+  float max = std::numeric_limits<float>::min();
+  float sum = 0;
+  for (uint64_t t = 0; t < trials; t++) {
+    sum += bench_times[t];
+    min = bench_times[t] < min ? bench_times[t] : min;
+    max = bench_times[t] > max ? bench_times[t] : max;
+  }
+  float avg = sum / (float)trials;
+
+  std::cout << "Evaluation Results of " << trials << " trials:\n"
+            << "\tAverage: " << avg << "ms"
+            << " [" << min << ", " << max << "]" << std::endl;
 }
