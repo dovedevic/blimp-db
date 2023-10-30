@@ -386,6 +386,71 @@ double group_aggregate() {
   return time;
 }
 
+double consume_bitmap(uint32_t sel) {
+  uint32_t result;
+
+  std::vector<uint32_t> bitmap(num_a / 32 + (num_a % 32 != 0));
+
+  for (uint32_t i = 0; i < num_a; ++i) {
+    if (db.a_100[i] < sel) {
+      bitmap[i / 32] |= uint32_t(1) << i % 32;
+    }
+  }
+
+  double time = clock([&] {
+    result = tbb::parallel_reduce(
+        tbb::blocked_range<uint32_t>(0, bitmap.size()),
+        0,
+        [&](const tbb::blocked_range<uint32_t> &r, uint32_t acc) {
+          for (uint32_t i = r.begin(); i != r.end(); ++i) {
+            uint32_t m = bitmap[i];
+            uint32_t j = i * 32;
+            while (m != 0) {
+              size_t k = __builtin_ctzl(m);
+              acc += db.a_10[j + k];
+              m ^= uint32_t(1) << k;
+            }
+          }
+          return acc;
+        },
+        std::plus<>());
+  });
+
+  std::cout << "checksum: " << result << std::endl;
+
+  return time;
+}
+
+double consume_indices(uint32_t sel) {
+  uint32_t result;
+
+  std::vector<uint32_t> indices;
+  indices.reserve(num_a);
+
+  for (uint32_t i = 0; i < num_a; ++i) {
+    if (db.a_100[i] < sel) {
+      indices.push_back(i);
+    }
+  }
+
+  double time = clock([&] {
+    result = tbb::parallel_reduce(
+        tbb::blocked_range<uint32_t>(0, indices.size()),
+        0,
+        [&](const tbb::blocked_range<uint32_t> &r, uint32_t acc) {
+          for (uint32_t i = r.begin(); i != r.end(); ++i) {
+            acc += db.a_10[indices[i]];
+          }
+          return acc;
+        },
+        std::plus<>());
+  });
+
+  std::cout << "checksum: " << result << std::endl;
+
+  return time;
+}
+
 int main(int argc, char **argv) {
   cxxopts::Options options("run", "BLIMP-DB microbenchmarks");
 
@@ -421,37 +486,53 @@ int main(int argc, char **argv) {
 
   file << "trial,microbenchmark,selectivity,format,time" << std::endl;
 
-  for (uint32_t sel : {1, 5, 25}) {
-    for (Format format : {Format::BITMAP, Format::INDICES, Format::VALUES}) {
-      for (size_t trial = 0; trial < num_trials; ++trial) {
-        file << trial << ",selection," << sel << ',' << format << ','
-             << selection(sel, format) << std::endl;
-      }
-    }
-  }
+  //  for (uint32_t sel : {1, 5, 25}) {
+  //    for (Format format : {Format::BITMAP, Format::INDICES, Format::VALUES})
+  //    {
+  //      for (size_t trial = 0; trial < num_trials; ++trial) {
+  //        file << trial << ",selection," << sel << ',' << format << ','
+  //             << selection(sel, format) << std::endl;
+  //      }
+  //    }
+  //  }
+  //
+  //  for (uint32_t sel : {1, 5, 25}) {
+  //    for (Format format : {Format::BITMAP, Format::INDICES, Format::VALUES})
+  //    {
+  //      for (size_t trial = 0; trial < num_trials; ++trial) {
+  //        file << trial << ",semijoin," << sel << ',' << format << ','
+  //             << semijoin(sel, format) << std::endl;
+  //      }
+  //    }
+  //  }
+  //
+  //  for (uint32_t sel : {1, 5, 25}) {
+  //    for (size_t trial = 0; trial < num_trials; ++trial) {
+  //      file << trial << ",join," << sel << ",3," << join(sel) << std::endl;
+  //    }
+  //  }
+  //
+  //  for (size_t trial = 0; trial < num_trials; ++trial) {
+  //    file << trial << ",aggregate,100,3," << aggregate() << std::endl;
+  //  }
+  //
+  //  for (size_t trial = 0; trial < num_trials; ++trial) {
+  //    file << trial << ",group-aggregate,100,3," << group_aggregate()
+  //         << std::endl;
+  //  }
 
-  for (uint32_t sel : {1, 5, 25}) {
-    for (Format format : {Format::BITMAP, Format::INDICES, Format::VALUES}) {
-      for (size_t trial = 0; trial < num_trials; ++trial) {
-        file << trial << ",semijoin," << sel << ',' << format << ','
-             << semijoin(sel, format) << std::endl;
-      }
-    }
-  }
+  for (uint32_t sel : {0, 1, 3, 5, 10, 25, 50, 100}) {
+    double time;
 
-  for (uint32_t sel : {1, 5, 25}) {
+    time = consume_bitmap(sel);
     for (size_t trial = 0; trial < num_trials; ++trial) {
-      file << trial << ",join," << sel << ",3," << join(sel) << std::endl;
+      file << trial << ",consume-bitmap," << sel << ",0," << time << std::endl;
     }
-  }
 
-  for (size_t trial = 0; trial < num_trials; ++trial) {
-    file << trial << ",aggregate,100,3," << aggregate() << std::endl;
-  }
-
-  for (size_t trial = 0; trial < num_trials; ++trial) {
-    file << trial << ",group-aggregate,100,3," << group_aggregate()
-         << std::endl;
+    time = consume_indices(sel);
+    for (size_t trial = 0; trial < num_trials; ++trial) {
+      file << trial << ",consume-indices," << sel << ",0," << time << std::endl;
+    }
   }
 
   return 0;
