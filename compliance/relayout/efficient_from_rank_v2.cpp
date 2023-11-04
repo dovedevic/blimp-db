@@ -2,8 +2,8 @@
 #include <iostream>
 #include <random>
 #include <stdexcept>
-#include <vector>
 
+#include <oneapi/tbb.h>
 #include <x86intrin.h>
 
 int main(int argc, char *argv[]) {
@@ -29,9 +29,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Trials: " << trials << "\n";
 
   // Allocate the memory region.
-  std::vector<uint8_t> memory_region(total_region_size);
-
-  std::vector<float> bench_times(trials);
+  auto *memory_region = (uint8_t *)std::aligned_alloc(64, total_region_size);
 
   for (int trial = 0; trial < trials; ++trial) {
     // Initialize the memory region.
@@ -81,21 +79,9 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    bench_times[trial] = std::chrono::duration<float>(t1 - t0).count();
+    float time = std::chrono::duration<float>(t1 - t0).count();
+    std::cout << trial << ',' << time << std::endl;
   }
 
-  // Print the results.
-  float min = std::numeric_limits<float>::max();
-  float max = std::numeric_limits<float>::min();
-  float sum = 0;
-  for (uint64_t t = 0; t < trials; t++) {
-    sum += bench_times[t];
-    min = bench_times[t] < min ? bench_times[t] : min;
-    max = bench_times[t] > max ? bench_times[t] : max;
-  }
-  float avg = sum / (float)trials;
-
-  std::cout << "Evaluation Results of " << trials << " trials:\n"
-            << "\tAverage: " << avg << "ms"
-            << " [" << min << ", " << max << "]" << std::endl;
+  free(memory_region);
 }
