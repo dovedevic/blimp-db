@@ -47,10 +47,10 @@ int main() {
       tbb::parallel_for(size_t(0), total_region_size / 64, [&](size_t j) {
         size_t i = j * 64;
 
-        __m128i a0 = _mm_lddqu_si128((__m128i *)&memory_region[i]);
-        __m128i a1 = _mm_lddqu_si128((__m128i *)&memory_region[i + 16]);
-        __m128i a2 = _mm_lddqu_si128((__m128i *)&memory_region[i + 32]);
-        __m128i a3 = _mm_lddqu_si128((__m128i *)&memory_region[i + 48]);
+        __m128i a0 = _mm_load_si128((__m128i *)&memory_region[i]);
+        __m128i a1 = _mm_load_si128((__m128i *)&memory_region[i + 16]);
+        __m128i a2 = _mm_load_si128((__m128i *)&memory_region[i + 32]);
+        __m128i a3 = _mm_load_si128((__m128i *)&memory_region[i + 48]);
 
         __m128i b0 = _mm_shuffle_epi8(a0, shuffle_mask);
         __m128i b1 = _mm_shuffle_epi8(a1, shuffle_mask);
@@ -67,10 +67,10 @@ int main() {
         __m128i d2 = _mm_unpacklo_epi32(c1, c3);
         __m128i d3 = _mm_unpackhi_epi32(c1, c3);
 
-        _mm_storeu_si128((__m128i *)&memory_region[i], d0);
-        _mm_storeu_si128((__m128i *)&memory_region[i + 16], d1);
-        _mm_storeu_si128((__m128i *)&memory_region[i + 32], d2);
-        _mm_storeu_si128((__m128i *)&memory_region[i + 48], d3);
+        _mm_store_si128((__m128i *)&memory_region[i], d0);
+        _mm_store_si128((__m128i *)&memory_region[i + 16], d1);
+        _mm_store_si128((__m128i *)&memory_region[i + 32], d2);
+        _mm_store_si128((__m128i *)&memory_region[i + 48], d3);
       });
 
       auto t1 = std::chrono::steady_clock::now();
