@@ -22,7 +22,8 @@ std::vector<size_t> bank_region_sizes = {1024,
                                          16777216,
                                          33554432,
                                          268435456,
-                                         536870912};
+                                         536870912,
+                                         1073741824};
 
 int main() {
   for (size_t bank_region_size : bank_region_sizes) {
@@ -43,7 +44,9 @@ int main() {
           _mm_setr_epi8(0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15);
 
       // Transpose blocks of 8x8 bytes.
-      for (uint64_t i = 0; i < total_region_size; i += 64) {
+      tbb::parallel_for(size_t(0), total_region_size / 64, [&](size_t j) {
+        size_t i = j * 64;
+
         __m128i a0 = _mm_lddqu_si128((__m128i *)&memory_region[i]);
         __m128i a1 = _mm_lddqu_si128((__m128i *)&memory_region[i + 16]);
         __m128i a2 = _mm_lddqu_si128((__m128i *)&memory_region[i + 32]);
@@ -68,7 +71,7 @@ int main() {
         _mm_storeu_si128((__m128i *)&memory_region[i + 16], d1);
         _mm_storeu_si128((__m128i *)&memory_region[i + 32], d2);
         _mm_storeu_si128((__m128i *)&memory_region[i + 48], d3);
-      }
+      });
 
       auto t1 = std::chrono::steady_clock::now();
 
