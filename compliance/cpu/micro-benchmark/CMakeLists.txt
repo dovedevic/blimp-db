@@ -39,3 +39,11 @@ target_link_libraries(
         cxxopts::cxxopts
         TBB::tbb
 )
+
+add_executable(selection src/selection.cpp)
+target_link_libraries(
+        selection
+        PRIVATE
+        cxxopts::cxxopts
+        TBB::tbb
+)

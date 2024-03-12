@@ -486,15 +486,14 @@ int main(int argc, char **argv) {
 
   file << "trial,microbenchmark,selectivity,format,time" << std::endl;
 
-  //  for (uint32_t sel : {1, 5, 25}) {
-  //    for (Format format : {Format::BITMAP, Format::INDICES, Format::VALUES})
-  //    {
-  //      for (size_t trial = 0; trial < num_trials; ++trial) {
-  //        file << trial << ",selection," << sel << ',' << format << ','
-  //             << selection(sel, format) << std::endl;
-  //      }
-  //    }
-  //  }
+  for (uint32_t sel : {1, 5, 25}) {
+    for (Format format : {Format::BITMAP, Format::INDICES, Format::VALUES}) {
+      for (size_t trial = 0; trial < num_trials; ++trial) {
+        file << trial << ",selection," << sel << ',' << format << ','
+             << selection(sel, format) << std::endl;
+      }
+    }
+  }
   //
   //  for (uint32_t sel : {1, 5, 25}) {
   //    for (Format format : {Format::BITMAP, Format::INDICES, Format::VALUES})
@@ -521,19 +520,21 @@ int main(int argc, char **argv) {
   //         << std::endl;
   //  }
 
-  for (uint32_t sel : {0, 1, 3, 5, 10, 25, 50, 100}) {
-    double time;
-
-    time = consume_bitmap(sel);
-    for (size_t trial = 0; trial < num_trials; ++trial) {
-      file << trial << ",consume-bitmap," << sel << ",0," << time << std::endl;
-    }
-
-    time = consume_indices(sel);
-    for (size_t trial = 0; trial < num_trials; ++trial) {
-      file << trial << ",consume-indices," << sel << ",0," << time << std::endl;
-    }
-  }
+  //  for (uint32_t sel : {0, 1, 3, 5, 10, 25, 50, 100}) {
+  //    double time;
+  //
+  //    time = consume_bitmap(sel);
+  //    for (size_t trial = 0; trial < num_trials; ++trial) {
+  //      file << trial << ",consume-bitmap," << sel << ",0," << time <<
+  //      std::endl;
+  //    }
+  //
+  //    time = consume_indices(sel);
+  //    for (size_t trial = 0; trial < num_trials; ++trial) {
+  //      file << trial << ",consume-indices," << sel << ",0," << time <<
+  //      std::endl;
+  //    }
+  //  }
 
   return 0;
 }
