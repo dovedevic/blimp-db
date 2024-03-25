@@ -155,9 +155,8 @@ void selection_values(const std::vector<T> &values,
 
                         for (size_t i = r.begin(); i < r.end(); ++i) {
                           T value = values[i];
-                          if (value < selectivity) {
-                            local_result[j++] = value;
-                          }
+                          local_result[j] = value;
+                          j += value < selectivity;
                         }
 
                         local_result.resize(j);
