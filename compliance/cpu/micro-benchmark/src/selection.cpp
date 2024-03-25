@@ -24,18 +24,15 @@ template <typename T> uint64_t compare_scalar_tail(size_t n, const T *a, T b) {
   for (size_t i = 0; i < n; ++i) {
     mask |= (uint64_t)(a[i] < b) << i;
   }
-  return mask;
-}
 
-template <typename T> uint64_t compare_scalar(const T *a, T b) {
-  return compare_scalar_tail(64, a, b);
+  return mask;
 }
 
 template <typename T> uint64_t compare_simd(const T *, T) {
   throw std::logic_error("unimplemented");
 }
 
-template <> uint64_t compare_simd<int8_t>(const int8_t *a, int8_t b) {
+template <> inline uint64_t compare_simd<int8_t>(const int8_t *a, int8_t b) {
   uint64_t mask = 0;
   __m256i b_32i8 = _mm256_set1_epi8(b);
   __m256i c_32i8;
@@ -47,7 +44,7 @@ template <> uint64_t compare_simd<int8_t>(const int8_t *a, int8_t b) {
   return mask;
 }
 
-template <> uint64_t compare_simd<int16_t>(const int16_t *a, int16_t b) {
+template <> inline uint64_t compare_simd<int16_t>(const int16_t *a, int16_t b) {
   uint64_t mask = 0;
   __m256i b_16i16 = _mm256_set1_epi16(b);
   for (int i = 0; i < 64; i += 32) {
@@ -55,13 +52,14 @@ template <> uint64_t compare_simd<int16_t>(const int16_t *a, int16_t b) {
     __m256i a_1_16i16 = _mm256_lddqu_si256((__m256i *)&a[i + 16]);
     __m256i c_0_16i16 = _mm256_cmpgt_epi16(b_16i16, a_0_16i16);
     __m256i c_1_16i16 = _mm256_cmpgt_epi16(b_16i16, a_1_16i16);
-    __m256i c_32u8 = _mm256_packs_epi16(c_0_16i16, c_1_16i16);
-    mask |= (uint64_t)(unsigned)_mm256_movemask_epi8(c_32u8) << i;
+    __m256i c_32u8_v1 = _mm256_packs_epi16(c_0_16i16, c_1_16i16);
+    __m256i c_32u8_v2 = _mm256_permute4x64_epi64(c_32u8_v1, 0b11011000);
+    mask |= (uint64_t)(unsigned)_mm256_movemask_epi8(c_32u8_v2) << i;
   }
   return mask;
 }
 
-template <> uint64_t compare_simd<int32_t>(const int32_t *a, int32_t b) {
+template <> inline uint64_t compare_simd<int32_t>(const int32_t *a, int32_t b) {
   uint64_t mask = 0;
   __m256i b_8i32 = _mm256_set1_epi32(b);
   for (int i = 0; i < 64; i += 8) {
@@ -73,7 +71,7 @@ template <> uint64_t compare_simd<int32_t>(const int32_t *a, int32_t b) {
   return mask;
 }
 
-template <> uint64_t compare_simd<int64_t>(const int64_t *a, int64_t b) {
+template <> inline uint64_t compare_simd<int64_t>(const int64_t *a, int64_t b) {
   uint64_t mask = 0;
   __m256i b_4i64 = _mm256_set1_epi64x(b);
   for (int i = 0; i < 64; i += 4) {
@@ -91,11 +89,12 @@ void selection_hitmap(const std::vector<T> &values,
                       int selectivity,
                       C &&compare,
                       std::ofstream &out) {
-  for (size_t trial = 0; trial < num_trials; ++trial) {
-    auto t0 = std::chrono::steady_clock::now();
+  std::vector<uint64_t> hitmap(values.size() / 64 + (values.size() % 64 != 0));
 
-    std::vector<uint64_t> hitmap(values.size() / 64 +
-                                 (values.size() % 64 != 0));
+  for (size_t trial = 0; trial < num_trials; ++trial) {
+    std::fill(hitmap.begin(), hitmap.end(), 0);
+
+    auto t0 = std::chrono::steady_clock::now();
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, values.size() / 64),
                       [&](const tbb::blocked_range<size_t> &r) {
@@ -111,14 +110,19 @@ void selection_hitmap(const std::vector<T> &values,
 
     auto t1 = std::chrono::steady_clock::now();
 
+    size_t count = 0;
     uint64_t checksum = 0;
-    for (size_t i = 0; i < values.size(); ++i) {
-      if (hitmap[i / 64] >> i % 64 & 1) {
-        checksum += 1;
+    for (size_t i = 0; i < hitmap.size(); ++i) {
+      uint64_t m = hitmap[i];
+      while (m != 0) {
+        ++count;
+        size_t k = __builtin_ctzll(m);
+        checksum += values[i * 64 + k];
+        m ^= (uint64_t)1 << k;
       }
     }
 
-    std::cout << "checksum: " << checksum << std::endl;
+    std::cout << "checksum: " << checksum << ", count: " << count << std::endl;
 
     out << typeid(T).name() << ",bitmap," << selectivity << ',' << trial << ','
         << std::chrono::duration<float>(t1 - t0).count() << std::endl;
@@ -128,12 +132,15 @@ void selection_hitmap(const std::vector<T> &values,
 template <typename T>
 void selection_values(const std::vector<T> &values,
                       size_t num_trials,
-                      int selectivity,
+                      T selectivity,
                       std::ofstream &out) {
   for (size_t trial = 0; trial < num_trials; ++trial) {
     auto t0 = std::chrono::steady_clock::now();
 
     tbb::enumerable_thread_specific<std::vector<T>> result;
+    for (std::vector<T> &local_result : result) {
+      local_result.reserve(values.size());
+    }
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, values.size()),
                       [&](const tbb::blocked_range<size_t> &r) {
@@ -153,14 +160,16 @@ void selection_values(const std::vector<T> &values,
 
     auto t1 = std::chrono::steady_clock::now();
 
+    size_t count = 0;
     uint64_t checksum = 0;
     for (const std::vector<T> &local_result : result) {
+      count += local_result.size();
       for (T value : local_result) {
-        checksum += 1;
+        checksum += value;
       }
     }
 
-    std::cout << "checksum: " << checksum << std::endl;
+    std::cout << "checksum: " << checksum << ", count: " << count << std::endl;
 
     out << typeid(T).name() << ",bitmap," << selectivity << ',' << trial << ','
         << std::chrono::duration<float>(t1 - t0).count() << std::endl;
@@ -169,7 +178,7 @@ void selection_values(const std::vector<T> &values,
 
 template <typename T>
 void selection(const std::vector<T> &values,
-               int selectivity,
+               T selectivity,
                size_t num_trials,
                std::ofstream &out) {
   selection_hitmap<T>(values, num_trials, selectivity, compare_simd<T>, out);
@@ -209,10 +218,10 @@ int main(int argc, char **argv) {
   std::vector<int64_t> int64_values = generate_values<int64_t>(num_rows);
 
   for (int selectivity : {0, 1, 5, 10, 25, 50, 100}) {
-    selection(int8_values, selectivity, num_trials, out);
-    selection(int16_values, selectivity, num_trials, out);
-    selection(int32_values, selectivity, num_trials, out);
-    selection(int64_values, selectivity, num_trials, out);
+    selection(int8_values, (int8_t)selectivity, num_trials, out);
+    selection(int16_values, (int16_t)selectivity, num_trials, out);
+    selection(int32_values, (int32_t)selectivity, num_trials, out);
+    selection(int64_values, (int64_t)selectivity, num_trials, out);
   }
 
   return 0;
