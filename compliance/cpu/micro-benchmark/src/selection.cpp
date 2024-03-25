@@ -134,13 +134,17 @@ void selection_values(const std::vector<T> &values,
                       size_t num_trials,
                       T selectivity,
                       std::ofstream &out) {
-  for (size_t trial = 0; trial < num_trials; ++trial) {
-    auto t0 = std::chrono::steady_clock::now();
+  tbb::enumerable_thread_specific<std::vector<T>> result;
+  for (std::vector<T> &local_result : result) {
+    local_result.reserve(values.size());
+  }
 
-    tbb::enumerable_thread_specific<std::vector<T>> result;
+  for (size_t trial = 0; trial < num_trials; ++trial) {
     for (std::vector<T> &local_result : result) {
-      local_result.reserve(values.size());
+      local_result.clear();
     }
+
+    auto t0 = std::chrono::steady_clock::now();
 
     tbb::parallel_for(tbb::blocked_range<size_t>(0, values.size()),
                       [&](const tbb::blocked_range<size_t> &r) {
@@ -151,8 +155,9 @@ void selection_values(const std::vector<T> &values,
 
                         for (size_t i = r.begin(); i < r.end(); ++i) {
                           T value = values[i];
-                          local_result[j] = value;
-                          j += value < selectivity;
+                          if (value < selectivity) {
+                            local_result[j++] = value;
+                          }
                         }
 
                         local_result.resize(j);
