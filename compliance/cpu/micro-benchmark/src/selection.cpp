@@ -83,11 +83,10 @@ template <> inline uint64_t compare_simd<int64_t>(const int64_t *a, int64_t b) {
   return mask;
 }
 
-template <typename T, typename C>
+template <typename T>
 void selection_hitmap(const std::vector<T> &values,
                       size_t num_trials,
                       T selectivity,
-                      C &&compare,
                       std::ofstream &out) {
   std::vector<uint64_t> hitmap(values.size() / 64 + (values.size() % 64 != 0));
 
@@ -99,13 +98,14 @@ void selection_hitmap(const std::vector<T> &values,
     tbb::parallel_for(tbb::blocked_range<size_t>(0, values.size() / 64),
                       [&](const tbb::blocked_range<size_t> &r) {
                         for (size_t i = r.begin(); i < r.end(); ++i) {
-                          hitmap[i] = compare(&values[i * 64], (T)selectivity);
+                          const T *chunk = &values[i * 64];
+                          hitmap[i] = compare_simd(chunk, selectivity);
                         }
                       });
 
     if (values.size() % 64 != 0) {
       hitmap[values.size() / 64] = compare_scalar_tail(
-          values.size() % 64, &values[values.size() / 64 * 64], (T)selectivity);
+          values.size() % 64, &values[values.size() / 64 * 64], selectivity);
     }
 
     auto t1 = std::chrono::steady_clock::now();
@@ -146,21 +146,31 @@ void selection_values(const std::vector<T> &values,
 
     auto t0 = std::chrono::steady_clock::now();
 
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, values.size()),
+    tbb::parallel_for(tbb::blocked_range<size_t>(0, values.size() / 64),
                       [&](const tbb::blocked_range<size_t> &r) {
                         std::vector<T> &local_result = result.local();
 
                         size_t j = local_result.size();
-                        local_result.resize(j + r.size());
+                        local_result.resize(j + r.size() * 64);
 
                         for (size_t i = r.begin(); i < r.end(); ++i) {
-                          T value = values[i];
-                          local_result[j] = value;
-                          j += value < selectivity;
+                          const T *chunk = &values[i * 64];
+                          uint64_t mask = compare_simd(chunk, selectivity);
+                          while (mask != 0) {
+                            size_t k = __builtin_ctzll(mask);
+                            local_result[j++] = chunk[k];
+                            mask ^= (uint64_t)1 << k;
+                          }
                         }
 
                         local_result.resize(j);
                       });
+
+    for (size_t i = values.size() / 64 * 64; i < values.size(); ++i) {
+      if (values[i] < selectivity) {
+        result.local().push_back(values[i]);
+      }
+    }
 
     auto t1 = std::chrono::steady_clock::now();
 
@@ -185,7 +195,7 @@ void selection(const std::vector<T> &values,
                T selectivity,
                size_t num_trials,
                std::ofstream &out) {
-  selection_hitmap<T>(values, num_trials, selectivity, compare_simd<T>, out);
+  selection_hitmap(values, num_trials, selectivity, out);
   selection_values(values, num_trials, selectivity, out);
 }
 
