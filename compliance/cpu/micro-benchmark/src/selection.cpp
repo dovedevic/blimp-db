@@ -86,7 +86,7 @@ template <> inline uint64_t compare_simd<int64_t>(const int64_t *a, int64_t b) {
 template <typename T, typename C>
 void selection_hitmap(const std::vector<T> &values,
                       size_t num_trials,
-                      int selectivity,
+                      T selectivity,
                       C &&compare,
                       std::ofstream &out) {
   std::vector<uint64_t> hitmap(values.size() / 64 + (values.size() % 64 != 0));
@@ -124,8 +124,8 @@ void selection_hitmap(const std::vector<T> &values,
 
     std::cout << "checksum: " << checksum << ", count: " << count << std::endl;
 
-    out << typeid(T).name() << ",bitmap," << selectivity << ',' << trial << ','
-        << std::chrono::duration<float>(t1 - t0).count() << std::endl;
+    out << typeid(T).name() << ",bitmap," << (int)selectivity << ',' << trial
+        << ',' << std::chrono::duration<float>(t1 - t0).count() << std::endl;
   }
 }
 
@@ -171,8 +171,8 @@ void selection_values(const std::vector<T> &values,
 
     std::cout << "checksum: " << checksum << ", count: " << count << std::endl;
 
-    out << typeid(T).name() << ",bitmap," << selectivity << ',' << trial << ','
-        << std::chrono::duration<float>(t1 - t0).count() << std::endl;
+    out << typeid(T).name() << ",values," << (int)selectivity << ',' << trial
+        << ',' << std::chrono::duration<float>(t1 - t0).count() << std::endl;
   }
 }
 
